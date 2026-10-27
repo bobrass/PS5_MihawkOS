@@ -114,6 +114,19 @@ int main(void)
     assert(!strcmp(pw_window_direct_reason(PW_DIRECT_OFF), "off"));
     pw_window_direct_set_enabled(1);
     scene(); check(PW_DIRECT_YES, W, H);
+    /* A game's own Game Mode wins over the setting, either way, until its pid is said again (a new helper) */
+    pw_window_direct_set_process(700, 0);
+    scene(); assert(pw_window_direct_flip(&s, 700, GAME, 5, W, H, W, H) == PW_DIRECT_OFF);
+    pw_window_direct_set_process(700, -1);
+    scene(); check(PW_DIRECT_YES, W, H);
+    pw_window_direct_set_enabled(0);
+    pw_window_direct_set_process(700, 1);
+    scene(); check(PW_DIRECT_YES, W, H);
+    for (int32_t pid = 1000; pid < 1000 + PW_DIRECT_PROCESSES + 3; ++pid) pw_window_direct_set_process(pid, 0);
+    pw_window_direct_set_process(700, -1);   /* gone, or overwritten: the setting again either way */
+    scene(); assert(pw_window_direct_flip(&s, 700, GAME, 5, W, H, W, H) == PW_DIRECT_OFF);
+    pw_window_direct_set_enabled(1);
+    scene(); check(PW_DIRECT_YES, W, H);
     pw_window_effects_release(&effects);
     puts("direct flip: yes only where the compositor gives the frame itself; every refusal shown on the composed screen");
     return 0;

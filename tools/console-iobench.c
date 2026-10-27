@@ -517,6 +517,32 @@ static int want(const char *name)
     return 0;
 }
 
+/* Name operations, 20 of each, per call in microseconds: what a Windows program's create, rename, delete, mkdir and
+ * rmdir cost in Wine was 10-16 ms on the console against 30-70 us on the PC (tests/lock-probe.c split, 2026-10-25);
+ * this is the file system's own share. */
+static void names(const char *directory)
+{
+    double t[7] = {0}, begin;
+    char path[512], moved[512];
+    struct stat st;
+    for (int i = 0; i < 20; i++) {
+        snprintf(path, sizeof(path), "%s/iobench-name%02d.tmp", directory, i);
+        snprintf(moved, sizeof(moved), "%s/iobench-name%02d.mov", directory, i);
+        begin = now(); int fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644); t[0] += now() - begin;
+        begin = now(); if (fd >= 0) close(fd); t[1] += now() - begin;
+        begin = now(); rename(path, moved); t[2] += now() - begin;
+        begin = now(); unlink(moved); t[3] += now() - begin;
+        snprintf(path, sizeof(path), "%s/iobench-dir%02d", directory, i);
+        begin = now(); mkdir(path, 0755); t[4] += now() - begin;
+        begin = now(); rmdir(path); t[5] += now() - begin;
+        snprintf(path, sizeof(path), "%s/iobench-missing%02d", directory, i);
+        begin = now(); stat(path, &st); t[6] += now() - begin;
+    }
+    line("names %s: per call, us: create %.0f, close %.0f, rename %.0f, unlink %.0f, mkdir %.0f, rmdir %.0f, missing stat %.0f",
+         directory, t[0] / 20 * 1e6, t[1] / 20 * 1e6, t[2] / 20 * 1e6, t[3] / 20 * 1e6, t[4] / 20 * 1e6, t[5] / 20 * 1e6,
+         t[6] / 20 * 1e6);
+}
+
 int main(int argc, char **argv)
 {
     char host[64] = "";
@@ -548,6 +574,12 @@ int main(int argc, char **argv)
     if (host[0] && port) {
         receive(host, port, 65536, 4.0);
         receive(host, port, 1u << 20, 4.0);
+    }
+    if (want("names")) {
+        names(directory);
+        names("/data/ps5proton/prefixes/probe/drive_c/users/Mihawk/AppData/Local/Temp");
+        names("/data");
+        names("/user/data");
     }
     if (want("fs")) { filesystem("/data/ps5proton"); filesystem("/data"); filesystem("/user/data"); filesystem("/"); }
     if (want("flags")) {

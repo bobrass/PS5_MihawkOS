@@ -1,0 +1,296 @@
+{
+ "where": "console",
+ "kind": "inno",
+ "run": "installer-inno-2026-10-25-080336",
+ "seconds": 141.6,
+ "console_result": "finished",
+ "returned_to_launcher": true,
+ "verdict": {
+  "passed": true,
+  "summary": "inno, 25 checks, 0 failed, 12192 ms in all"
+ },
+ "checks": [
+  {
+   "step": "snapshot",
+   "verdict": "N/A",
+   "ms": 56,
+   "detail": "entries 1721"
+  },
+  {
+   "step": "install",
+   "verdict": "PASS",
+   "ms": 2739,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\pwapp32.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 2,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\pwapp64.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 3,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\pwapp.dat"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 4,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\unins000.exe"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 6,
+   "detail": "HKLM (64-bit view) Software\\PwFixture\\Inno"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 7,
+   "detail": "HKLM (64-bit view) Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PwFixtureInno_is1"
+  },
+  {
+   "step": "install-shortcut",
+   "verdict": "PASS",
+   "ms": 8,
+   "detail": "present: %ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "install-shortcut",
+   "verdict": "PASS",
+   "ms": 9,
+   "detail": "present: %PUBLIC%\\Desktop\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 528,
+   "detail": "exit code 77 \"%ProgramFiles%\\PwFixture Inno\\pwapp32.exe"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 454,
+   "detail": "exit code 77 \"%ProgramFiles%\\PwFixture Inno\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall",
+   "verdict": "PASS",
+   "ms": 2597,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 3,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\pwapp.dat"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 4,
+   "detail": "present: %ProgramFiles%\\PwFixture Inno\\unins000.exe"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 5,
+   "detail": "HKLM (64-bit view) Software\\PwFixture\\Inno"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 6,
+   "detail": "HKLM (64-bit view) Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PwFixtureInno_is1"
+  },
+  {
+   "step": "reinstall-shortcut",
+   "verdict": "PASS",
+   "ms": 7,
+   "detail": "present: %ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "reinstall-shortcut",
+   "verdict": "PASS",
+   "ms": 8,
+   "detail": "present: %PUBLIC%\\Desktop\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 511,
+   "detail": "exit code 77 \"%ProgramFiles%\\PwFixture Inno\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 453,
+   "detail": "exit code 77 \"%ProgramFiles%\\PwFixture Inno\\pwapp64.exe"
+  },
+  {
+   "step": "uninstall",
+   "verdict": "PASS",
+   "ms": 1881,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "uninstall-removed",
+   "verdict": "PASS",
+   "ms": 751,
+   "detail": "folder gone: %ProgramFiles%\\PwFixture Inno"
+  },
+  {
+   "step": "clean",
+   "verdict": "PASS",
+   "ms": 2188,
+   "detail": "added or changed 0, removed 0 (of the snapshot's entries)"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\pwapp32.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 2,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\pwapp64.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 3,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\pwapp.dat"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 4,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\unins000.exe"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 6,
+   "detail": "HKLM (64-bit view) Software\\\\PwFixture\\\\Inno"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 7,
+   "detail": "HKLM (64-bit view) Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\PwFixtureInno_is1"
+  },
+  {
+   "step": "install-shortcut",
+   "verdict": "PASS",
+   "ms": 8,
+   "detail": "present: %ProgramData%\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "install-shortcut",
+   "verdict": "PASS",
+   "ms": 9,
+   "detail": "present: %PUBLIC%\\\\Desktop\\\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 528,
+   "detail": "exit code 77 \\\"%ProgramFiles%\\\\PwFixture Inno\\\\pwapp32.exe\\\""
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 454,
+   "detail": "exit code 77 \\\"%ProgramFiles%\\\\PwFixture Inno\\\\pwapp64.exe\\\""
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 3,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\pwapp.dat"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 4,
+   "detail": "present: %ProgramFiles%\\\\PwFixture Inno\\\\unins000.exe"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 5,
+   "detail": "HKLM (64-bit view) Software\\\\PwFixture\\\\Inno"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 6,
+   "detail": "HKLM (64-bit view) Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\PwFixtureInno_is1"
+  },
+  {
+   "step": "reinstall-shortcut",
+   "verdict": "PASS",
+   "ms": 7,
+   "detail": "present: %ProgramData%\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "reinstall-shortcut",
+   "verdict": "PASS",
+   "ms": 8,
+   "detail": "present: %PUBLIC%\\\\Desktop\\\\PwFixture Inno.lnk"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 511,
+   "detail": "exit code 77 \\\"%ProgramFiles%\\\\PwFixture Inno\\\\pwapp32.exe\\\""
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 453,
+   "detail": "exit code 77 \\\"%ProgramFiles%\\\\PwFixture Inno\\\\pwapp64.exe\\\""
+  },
+  {
+   "step": "uninstall-removed",
+   "verdict": "PASS",
+   "ms": 751,
+   "detail": "folder gone: %ProgramFiles%\\\\PwFixture Inno"
+  }
+ ]
+}

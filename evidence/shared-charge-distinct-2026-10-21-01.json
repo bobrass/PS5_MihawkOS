@@ -1,0 +1,650 @@
+{
+ "run": "shared-charge-distinct-2026-10-21-01",
+ "mode": "distinct",
+ "object_mib": 64,
+ "maps": 24,
+ "hold_s": 30,
+ "swap_stop_mib": 8.0,
+ "others_stop_mib": 32.0,
+ "firmware": "1340",
+ "title": "launcher screen, no Wine session",
+ "title_seconds": 1060,
+ "readiness": {
+  "ready": true,
+  "seconds": 0.314,
+  "settle_seconds": 0.0,
+  "census_seconds": 0.237,
+  "previous_cleanup_verified": false
+ },
+ "elf_sha256": "1e4ce265354cd096b53789a8e9661ea1f2f673eec3b8e580a9beb8b1f5cbc21d",
+ "probe_start": "start mode=distinct object_mib=64 maps=24 hold_s=30 firmware=0x13400002 pid=142",
+ "baseline_vm": {
+  "t": 1792589889.7,
+  "step": "before",
+  "rss_mib": 1221.0,
+  "rss_limit_mib": 0.0,
+  "kernel_mib": 333.4,
+  "wire_mib": 397.3,
+  "swap_out_mib": 0.0,
+  "page_table_cpu": 4552,
+  "others_mib": 1221.1,
+  "shellui_mib": 626.1,
+  "probe_mib": null,
+  "fmem_lines": 34
+ },
+ "final_vm": {
+  "t": 1792590955.6,
+  "step": "released",
+  "rss_mib": 1166.4,
+  "rss_limit_mib": 0.0,
+  "kernel_mib": 312.5,
+  "wire_mib": 376.0,
+  "swap_out_mib": 0.0,
+  "page_table_cpu": 4541,
+  "others_mib": 1166.2,
+  "shellui_mib": 619.7,
+  "probe_mib": null,
+  "fmem_lines": 34
+ },
+ "swap_out_growth_mib": 0.0,
+ "vm_stats": [
+  {
+   "t": 1792589889.7,
+   "step": "before",
+   "rss_mib": 1221.0,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 333.4,
+   "wire_mib": 397.3,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4552,
+   "others_mib": 1221.1,
+   "shellui_mib": 626.1,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792589891.8,
+   "step": "before",
+   "rss_mib": 1228.2,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.1,
+   "wire_mib": 477.2,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4577,
+   "others_mib": 1228.3,
+   "shellui_mib": 626.6,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792589893.9,
+   "step": 0,
+   "rss_mib": 1233.0,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.1,
+   "wire_mib": 476.7,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4586,
+   "others_mib": 1233.1,
+   "shellui_mib": 626.6,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792589927.8,
+   "step": 1,
+   "rss_mib": 1297.0,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.3,
+   "wire_mib": 476.8,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4618,
+   "others_mib": 1297.1,
+   "shellui_mib": 626.6,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792589961.6,
+   "step": 2,
+   "rss_mib": 1356.2,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 322.8,
+   "wire_mib": 464.4,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4650,
+   "others_mib": 1356.4,
+   "shellui_mib": 621.8,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792589995.5,
+   "step": 3,
+   "rss_mib": 1419.7,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 320.8,
+   "wire_mib": 462.6,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4682,
+   "others_mib": 1420.0,
+   "shellui_mib": 621.5,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590031.5,
+   "step": 4,
+   "rss_mib": 1482.5,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 321.0,
+   "wire_mib": 462.4,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4714,
+   "others_mib": 1482.7,
+   "shellui_mib": 621.6,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590065.4,
+   "step": 5,
+   "rss_mib": 1546.5,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 320.9,
+   "wire_mib": 462.4,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4746,
+   "others_mib": 1546.6,
+   "shellui_mib": 621.5,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590099.4,
+   "step": 6,
+   "rss_mib": 1610.2,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 320.0,
+   "wire_mib": 461.6,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4778,
+   "others_mib": 1610.3,
+   "shellui_mib": 621.2,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590133.4,
+   "step": 7,
+   "rss_mib": 1673.8,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 320.6,
+   "wire_mib": 462.1,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4810,
+   "others_mib": 1674.1,
+   "shellui_mib": 620.9,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590167.4,
+   "step": 8,
+   "rss_mib": 1737.8,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 320.6,
+   "wire_mib": 462.0,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4842,
+   "others_mib": 1738.0,
+   "shellui_mib": 620.9,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590201.5,
+   "step": 8,
+   "rss_mib": 1737.8,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 321.7,
+   "wire_mib": 463.1,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4874,
+   "others_mib": 1738.0,
+   "shellui_mib": 620.9,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792590203.6,
+   "step": 9,
+   "rss_mib": 1801.8,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 320.5,
+   "wire_mib": 461.9,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4874,
+   "others_mib": 1802.0,
+   "shellui_mib": 620.9,
+   "probe_mib": null,
+   "fmem_lines": 35
+  },
+  {
+   "t": 1792590237.7,
+   "step": "released",
+   "rss_mib": 1172.2,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 321.5,
+   "wire_mib": 463.1,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4576,
+   "others_mib": 1172.1,
+   "shellui_mib": 619.0,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792590953.1,
+   "step": "released",
+   "rss_mib": 1166.0,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 322.5,
+   "wire_mib": 386.2,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4533,
+   "others_mib": 1165.9,
+   "shellui_mib": 619.4,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792590955.6,
+   "step": "released",
+   "rss_mib": 1166.4,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 312.5,
+   "wire_mib": 376.0,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4541,
+   "others_mib": 1166.2,
+   "shellui_mib": 619.7,
+   "probe_mib": null,
+   "fmem_lines": 34
+  }
+ ],
+ "steps": {
+  "0": {
+   "baseline": {
+    "phase": "baseline",
+    "mappings": 0,
+    "resident_kib": 4176,
+    "swap_reserved_kib": 25872960,
+    "others_kib": 1318720,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792589892.9
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 0,
+    "resident_kib": 4176,
+    "swap_reserved_kib": 25873536,
+    "others_kib": 1318752,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792589926.3
+   }
+  },
+  "1": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 1,
+    "resident_kib": 69712,
+    "swap_reserved_kib": 25939088,
+    "others_kib": 1318768,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792589926.9
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 1,
+    "resident_kib": 69712,
+    "swap_reserved_kib": 25940096,
+    "others_kib": 1318736,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792589960.3
+   }
+  },
+  "2": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 2,
+    "resident_kib": 135248,
+    "swap_reserved_kib": 26005648,
+    "others_kib": 1313840,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792589961.2
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 2,
+    "resident_kib": 135248,
+    "swap_reserved_kib": 26006576,
+    "others_kib": 1313920,
+    "others_min_kib": 1313840,
+    "processes": 86,
+    "t": 1792589994.7
+   }
+  },
+  "3": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 3,
+    "resident_kib": 200784,
+    "swap_reserved_kib": 26072064,
+    "others_kib": 1313296,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792589995.4
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 3,
+    "resident_kib": 200784,
+    "swap_reserved_kib": 26071616,
+    "others_kib": 1313472,
+    "others_min_kib": 1313296,
+    "processes": 86,
+    "t": 1792590029.0
+   }
+  },
+  "4": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 4,
+    "resident_kib": 266320,
+    "swap_reserved_kib": 26137168,
+    "others_kib": 1312064,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590029.6
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 4,
+    "resident_kib": 266320,
+    "swap_reserved_kib": 26138336,
+    "others_kib": 1312096,
+    "others_min_kib": 1312064,
+    "processes": 86,
+    "t": 1792590063.3
+   }
+  },
+  "5": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 5,
+    "resident_kib": 331856,
+    "swap_reserved_kib": 26203888,
+    "others_kib": 1312032,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590063.7
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 5,
+    "resident_kib": 331856,
+    "swap_reserved_kib": 26203920,
+    "others_kib": 1312048,
+    "others_min_kib": 1312032,
+    "processes": 86,
+    "t": 1792590097.4
+   }
+  },
+  "6": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 6,
+    "resident_kib": 397392,
+    "swap_reserved_kib": 26269472,
+    "others_kib": 1311728,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590098.0
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 6,
+    "resident_kib": 397392,
+    "swap_reserved_kib": 26270880,
+    "others_kib": 1311760,
+    "others_min_kib": 1311728,
+    "processes": 86,
+    "t": 1792590131.8
+   }
+  },
+  "7": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 7,
+    "resident_kib": 462928,
+    "swap_reserved_kib": 26336432,
+    "others_kib": 1311408,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590132.2
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 7,
+    "resident_kib": 462928,
+    "swap_reserved_kib": 26336432,
+    "others_kib": 1311440,
+    "others_min_kib": 1311408,
+    "processes": 86,
+    "t": 1792590166.0
+   }
+  },
+  "8": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 8,
+    "resident_kib": 528464,
+    "swap_reserved_kib": 26401920,
+    "others_kib": 1311376,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590166.4
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 8,
+    "resident_kib": 528464,
+    "swap_reserved_kib": 26401392,
+    "others_kib": 1311392,
+    "others_min_kib": 1311376,
+    "processes": 86,
+    "t": 1792590200.2
+   }
+  },
+  "9": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 9,
+    "resident_kib": 594000,
+    "swap_reserved_kib": 26467472,
+    "others_kib": 1311344,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590201.6
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 9,
+    "resident_kib": 594000,
+    "swap_reserved_kib": 26472992,
+    "others_kib": 1311056,
+    "others_min_kib": 1311008,
+    "processes": 86,
+    "t": 1792590235.6
+   }
+  },
+  "10": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 10,
+    "resident_kib": 659536,
+    "swap_reserved_kib": 26540144,
+    "others_kib": 1261376,
+    "others_min_kib": 1318720,
+    "processes": 86,
+    "t": 1792590236.8
+   }
+  },
+  "released": {
+   "phase": "released",
+   "mappings": 0,
+   "resident_kib": 4176,
+   "swap_reserved_kib": 25884784,
+   "others_kib": 1261376,
+   "others_min_kib": 1261376,
+   "processes": 86,
+   "t": 1792590237.3
+  }
+ },
+ "probe": [
+  {
+   "t": 1792589892.6,
+   "line": "start mode=distinct object_mib=64 maps=24 hold_s=30 firmware=0x13400002 pid=142"
+  },
+  {
+   "t": 1792589892.9,
+   "line": "step=0 phase=baseline mappings=0 resident_kib=4176 mapped_kib=17472 status=0 swap_reserved_kib=25872960 sysctl_errno=0 others_kib=1318720 others_min_kib=1318720 processes=86 census_status=0 movers=0::+0,0::+0,0::+0"
+  },
+  {
+   "t": 1792589926.3,
+   "line": "step=0 phase=held mappings=0 resident_kib=4176 mapped_kib=17472 status=0 swap_reserved_kib=25873536 sysctl_errno=0 others_kib=1318752 others_min_kib=1318720 processes=86 census_status=0 movers=70:SceJSCd:+32,0::+0,0::+0"
+  },
+  {
+   "t": 1792589926.9,
+   "line": "step=1 phase=mapped mappings=1 resident_kib=69712 mapped_kib=83008 status=0 swap_reserved_kib=25939088 sysctl_errno=0 others_kib=1318768 others_min_kib=1318720 processes=86 census_status=0 movers=70:SceJSCd:+32,102:ftpsrv.elf:+16,0::+0"
+  },
+  {
+   "t": 1792589960.3,
+   "line": "step=1 phase=held mappings=1 resident_kib=69712 mapped_kib=83008 status=0 swap_reserved_kib=25940096 sysctl_errno=0 others_kib=1318736 others_min_kib=1318720 processes=86 census_status=0 movers=102:ftpsrv.elf:+16,0::+0,0::+0"
+  },
+  {
+   "t": 1792589961.2,
+   "line": "step=2 phase=mapped mappings=2 resident_kib=135248 mapped_kib=148544 status=0 swap_reserved_kib=26005648 sysctl_errno=0 others_kib=1313840 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-4912,102:ftpsrv.elf:+32,0::+0"
+  },
+  {
+   "t": 1792589994.7,
+   "line": "step=2 phase=held mappings=2 resident_kib=135248 mapped_kib=148544 status=0 swap_reserved_kib=26006576 sysctl_errno=0 others_kib=1313920 others_min_kib=1313840 processes=86 census_status=0 movers=58:SceShellUI:-4880,70:SceJSCd:+48,102:ftpsrv.elf:+32"
+  },
+  {
+   "t": 1792589995.4,
+   "line": "step=3 phase=mapped mappings=3 resident_kib=200784 mapped_kib=214080 status=0 swap_reserved_kib=26072064 sysctl_errno=0 others_kib=1313296 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5248,57:SceShellCore:-192,70:SceJSCd:+48"
+  },
+  {
+   "t": 1792590029.0,
+   "line": "step=3 phase=held mappings=3 resident_kib=200784 mapped_kib=214080 status=0 swap_reserved_kib=26071616 sysctl_errno=0 others_kib=1313472 others_min_kib=1313296 processes=86 census_status=0 movers=58:SceShellUI:-5024,57:SceShellCore:-192,102:ftpsrv.elf:-32"
+  },
+  {
+   "t": 1792590029.6,
+   "line": "step=4 phase=mapped mappings=4 resident_kib=266320 mapped_kib=279616 status=0 swap_reserved_kib=26137168 sysctl_errno=0 others_kib=1312064 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5120,57:SceShellCore:-1520,102:ftpsrv.elf:-16"
+  },
+  {
+   "t": 1792590063.3,
+   "line": "step=4 phase=held mappings=4 resident_kib=266320 mapped_kib=279616 status=0 swap_reserved_kib=26138336 sysctl_errno=0 others_kib=1312096 others_min_kib=1312064 processes=86 census_status=0 movers=58:SceShellUI:-5088,57:SceShellCore:-1520,102:ftpsrv.elf:-16"
+  },
+  {
+   "t": 1792590063.7,
+   "line": "step=5 phase=mapped mappings=5 resident_kib=331856 mapped_kib=345152 status=0 swap_reserved_kib=26203888 sysctl_errno=0 others_kib=1312032 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5168,57:SceShellCore:-1520,0::+0"
+  },
+  {
+   "t": 1792590097.4,
+   "line": "step=5 phase=held mappings=5 resident_kib=331856 mapped_kib=345152 status=0 swap_reserved_kib=26203920 sysctl_errno=0 others_kib=1312048 others_min_kib=1312032 processes=86 census_status=0 movers=58:SceShellUI:-5152,57:SceShellCore:-1520,0::+0"
+  },
+  {
+   "t": 1792590098.0,
+   "line": "step=6 phase=mapped mappings=6 resident_kib=397392 mapped_kib=410688 status=0 swap_reserved_kib=26269472 sysctl_errno=0 others_kib=1311728 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5488,57:SceShellCore:-1520,102:ftpsrv.elf:+16"
+  },
+  {
+   "t": 1792590131.8,
+   "line": "step=6 phase=held mappings=6 resident_kib=397392 mapped_kib=410688 status=0 swap_reserved_kib=26270880 sysctl_errno=0 others_kib=1311760 others_min_kib=1311728 processes=86 census_status=0 movers=58:SceShellUI:-5456,57:SceShellCore:-1520,102:ftpsrv.elf:+16"
+  },
+  {
+   "t": 1792590132.2,
+   "line": "step=7 phase=mapped mappings=7 resident_kib=462928 mapped_kib=476224 status=0 swap_reserved_kib=26336432 sysctl_errno=0 others_kib=1311408 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5824,57:SceShellCore:-1520,102:ftpsrv.elf:+32"
+  },
+  {
+   "t": 1792590166.0,
+   "line": "step=7 phase=held mappings=7 resident_kib=462928 mapped_kib=476224 status=0 swap_reserved_kib=26336432 sysctl_errno=0 others_kib=1311440 others_min_kib=1311408 processes=86 census_status=0 movers=58:SceShellUI:-5792,57:SceShellCore:-1520,102:ftpsrv.elf:+32"
+  },
+  {
+   "t": 1792590166.4,
+   "line": "step=8 phase=mapped mappings=8 resident_kib=528464 mapped_kib=541760 status=0 swap_reserved_kib=26401920 sysctl_errno=0 others_kib=1311376 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5792,57:SceShellCore:-1520,102:ftpsrv.elf:-32"
+  },
+  {
+   "t": 1792590200.2,
+   "line": "step=8 phase=held mappings=8 resident_kib=528464 mapped_kib=541760 status=0 swap_reserved_kib=26401392 sysctl_errno=0 others_kib=1311392 others_min_kib=1311376 processes=86 census_status=0 movers=58:SceShellUI:-5776,57:SceShellCore:-1520,102:ftpsrv.elf:-32"
+  },
+  {
+   "t": 1792590201.6,
+   "line": "step=9 phase=mapped mappings=9 resident_kib=594000 mapped_kib=607296 status=0 swap_reserved_kib=26467472 sysctl_errno=0 others_kib=1311344 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5840,57:SceShellCore:-1520,102:ftpsrv.elf:-16"
+  },
+  {
+   "t": 1792590235.6,
+   "line": "step=9 phase=held mappings=9 resident_kib=594000 mapped_kib=607296 status=0 swap_reserved_kib=26472992 sysctl_errno=0 others_kib=1311056 others_min_kib=1311008 processes=86 census_status=0 movers=58:SceShellUI:-5808,57:SceShellCore:-1520,70:SceJSCd:-320"
+  },
+  {
+   "t": 1792590236.8,
+   "line": "step=10 phase=mapped mappings=10 resident_kib=659536 mapped_kib=672832 status=0 swap_reserved_kib=26540144 sysctl_errno=0 others_kib=1261376 others_min_kib=1318720 processes=86 census_status=0 movers=94:SceNKUIProcess:-21552,95:SceNKNetworkProcess:-20896,58:SceShellUI:-7712"
+  },
+  {
+   "t": 1792590237.1,
+   "line": "others step=10 others_kib=1261376 base_kib=1318720 processes=86"
+  },
+  {
+   "t": 1792590237.2,
+   "line": "release mappings=10 objects=10 stopped=1 why=others checksum=0"
+  },
+  {
+   "t": 1792590237.3,
+   "line": "step=0 phase=released mappings=0 resident_kib=4176 mapped_kib=17472 status=0 swap_reserved_kib=25884784 sysctl_errno=0 others_kib=1261376 others_min_kib=1261376 processes=86 census_status=0 movers=94:SceNKUIProcess:-21552,95:SceNKNetworkProcess:-20896,58:SceShellUI:-7712"
+  },
+  {
+   "t": 1792590237.3,
+   "line": "DONE mappings=10 stopped=1 why=others sdk_writes=0"
+  }
+ ],
+ "granted_to": 10,
+ "grant_errors": [],
+ "stop_reason": "other processes lost 56.0 MiB at step 10",
+ "stop_written_s": 345.1,
+ "stop_errors": [],
+ "probe_done": "DONE mappings=10 stopped=1 why=others sdk_writes=0",
+ "sdk_writes": 0,
+ "title_ended": true,
+ "storage_damage": 0,
+ "payload_output": "start mode=distinct object_mib=64 maps=24 hold_s=30 firmware=0x13400002 pid=142\nstep=0 phase=baseline mappings=0 resident_kib=4176 mapped_kib=17472 status=0 swap_reserved_kib=25872960 sysctl_errno=0 others_kib=1318720 others_min_kib=1318720 processes=86 census_status=0 movers=0::+0,0::+0,0::+0\nstep=0 phase=held mappings=0 resident_kib=4176 mapped_kib=17472 status=0 swap_reserved_kib=25873536 sysctl_errno=0 others_kib=1318752 others_min_kib=1318720 processes=86 census_status=0 movers=70:SceJSCd:+32,0::+0,0::+0\nstep=1 phase=mapped mappings=1 resident_kib=69712 mapped_kib=83008 status=0 swap_reserved_kib=25939088 sysctl_errno=0 others_kib=1318768 others_min_kib=1318720 processes=86 census_status=0 movers=70:SceJSCd:+32,102:ftpsrv.elf:+16,0::+0\nstep=1 phase=held mappings=1 resident_kib=69712 mapped_kib=83008 status=0 swap_reserved_kib=25940096 sysctl_errno=0 others_kib=1318736 others_min_kib=1318720 processes=86 census_status=0 movers=102:ftpsrv.elf:+16,0::+0,0::+0\nstep=2 phase=mapped mappings=2 resident_kib=135248 mapped_kib=148544 status=0 swap_reserved_kib=26005648 sysctl_errno=0 others_kib=1313840 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-4912,102:ftpsrv.elf:+32,0::+0\nstep=2 phase=held mappings=2 resident_kib=135248 mapped_kib=148544 status=0 swap_reserved_kib=26006576 sysctl_errno=0 others_kib=1313920 others_min_kib=1313840 processes=86 census_status=0 movers=58:SceShellUI:-4880,70:SceJSCd:+48,102:ftpsrv.elf:+32\nstep=3 phase=mapped mappings=3 resident_kib=200784 mapped_kib=214080 status=0 swap_reserved_kib=26072064 sysctl_errno=0 others_kib=1313296 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5248,57:SceShellCore:-192,70:SceJSCd:+48\nstep=3 phase=held mappings=3 resident_kib=200784 mapped_kib=214080 status=0 swap_reserved_kib=26071616 sysctl_errno=0 others_kib=1313472 others_min_kib=1313296 processes=86 census_status=0 movers=58:SceShellUI:-5024,57:SceShellCore:-192,102:ftpsrv.elf:-32\nstep=4 phase=mapped mappings=4 resident_kib=266320 mapped_kib=279616 status=0 swap_reserved_kib=26137168 sysctl_errno=0 others_kib=1312064 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5120,57:SceShellCore:-1520,102:ftpsrv.elf:-16\nstep=4 phase=held mappings=4 resident_kib=266320 mapped_kib=279616 status=0 swap_reserved_kib=26138336 sysctl_errno=0 others_kib=1312096 others_min_kib=1312064 processes=86 census_status=0 movers=58:SceShellUI:-5088,57:SceShellCore:-1520,102:ftpsrv.elf:-16\nstep=5 phase=mapped mappings=5 resident_kib=331856 mapped_kib=345152 status=0 swap_reserved_kib=26203888 sysctl_errno=0 others_kib=1312032 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5168,57:SceShellCore:-1520,0::+0\nstep=5 phase=held mappings=5 resident_kib=331856 mapped_kib=345152 status=0 swap_reserved_kib=26203920 sysctl_errno=0 others_kib=1312048 others_min_kib=1312032 processes=86 census_status=0 movers=58:SceShellUI:-5152,57:SceShellCore:-1520,0::+0\nstep=6 phase=mapped mappings=6 resident_kib=397392 mapped_kib=410688 status=0 swap_reserved_kib=26269472 sysctl_errno=0 others_kib=1311728 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5488,57:SceShellCore:-1520,102:ftpsrv.elf:+16\nstep=6 phase=held mappings=6 resident_kib=397392 mapped_kib=410688 status=0 swap_reserved_kib=26270880 sysctl_errno=0 others_kib=1311760 others_min_kib=1311728 processes=86 census_status=0 movers=58:SceShellUI:-5456,57:SceShellCore:-1520,102:ftpsrv.elf:+16\nstep=7 phase=mapped mappings=7 resident_kib=462928 mapped_kib=476224 status=0 swap_reserved_kib=26336432 sysctl_errno=0 others_kib=1311408 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5824,57:SceShellCore:-1520,102:ftpsrv.elf:+32\nstep=7 phase=held mappings=7 resident_kib=462928 mapped_kib=476224 status=0 swap_reserved_kib=26336432 sysctl_errno=0 others_kib=1311440 others_min_kib=1311408 processes=86 census_status=0 movers=58:SceShellUI:-5792,57:SceShellCore:-1520,102:ftpsrv.elf:+32\nstep=8 phase=mapped mappings=8 resident_kib=528464 mapped_kib=541760 status=0 swap_reserved_kib=26401920 sysctl_errno=0 others_kib=1311376 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5792,57:SceShellCore:-1520,102:ftpsrv.elf:-32\nstep=8 phase=held mappings=8 resident_kib=528464 mapped_kib=541760 status=0 swap_reserved_kib=26401392 sysctl_errno=0 others_kib=1311392 others_min_kib=1311376 processes=86 census_status=0 movers=58:SceShellUI:-5776,57:SceShellCore:-1520,102:ftpsrv.elf:-32\nstep=9 phase=mapped mappings=9 resident_kib=594000 mapped_kib=607296 status=0 swap_reserved_kib=26467472 sysctl_errno=0 others_kib=1311344 others_min_kib=1318720 processes=86 census_status=0 movers=58:SceShellUI:-5840,57:SceShellCore:-1520,102:ftpsrv.elf:-16\nstep=9 phase=held mappings=9 resident_kib=594000 mapped_kib=607296 status=0 swap_reserved_kib=26472992 sysctl_errno=0 others_kib=1311056 others_min_kib=1311008 processes=86 census_status=0 movers=58:SceShellUI:-5808,57:SceShellCore:-1520,70:SceJSCd:-320\nstep=10 phase=mapped mappings=10 resident_kib=659536 mapped_kib=672832 status=0 swap_reserved_kib=26540144 sysctl_errno=0 others_kib=1261376 others_min_kib=1318720 processes=86 census_status=0 movers=94:SceNKUIProcess:-21552,95:SceNKNetworkProcess:-20896,58:SceShellUI:-7712\nothers step=10 others_kib=1261376 base_kib=1318720 processes=86\nrelease mappings=10 objects=10 stopped=1 why=others checksum=0\nstep=0 phase=released mappings=0 resident_kib=4176 mapped_kib=17472 status=0 swap_reserved_kib=25884784 sysctl_errno=0 others_kib=1261376 others_min_kib=1261376 processes=86 census_status=0 movers=94:SceNKUIProcess:-21552,95:SceNKNetworkProcess:-20896,58:SceShellUI:-7712\nDONE mappings=10 stopped=1 why=others sdk_writes=0\n",
+ "kernel_acted": "other processes lost 56.0 MiB at step 10",
+ "acted_at_step": 10,
+ "completed_ramp": false,
+ "passed": true
+}

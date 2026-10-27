@@ -371,6 +371,8 @@ def end_write(settings=None):
         reply = ps5_console.ps5vkctl_command(settings or ps5_console.load_settings(), 'sync', timeout=60)
     except (SystemExit, OSError) as error:
         reply = 'err ' + redact(error)
+    if reply.startswith('err usage: sync'):   # PS5_Vulkan's own ps5vkctl reads the word as a title id (2026-10-27)
+        reply += '; this ps5vkctl has no sync: tools/console-setup.py loads the pinned one that has it'
     state = load()
     state['last_write'] = time.time()
     state['sync'] = reply[:80]

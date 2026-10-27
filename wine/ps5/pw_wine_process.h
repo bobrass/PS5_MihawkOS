@@ -8,8 +8,9 @@
  * bootstrap (native/proton_wine_child.c) instead of misreading a message. 0x50573511: the round that bounded the
  * memory helper, set helper scheduling and moved execute to JIT memory (the loader needs ntdll's
  * __wine_ps5_set_payload_thread_start, no longer makes PRX text executable, and reads 7 values from
- * __wine_ps5_exec_stats). */
-#define PW_CHILD_PROTOCOL 0x50573511u
+ * __wine_ps5_exec_stats). 0x50573512: shared code copies (PW_CHILD_CODE_ASK, PW_CHILD_CODE_OFFER answered,
+ * PW_CHILD_CODE_MAPPED), which an older title would read as a malformed message and close the helper over. */
+#define PW_CHILD_PROTOCOL 0x50573512u
 /* PW_CHILD_INPUT: after the bootstrap, the child makes its input page and sends it to the title in a
  * PW_CHILD_INPUT_PAGE message (pw_wine_sink.h). PW_CHILD_AUDIO: then its audio ring, in a PW_CHILD_AUDIO_RING message
  * (src/pw_audio_ring.h). Both are the child's, so nothing the title made outlives it (src/pw_shared_page.h). */
@@ -45,7 +46,8 @@ struct pw_child_message { uint32_t protocol, kind; int32_t pid, value; int64_t t
  * the title has it. */
 enum { PW_CHILD_READY = 1, PW_CHILD_SIGNAL, PW_CHILD_EXIT, PW_CHILD_SPAWN, PW_CHILD_SPAWN_REPLY, PW_CHILD_INPUT_PAGE,
        PW_CHILD_FRAME, PW_CHILD_RESOLVE, PW_CHILD_AUDIO_RING, PW_CHILD_MEMORY_SERVICE, PW_CHILD_DNS_CONFIG, PW_CHILD_WINDOW,
-       PW_CHILD_DSECTION, PW_CHILD_DOOMED };
+       PW_CHILD_DSECTION, PW_CHILD_DOOMED, PW_CHILD_CODE_ASK, PW_CHILD_CODE_OFFER, PW_CHILD_CODE_MAPPED,
+       PW_CHILD_CODE_ASK_FILE, PW_CHILD_CODE_OFFER_FILE };
 /* PW_CHILD_DOOMED: a helper tells the title it stamped a doom reason (value; only PW_CHILD_DOOM_GPU is sent): one
  * non-blocking send, no answer. A title from before it ignores the kind. */
 /* PW_CHILD_DSECTION: a helper asks the title for the direct memory behind a page of a large anonymous section
@@ -53,6 +55,18 @@ enum { PW_CHILD_READY = 1, PW_CHILD_SIGNAL, PW_CHILD_EXIT, PW_CHILD_SPAWN, PW_CH
  * the helper's own channel, never through a server request the faulting thread may be in the middle of. */
 struct pw_child_dsection { struct pw_child_message message; uint64_t dev, ino, offset; };
 struct pw_child_dsection_answer { int32_t status; int32_t pad; int64_t dmem; uint64_t chunk_offset, chunk_bytes; };
+/* PW_CHILD_CODE_ASK: a helper asks the title's registry of shared code copies (wine/ps5/pw_wine_codeshare.h) for the
+ * JIT object of a cluster by its size and content hash, with a socket for the answer, which carries the object's
+ * descriptor when status is 0. PW_CHILD_CODE_OFFER: a helper gives the registry the object it made for such a cluster,
+ * with its descriptor and a socket for the answer: 0 kept, EEXIST or ENOSPC not (the copy stays the helper's own).
+ * Both come from the execute fault handler, so over the helper's own channel, as PW_CHILD_DSECTION. The title's
+ * WINE_PS5_CODE_SHARE=0 answers every ask and offer ENOSYS: helpers then copy their code privately, as before.
+ * PW_CHILD_CODE_MAPPED: the KiB of registry objects the helper maps now (value), sent from its telemetry when it
+ * changes; no answer. The title's census counts each object once from these (pw_ps5_code_share_duplicate_bytes). */
+struct pw_child_code { struct pw_child_message message; uint64_t hash, bytes; };
+/* A file cluster's object: the file identity (dev, inode) and the raw offset instead of the content hash. */
+struct pw_child_code_file { struct pw_child_message message; uint64_t file[3]; uint64_t bytes; };
+struct pw_child_code_answer { int32_t status; int32_t pad; };
 struct pw_child_spawn { struct pw_child_message message; struct pw_child_bootstrap bootstrap; };
 struct pw_child_resolve { struct pw_child_message message; char name[256]; };
 struct pw_child_resolved { int32_t status; unsigned char address[4]; };
@@ -64,13 +78,18 @@ int pw_ps5_spawn(int server_fd, const char *runtime, const char *prefix, const c
 void pw_ps5_set_application_lookup(int (*lookup)(const char *image, const char *command_line, char *block,
                                                  size_t capacity, uint32_t *bytes));
 void pw_ps5_set_graphics_start(int (*start)(int,const struct pw_child_bootstrap *));
+/* The title's start of the one program it runs itself beside the GPU broker (docs/TITLE_CLIENT.md): a process whose
+ * image WINE_PS5_TITLE_PROCESS names is sent there instead of to a helper, until one runs (EBUSY: a helper). */
+void pw_ps5_set_title_client_start(int (*start)(int,const struct pw_child_bootstrap *));
 /* The title: 1 when the image a new process runs (its Windows path) is a fixed-base 32-bit one (src/pw_pe_arch.h).
  * Called on the spawning threads for every helper but the memory helper, so it must only read. */
 void pw_ps5_set_fixed_base_lookup(int (*lookup)(const char *image));
 /* The title: what it says on screen about helpers (native/proton_wine.cpp's notices): a helper that could not start
- * (PW_CHILD_NOTICE_SPAWN, value its errno) and one that gave the GPU broker up (PW_CHILD_NOTICE_GPU). Called on the
- * spawning and monitoring threads, some holding locks: it must only record. */
-enum { PW_CHILD_NOTICE_SPAWN = 1, PW_CHILD_NOTICE_GPU };
+ * (PW_CHILD_NOTICE_SPAWN, value its errno) and one that gave the GPU broker up (PW_CHILD_NOTICE_GPU). For every helper
+ * started, before it runs, its own Game Mode (PW_CHILD_NOTICE_GAME_MODE, value 1 on, 0 off, -1 none): the
+ * WINE_PS5_GAME_MODE of its library entry's settings, else of the settings it inherited (src/pw_window_direct.h).
+ * Called on the spawning and monitoring threads, some holding locks: it must only record. */
+enum { PW_CHILD_NOTICE_SPAWN = 1, PW_CHILD_NOTICE_GPU, PW_CHILD_NOTICE_GAME_MODE };
 void pw_ps5_set_child_notice(void (*notice)(int kind, int pid, int value));
 void pw_ps5_set_gpu_broker(int (*open)(int *,int),void (*close)(int,int));
 /* The title: who takes a helper's frame page (attach owns the descriptor) and hears that the helper is gone. */
@@ -136,6 +155,14 @@ void pw_ps5_dsection_release(uint64_t dev, uint64_t ino);
  * section, map the file). Safe in a fault handler: system calls only, on a socket of its own. */
 int pw_ps5_dsection_page(uint64_t dev, uint64_t ino, uint64_t offset, int64_t *dmem, uint64_t *chunk_offset,
                          uint64_t *chunk_bytes);
+/* A helper: the registry's object of a code cluster of bytes whose content hashes to hash, asked from the execute fault
+ * handler (pw_wine_dmem_ps5.c): 0 with *fd (the caller's to close), or -1 with errno (ENOENT: none; ENOSYS: the title
+ * keeps none; ETIMEDOUT: no answer in 1 s). pw_ps5_code_offer gives the title the object fd of such a cluster (fd stays
+ * the caller's): 0 sent, or -1 with errno. Safe in a fault handler: system calls only, on sockets of their own. */
+int pw_ps5_code_ask(uint64_t hash, uint64_t bytes, int *fd);
+int pw_ps5_code_ask_file(const uint64_t file[3], uint64_t bytes, int *fd);
+int pw_ps5_code_offer_file(const uint64_t file[3], uint64_t bytes, int fd);
+int pw_ps5_code_offer(uint64_t hash, uint64_t bytes, int fd);
 /* Its tag on the virtual mutex's record (pw_wine_perf_vlock_doing) while it waits up to 10 s for the title, mutex held:
  * a bounded wait the stall watch leaves out (src/pw_control_watch.h pw_control_stalled). */
 #define PW_CHILD_PAGER_ASK "pager-ask"

@@ -10,7 +10,7 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 work=$root/.deps/mesa-foundation-wgl-i686
 mesa_fork=$(cd -- "$root/../PS5_Mesa" && pwd)
 mingw_archive=$(realpath "$root/.deps/llvm-mingw.tar.xz")
-revision=b3588f78dd7fd46fbadc7ecd487e5f14d4213e4b
+revision=a8800d9130583fbd4a436c4c64ab9e33b98edf10
 archive_sha256=bb7bb7654b33d5aa8712acb837c963b2e0c56352560c76105270a3268c665c21
 printf '%s  %s\n' "$archive_sha256" "$mingw_archive" | sha256sum --check --status
 mkdir -p "$work"

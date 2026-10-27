@@ -1,0 +1,65 @@
+{
+ "case": "detailed-logs",
+ "session": [
+  "--profile",
+  "mihawk-os",
+  "--seconds",
+  "30"
+ ],
+ "legs": {
+  "on": {
+   "run": "merge-bp-gate-base-2026-10-27-01-detailed-logs-on",
+   "runner_status": 0,
+   "session_passed": true,
+   "seconds": 55.8,
+   "returned_to_launcher": true,
+   "log_bytes": {
+    "title_last": 14420,
+    "wine_last": 54,
+    "helpers": 371486,
+    "helper_files": 8
+   },
+   "pacing": [],
+   "title_said": [
+    "Logging: on; folder /data/ps5proton/logs/detailed/2026-10-27_20-14-08 status=0 removed=0 title-early=0",
+    "Logging: the kernel log comes from klogsrv on the loopback",
+    "Logging: the last session's folder /data/ps5proton/logs/detailed/2026-10-27_20-14-08: 30 files copied, 0 left out (status 0)"
+   ],
+   "folders_made": [
+    "2026-10-27_20-14-08"
+   ],
+   "folder": "2026-10-27_20-14-08",
+   "files": {
+    "README.txt": 1351,
+    "title-early.log": 540,
+    "klog.txt": 55992,
+    "wine-last.log": 54,
+    "title-last.log": 14420,
+    "lapy-service.log": 373945,
+    "wine-stdout.txt": 0,
+    "wine-child-1729.log": 1434,
+    "wine-child-1730.log": 111585,
+    "flight-recorder.log": 18212,
+    "wine-child-1731.log": 64460,
+    "wine-child-1732.log": 46926,
+    "wine-child-1733.log": 35794,
+    "wine-child-1734.log": 65951,
+    "wine-child-1735.log": 27124,
+    "setup.txt": 22
+   },
+   "other_files": 17,
+   "other_bytes": 107476,
+   "total_bytes": 925286,
+   "missing": [],
+   "wine_children": 7,
+   "unmasked_files": [],
+   "console_address_found": false,
+   "readme_says_mask": true,
+   "folder_passed": true,
+   "passed": true
+  }
+ },
+ "passed": true,
+ "result": "finished",
+ "returned_to_launcher": true
+}

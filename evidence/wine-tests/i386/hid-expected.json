@@ -1,0 +1,15 @@
+{
+ "context": {
+  "arch": "i386",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "0583c341116b0a6269f0a4610495ce0b50d8fa6e1cbb39688656ec1aff6d5edc",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [
+  "device: device.c:375: Wait for object failed (OPEN: a helper reading the console's DualSense HID device gets no input report in 5 s)"
+ ],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {},
+ "unfinished_ok": {}
+}

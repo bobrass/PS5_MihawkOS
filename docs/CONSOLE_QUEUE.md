@@ -1,5 +1,126 @@
 # Console validation queue
 
+## Loader everywhere: helpers load Wine's modules themselves on every firmware (2026-10-27, branch loader-everywhere, the Pro)
+
+Staged, not committed (the hook needs a gate on exactly this tree): `pw_prx_elf_wanted` makes the user-space module
+loader every helper's default; `WINE_PS5_PRX_LOADER=0` keeps the kernel's for an A/B. Why: docs/PLAN.md, section of
+2026-10-27. Host tests pass. On the Pro (10.01), which used the kernel's loader until now; usual gate setup (pad awake,
+DNS, `PROTON_TLS_TRUSTED_PORT=1749`, `PROTON_TLS_UNTRUSTED_PORT=1750`). Build `bash tools/build-production.sh` and
+deploy title and runtime together (the payload loader changed; ntdll did not).
+
+1. **The gate:** `python3 tools/gate.py run --name loader-gate-2026-10-27-01`. Pass = every case. Check in a few helper
+   logs: `wine-child: module loader=user-space (default)`, then `elf load ... base=` and `ntdll loaded`. Its
+   `late-library` case must still reserve at least 900 GiB (the probe's floor for 10.01; alpha-2 fell to 31 GiB with
+   this loader until patch 1231) — read the reserved total in its record, not only the pass.
+2. **Steam, plain:** `python3 tools/run-console.py --profile steam --seconds 90 --name loader-steam-2026-10-27-01`, with
+   no extra `--env` (none of `mt3-2026-10-24-01`'s malloc trace, VMMAP, census or early lines). Pass = Steam still
+   running past 30 s and no helper crash. A crash: keep its klog and helper logs, and repeat once with
+   `--env WINE_PS5_PRX_LOADER=0` to show whether the loader is the cause.
+3. **Memory A/B, the same launch twice:** step 2's run is A; B is the same command with
+   `--env WINE_PS5_PRX_LOADER=0 --name loader-steam-kernel-2026-10-27-01`, same boot, nothing between. Compare, per
+   helper and in total: the `wine-child: vm resident= direct_resident= flexible=` lines (the record's `vm_last` and
+   peak), and the run's system flexible memory peak against the Pro's 870 MiB limit. Module text is JIT memory in A
+   (counted as flexible), the kernel's own pages in B. Decides the open risk: a rise that brings Steam near 870 MiB
+   means the Pro needs the text shared or budgeted before this ships; a few MiB per helper is the cost of not
+   depending on the jailbreak tools.
+
+Commit after 1 passes (2 and 3 are evidence for the commit body): subject "Load Wine's modules in every helper with
+the user-space loader, on every firmware"; the drafted message is in the shared notes folder
+(`loader-everywhere-commit-message.txt`).
+
+## Conformance: two gated commits waiting for a fresh boot (2026-10-27, branch hypervisor, the Pro)
+
+The Pro's pipe memory ran out at 01:14:59 during `gate-method-2026-10-27-01` (8 of 102 passed, the rest failed after
+it), after five gates and the Direct3D reruns on the same boot. Console work stopped for the night; nothing is
+committed from it. After a restart (kstuff + elfldr), on `hypervisor` at c4a3458 plus the uncommitted tree:
+
+The commit hook ties one gate to one commit's tree, so the work is stacked into two commits, lowest risk first;
+each can also be split into its own commits with a gate each.
+
+1. **Gate A: the test method, the CJK fonts and FreeType's paths, as the tree is now** (host tests 168 passed;
+   staged without msyhbd.ttf; rebuild before deploying, the tree changed after build 2f46576c198e14db):
+   - tools/run-wine-tests.py D3D_DLLS and console_fonts, tests/test_dll_overrides.py, tests/wine-tests-serial-ps5.json
+     (reg.exe, regedit.exe);
+   - tools/stage-wine.py LEFT_OUT_FONTS and Fonts/.pw-retired, wine/ps5/pw_wine_prefix.c's retire step with
+     tests/test_pw_wine_prefix.c, tools/deploy-wine.py's removal of runtime files no longer shipped
+     (tests/test_deploy_wine_retire.py). What each may delete, and nothing else:
+     - **deploy-wine.py** removes a console file only when the previous deploy's manifest
+       (`/data/ps5proton/runtime/ge11-7/deploy-manifest.json`, written by deploy-wine itself) lists it and this build
+       does not, and its path is plain and inside `/data/ps5proton/runtime/ge11-7/`, the runtime directory the build
+       owns (runtime_files_gone: no prefix, drive_c, save, game folder or other /data path; no absolute, empty, `.`,
+       `..` or backslash segment; not the manifest itself). Expected on the first deploy:
+       `share/wine/fonts/msyhbd.ttf` and `lib/wine/prefix/drive_c/windows/Fonts/msyhbd.ttf`, both under that runtime.
+     - **pw_wine_prefix.c** removes, at a prefix's update, only the exact names a staged folder's `.pw-retired` lists
+       (today: `msyhbd.ttf` in `drive_c/windows/Fonts`), from that same folder of the prefix, and only a regular file:
+       no pattern, no `/`, `\`, `.` or `..`, no directory or link. Nothing in drive_c's other folders, users or saves.
+   - tools/build-wine-ps5.sh: win32u linked with ntdll's path wraps (it, not FreeType, opens font files), so
+     AddFontResourceEx opens a font a program wrote on a drive letter (check `... gdi32 --files font --force --sentinels 0 --name a-font`: font.c:2118, 6300 and
+     7080 pass);
+   - docs/CONFORMANCE.md.
+   `bash tools/build-production.sh`, deploy (expect "removed 1 runtime files this build no longer ships: msyhbd.ttf"),
+   then before the gate: `python3 tools/run-wine-session.py user32 comctl32 --files edit --force --sentinels 0 --name
+   a-edit` (expect no "Tahoma for charset 136 isn't available" skip in either build) and a look at a Chinese text
+   screen, since YaHei's regular face changes from Source Han Sans Bold to msyh.ttf (Droid Sans Fallback): text that
+   drew bold draws regular. Then `python3 tools/gate.py run --name gate-a-2026-10-27-01`, commit.
+2. **Gate B: Wine 2100 and 2101** (bcrypt: a block cipher without an IV starts from zeros; dbghelp: a live process
+   without a Unix loader address is still live). Both patches are in the shared notes folder and this session's
+   pending folder; copy them into wine/patches, build, deploy, then
+   `python3 tools/run-wine-session.py bcrypt --files bcrypt --force --sentinels 0 --name b-bcrypt` (complete in both
+   builds, where it ended with a SIGFPE in nettle's cbc_decrypt or hung) and `... dbghelp --files minidump ... --name
+   b-minidump` (no "Couldn't write minidump content" at minidump.c:91), `gate.py run --name gate-b-2026-10-27-01`,
+   commit.
+2b. **Gate C: Windows Zink at PS5_Mesa e7c317df9c11** (zink: present nothing when flush_frontbuffer has no context;
+   one commit on PS5_Mesa main 1ba9874, branch zink-present-without-context, pushed by the Design branch). Copy
+   `0033-windows-zink-presents-nothing-when-swapbuffers-has-no-context.patch` into platform/graphics/patches and
+   `build-mesa-windows-zink-i686.sh` over tools/ (both from this session's pending folder: the revision
+   b3588f78 -> e7c317df9c11 in the foundation's script, its manifest line, and the i686 script), build (the
+   foundation and both Windows Zink builds are redone), deploy, then `python3 tools/run-wine-session.py opengl32
+   --force --sentinels 0 --name c-opengl` (expect test_window_dc passed in both builds, where SwapBuffers with no
+   context crashed; the PC shows the next stop in test_make_current_read), gate, commit. Proven on the PC: with
+   b3588f78 the test stops after opengl.c:2716 in both builds, with e7c317d both run on to test_make_current_read.
+   The Windows Zink build compiles none of the files b3588f78..1ba9874 changed (radv, ac_gpu_info, wsi videoout).
+3. Evidence only, after the gates (they start helpers by the thousand, the last ones before pipe memory runs out):
+   `python3 tools/run-wine-session.py opengl32 vulkan-1 winscard wpcap --force --sentinels 0 --name clean-crash` and
+   `... dbghelp --files minidump --force --sentinels 0 --name clean-minidump` (their records are from +seh runs),
+   then `... reg.exe regedit.exe --force --sentinels 0 --name serial-reg` (now alone); requalify those modules.
+   **Done 2026-10-27 on the Pro** after integration-1027 (opengl32 was already rerun clean as zink-proof):
+   minidump, reg.exe and regedit.exe match the PC in both builds; vulkan-1, winscard and wpcap end as before
+   (docs/CONFORMANCE.md). Pipe memory ran out during serial-reg, which ended that boot's console work.
+3b. Diagnosis, next boot: `python3 tools/run-wine-session.py vulkan-1 --force --sentinels 0 --name vulkan-trace
+   --env WINEDEBUG=err+all,+vulkan`: which check of the helper's VideoOut WSI refuses the swapchain of an
+   ordinary window (the extent against the mode's, or a 119.88 Hz mode not offered; docs/CONFORMANCE.md, Vulkan).
+   **Done 2026-10-27** (vulkan-trace-111334): neither; the broker WSI refused the IMMEDIATE present mode. Fixed by
+   graphics patch 0035 (vulkan-present-mode: both builds complete).
+4. Diagnosis: `python3 tools/run-wine-session.py gdi32 --files font --arch x86_64 --jobs 1 --force --sentinels 0
+   --name font-trace --env WINEDEBUG=err+all,+font`: why AddFontResourceEx fails for wine_vdmx, wine_longname and
+   wine_ttfnames on the console only.
+5. Measure one helper start (msi install, x86_64, alone, helper logs kept): the time from the parent's
+   `Wine: process msiexec.exe` line to the helper's first Windows instruction and to its end, for msi's 96 starts.
+
+## Steam games' start and a game from the owner's library (2026-10-25, branch hypervisor, the Pro): steps 1-2 done after the restart
+
+Steps 1 and 2 are done: `gate-load-2026-10-25-02` passed 98 of 98 on the same build, and the work is committed. Step 3
+is under way (`tools/steam-install-app.py`).
+
+
+The console hung during `gate-load-2026-10-25-01` (64 of 98 cases had passed): at case 65 (`initial-env64`) the Shell UI
+froze for 60 s and was force-aborted (`SYSTEM_SOFTWARE_TIMEOUT_ASYNC` in SceShellUI) before the title printed anything,
+and the control payload's `kill PPSA99170` stayed busy for more than 13 minutes. Nothing more can run until it is
+restarted (then kstuff + elfldr, see the per-boot setup). The work under test is uncommitted on `hypervisor`: patches
+2076-2082, `-noverifyfiles` on the Big Picture entry, `tools/start-timeline.py`, `tests/file-cost-probe.c` (docs/PLAN.md,
+"Steam games start").
+
+1. **The gate on exactly this build**: `bash tools/build-production.sh` (with `PS5_PAYLOAD_SDK_FORK`), deploy title and
+   runtime, `python3 tools/gate.py run --name gate-load-2026-10-25-02` (TLS ports 1749/1750, the DualSense awake).
+   A repeat of the Shell UI freeze at a launch is the first thing to look at: its klog's first lines, and whether a
+   launch without these patches (the `bdf8a09b` build minus 2076-2082) freezes the same way.
+2. **Commit** the load-time work once the gate passes (one commit; the body has the numbers in PLAN.md).
+3. **A game from the owner's library** (app 1809700, the owner's library): an `appmanifest_1809700.acf` in Steam's own library with
+   StateFlags 1026 makes the signed-in client download it; keep a headless client running until the manifest says
+   StateFlags 4; then a catalog entry like 250900's (`steam.exe -silent -noverifyfiles -no-browser steam://run/1809700`,
+   the same rules), 120 Hz (`PROTON_120HZ=1` and the game's own 120 fps setting), highest settings, and a pad-script run
+   to gameplay with the flight log's frames and the start timeline.
+
 Reviewed 2026-10-07. The former recovery/input/audio queue is complete enough to
 be superseded by [NEXT_CONSOLE_SESSION.md](NEXT_CONSOLE_SESSION.md), which is now
 the operational sequence. Do not replay the old queue as if its fixes were pending.

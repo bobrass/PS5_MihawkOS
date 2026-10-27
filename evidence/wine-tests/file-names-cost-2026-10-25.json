@@ -1,0 +1,85 @@
+{
+ "date": "2026-10-25",
+ "console": "PS5 Pro (fw 10.01)",
+ "question": "Why a new file, directory or transacted storage costs a Windows program 10-76 ms on the console (ole32 storage32 past its budget)",
+ "windows_program_per_call_us": {
+  "tool": "tests/lock-probe.c split, in the persistent session (build B2)",
+  "console_x86_64": {
+   "create": 10881,
+   "close": 177,
+   "rename": 7071,
+   "delete": 1860,
+   "mkdir": 15923,
+   "rmdir": 10730,
+   "missing_lookup": 450
+  },
+  "console_i386": {
+   "create": 10092,
+   "close": 57,
+   "rename": 1319,
+   "delete": 1428,
+   "mkdir": 14212,
+   "rmdir": 5637,
+   "missing_lookup": 221
+  },
+  "pc_x86_64": {
+   "create": 41,
+   "close": 8,
+   "rename": 71,
+   "delete": 30,
+   "mkdir": 49,
+   "rmdir": 39,
+   "missing_lookup": 21
+  },
+  "pc_i386": {
+   "create": 39,
+   "close": 7,
+   "rename": 70,
+   "delete": 32,
+   "mkdir": 49,
+   "rmdir": 38,
+   "missing_lookup": 21
+  }
+ },
+ "native_per_call_us": {
+  "tool": "tools/console-iobench.py --only names (a payload, no title running)",
+  "/data/ps5proton": {
+   "create": 19630,
+   "close": 11,
+   "rename": 607,
+   "unlink": 1124,
+   "mkdir": 22717,
+   "rmdir": 4331,
+   "missing_stat": 39
+  },
+  "prefix Temp": {
+   "create": 19754,
+   "close": 10,
+   "rename": 672,
+   "unlink": 1172,
+   "mkdir": 23364,
+   "rmdir": 4351,
+   "missing_stat": 94
+  },
+  "/data": {
+   "create": 19908,
+   "close": 16,
+   "rename": 626,
+   "unlink": 1206,
+   "mkdir": 23114,
+   "rmdir": 4580,
+   "missing_stat": 39
+  },
+  "/user/data": {
+   "create": 19052,
+   "close": 10,
+   "rename": 599,
+   "unlink": 1201,
+   "mkdir": 22819,
+   "rmdir": 4447,
+   "missing_stat": 38
+  }
+ },
+ "locks": "byte-range locks taken, refused, freed with their handle and shared as on the PC (both builds)",
+ "verdict": "platform limit: the console file system itself takes ~20 ms to create a file and ~23 ms to make a directory; Wine adds no cost to it (its create is cheaper than a native O_EXCL create). ole32 transacted storage makes a scratch file per open, so storage32 needs a longer budget, not a fix."
+}

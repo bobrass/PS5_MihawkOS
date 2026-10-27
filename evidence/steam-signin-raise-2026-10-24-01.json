@@ -1,0 +1,60 @@
+{
+  "raise": "980:1010",
+  "brake": null,
+  "kernel_series_rss_swap_pt": [
+    [
+      143.3,
+      64.1,
+      2318
+    ],
+    [
+      149.8,
+      64.1,
+      2340
+    ],
+    [
+      143.5,
+      64.1,
+      2302
+    ]
+  ],
+  "real_signin": true,
+  "signin_saved_at_s": null,
+  "logon_line_at_s": null,
+  "census_peak_mib": null,
+  "census_series_mib": [],
+  "leg": "signin",
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.14,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.129,
+    "previous_cleanup_verified": false
+  },
+  "identity_seen": true,
+  "steps": {
+    "pressed": true,
+    "signin_queued": false,
+    "restart_to_client": false,
+    "back_to_launcher": false,
+    "signin_saved": false
+  },
+  "installed_after": true,
+  "downloads_folder": [
+    "SteamSetup.exe"
+  ],
+  "pictures": [],
+  "press_flag_left": false,
+  "shell_idle_after_run": true,
+  "seconds": 66.5,
+  "lines": [
+    "[MihawkOS] launcher: 15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "[MihawkOS] launcher: games cannot start: The Wine runtime in /data/ps5proton/runtime/ge11-7 is not the one this MihawkOS build was made with. Install the runtime of this build, then reopen MihawkOS.",
+    "[MihawkOS] launcher: The last session (The Binding of Isaac: Rebirth) did not end normally: it crashed, froze or lost power. Its log: /data/ps5proton/logs/title-last.log",
+    "[MihawkOS] launcher: the client-press flag pressed CROSS on the option",
+    "[MihawkOS] ends: status 0"
+  ],
+  "storage_errors": 0,
+  "capture": "klog/steam-signin-raise-2026-10-24-01",
+  "passed": false
+}

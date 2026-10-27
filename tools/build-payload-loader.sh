@@ -35,6 +35,7 @@ sources=(
     "$root/src/pw_cpu_placement.c"
     "$root/src/pw_prx_elf.c"
     "$root/native/pw_prx_elf_ps5.c"
+    "$root/native/pw_malloc_trace_ps5.c"
     "$root/src/pw_firmware.c"
     "$root/native/pw_firmware_ps5.c"
 )

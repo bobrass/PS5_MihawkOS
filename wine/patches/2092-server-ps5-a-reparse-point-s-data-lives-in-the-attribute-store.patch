@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 08:00:00 -0400
+Subject: [PATCH] server: PS5: a reparse point's data lives in the attribute store.
+
+Wine keeps a reparse point (a junction, a symbolic link made by CreateSymbolicLink) as the file renamed to "name?"
+with its data in user.WINEREPARSE, which the server sets (set_reparse_point) and ntdll reads. The console's file
+system has no extended attributes, so FSCTL_SET_REPARSE_POINT failed with STATUS_UNSUCCESSFUL: ntdll file
+test_reparse_points, kernel32 file test_symbolic_link and ntdll directory test_info_classes, 321 test lines in both
+architectures (2026-10-26). The server's xattr_fset, xattr_fget and xattr_fremove now use the store patch 2090 gave
+ntdll (config_dir/.pw-xattr, by device and inode; the rename keeps the inode), and ntdll reads the reparse data from it
+too, which patch 2090 had left out.
+---
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index f844a84..275d7d7 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -428,10 +428,6 @@ NTSTATUS errno_to_status( int err )
+  * of the prefix, by the file's device and inode (pw_wine_xattr.h). */
+ static BOOL ps5_xattr_ready( const char *name )
+ {
+-    /* A reparse point is a symbolic link with its data beside it, and a title cannot make a link: keeping the data
+-     * alone made half a reparse point that resolved to garbage (kernel32 file.c:6773, ntdll file.c:6405), so it
+-     * stays unsupported, as the file system says. */
+-    if (!strcmp( name, XATTR_REPARSE )) return FALSE;
+     static int state;   /* 0 not tried, 1 ready, -1 refused; a race only makes the idempotent init run twice */
+     if (!state)
+     {
+diff --git a/server/fd.c b/server/fd.c
+index 76843a8..20d5991 100644
+--- a/server/fd.c
++++ b/server/fd.c
+@@ -2660,8 +2660,32 @@ static void unmount_device( struct fd *device_fd )
+ 
+ #define XATTR_REPARSE XATTR_USER_PREFIX "WINEREPARSE"
+ 
++#ifdef __PROSPERO__
++#include "pw_wine_xattr.h"
++/* The console's file system keeps no extended attributes: a reparse point's data is kept in the store of the prefix
++ * where ntdll keeps DOS attributes (patch 2090), by the file's device and inode, which the rename to "name?" keeps. */
++static int ps5_xattr_key( int filedes, struct stat *st )
++{
++    static int state;   /* 0 not tried, 1 ready, -1 refused */
++    if (!state)
++    {
++        const char *prefix = getenv( "WINEPREFIX" );
++        char path[1024];
++        state = prefix && snprintf( path, sizeof(path), "%s/.pw-xattr", prefix ) < (int)sizeof(path) &&
++                !pw_wine_xattr_init( path ) ? 1 : -1;
++    }
++    if (state < 0) { errno = ENOTSUP; return -1; }
++    return fstat( filedes, st );
++}
++#endif
++
+ static int xattr_fset( int filedes, const char *name, const void *value, size_t size )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (ps5_xattr_key( filedes, &st )) return -1;
++    return pw_wine_xattr_set( st.st_dev, st.st_ino, name, value, size );
++#endif
+ #ifdef HAVE_SYS_XATTR_H
+ # ifdef XATTR_ADDITIONAL_OPTIONS
+     return fsetxattr( filedes, name, value, size, 0, 0 );
+@@ -2679,6 +2703,11 @@ static int xattr_fset( int filedes, const char *name, const void *value, size_t
+ 
+ static int xattr_fget( int filedes, const char *name, void *value, size_t size )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (ps5_xattr_key( filedes, &st )) return -1;
++    return pw_wine_xattr_get( st.st_dev, st.st_ino, name, value, size );
++#endif
+ #ifdef HAVE_SYS_XATTR_H
+ # ifdef XATTR_ADDITIONAL_OPTIONS
+     return fgetxattr( filedes, name, value, size, 0, 0 );
+@@ -2696,6 +2725,11 @@ static int xattr_fget( int filedes, const char *name, void *value, size_t size )
+ 
+ static int xattr_fremove( int filedes, const char *name )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (ps5_xattr_key( filedes, &st )) return -1;
++    return pw_wine_xattr_remove( st.st_dev, st.st_ino, name );
++#endif
+ #ifdef HAVE_SYS_XATTR_H
+ # ifdef XATTR_ADDITIONAL_OPTIONS
+     return fremovexattr( filedes, name, 0 );

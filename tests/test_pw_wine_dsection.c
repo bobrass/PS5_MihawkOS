@@ -149,7 +149,7 @@ int main(void)
     alarm(60);   /* a request that blocks for good fails the test instead of hanging it */
     assert(!pipe(block_pipe));
     pw_wine_dsection_init(&ops);
-    assert(pw_wine_dsection_register(-1, 1, 10, 64u << 20) == -1 && errno == EINVAL);   /* small sections keep their file */
+    assert(pw_wine_dsection_register(-1, 1, 10, 4u << 20) == -1 && errno == EINVAL);    /* small sections keep their file */
     assert(!pw_wine_dsection_register(-1, 1, 11, size));
     assert(pw_wine_dsection_register(-1, 1, 11, size) == -1 && errno == EEXIST);       /* once */
     assert(pw_wine_dsection_known(1, 11) && !pw_wine_dsection_known(1, 12));

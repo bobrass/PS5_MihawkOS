@@ -2,6 +2,10 @@
 #ifndef PW_WINE_SECTION_PS5_H
 #define PW_WINE_SECTION_PS5_H
 #include "pw_wine_section.h"
+/* The smallest section whose view the pager takes: in a helper, the title's direct-memory threshold
+ * (wine/ps5/pw_wine_dsection.h); in the title, which asks no one for direct chunks, 256 MiB as before
+ * (fmem-intitle-p3-2026-10-26-01: a 14 MiB view there faulted c0000017). */
+uint64_t __wine_ps5_section_min_bytes(void);
 /* Called under Wine's virtual mutex. Only payload clients reserve the internal
  * arena; it stays outside Wine's generic free reservations so Windows scanners
  * see the occupied native range. Existing Windows views remain authoritative.

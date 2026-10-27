@@ -418,7 +418,7 @@ static void truth_round(volatile unsigned char *base, const unsigned *pages, uns
     }
     truth_verdict("truth: memory after the stores");
 }
-/* V2 and, in 64-bit code, V1 and V3. */
+/* V2 and V7 and, in 64-bit code, V1 and V3. */
 static void truth_cases(volatile unsigned char *base)
 {
     static const unsigned first[] = { 0, 2, 3, 5, 6, 9, 12, 15 }, second[] = { 1, 4, 7, 8, 10, 13 };
@@ -465,6 +465,26 @@ static void truth_cases(volatile unsigned char *base)
     }
     truth_verdict("straddle: memory after the stores");
 #endif
+    /* V7 cost: a writable page whose host page holds only no-access pages beside it is mapped writable, so its stores are
+     * plain memory. Patch 2075; before it each store faulted and ran as one stepped instruction, and Mono, whose hazard
+     * table sits on such a host page, took 40 s to start a .NET game (2026-10-24). Read-only and guard pages
+     * beside a writable one still make it fault (V2). 200,000 stores take well under a millisecond as memory, and seconds
+     * when each is stepped; the bound is 100 ms. */
+    start("V7 cost: stores into a writable page beside only no-access pages are not stepped one by one");
+    {
+        LARGE_INTEGER frequency, begin, end;
+        volatile ULONG *words = (volatile ULONG *)base;
+        unsigned n;
+        truth_base = NULL;
+        if (!VirtualProtect((void *)base, 16384, PAGE_NOACCESS, &old) || !VirtualProtect((void *)base, 4096, PAGE_READWRITE, &old))
+            fail("cost: protection");
+        QueryPerformanceFrequency(&frequency);
+        QueryPerformanceCounter(&begin);
+        for (n = 0; n < 200000; n++) words[n & 1023] = n;
+        QueryPerformanceCounter(&end);
+        if ((end.QuadPart - begin.QuadPart) * 1000 > frequency.QuadPart * 100)
+            fail("cost: 200,000 stores beside no-access pages took over 100 ms: each was stepped");
+    }
     truth_base = NULL;
     if (!VirtualProtect((void *)base, 65536, PAGE_READWRITE, &old)) fail("truth: reset");
 }
@@ -897,10 +917,12 @@ void mainCRTStartup(void)
         say("PS5_PROTON_VM_PROTECT_TRUTH PASS: V1 #UD and #DE after stores into a writable page beside read-only ones "
             "reached the handler with their registers and ymm0-15; V2 every store into a read-only 4 KiB page faulted at "
             "the store before it landed, once a page, never in an unwritten page, and none beside a no-access page; V3 "
-            "30 stores across a writable and a read-only page faulted at the read-only page's first byte\n");
+            "30 stores across a writable and a read-only page faulted at the read-only page's first byte; V7 200,000 stores beside only "
+            "no-access pages took under 100 ms\n");
 #else
         say("PS5_PROTON_VM_PROTECT_TRUTH PASS: V2 every store into a read-only 4 KiB page faulted at the store before it "
-            "landed, once a page, never in an unwritten page, and none beside a no-access page (32-bit: no V1, V3)\n");
+            "landed, once a page, never in an unwritten page, and none beside a no-access page; V7 200,000 stores beside only no-access "
+            "pages took under 100 ms (32-bit: no V1, V3)\n");
 #endif
         ExitProcess(0);
     }

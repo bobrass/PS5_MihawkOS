@@ -36,6 +36,13 @@ WINE_ADDONS = (
 HID32_DRIVERS = ('hidclass.sys', 'hidparse.sys', 'mouhid.sys', 'winebus.sys', 'winehid.sys', 'winexinput.sys')
 
 GE_NAME = 'GE-Proton11-7-x86_64'
+# Proton's fonts the prefix does not take. msyhbd.ttf (Source Han Sans Bold) names itself "Microsoft YaHei", style
+# Regular, weight 700, version 2.005, so Wine keeps it as YaHei's regular face in place of msyh.ttf (0.2): every YaHei
+# text drew bold, and the only font declaring Big5 was gone, so a Traditional Chinese request (charset 136) fell back
+# to Arial with charset 0 (user32 and comctl32 edit, 2026-10-27; the PC's Wine with the console's fonts and no
+# system fonts does the same, and without msyhbd.ttf every charset 136 request gets Microsoft Yahei). Wine
+# synthesizes YaHei's bold from msyh.ttf.
+LEFT_OUT_FONTS = {'msyhbd.ttf'}
 GE_SHA256 = 'c5448b76a230384e2d7bc6beb5ccb97bafb7e2c3b6c527cb03a1a546bbcb00a0'
 GE_URL = 'https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton11-7/' + GE_NAME + '.tar.gz'
 
@@ -117,6 +124,8 @@ def stage_prefix_baseline(runtime, prefix):
                 if member.name.startswith(base):
                     name = member.name[len(base):]
                     if '/' not in name and name.lower().endswith(('.ttf', '.ttc', '.otf', '.fon')):
+                        if name.lower() in LEFT_OUT_FONTS:
+                            continue
                         if folder == 'share/wine/fonts/':
                             wine_fonts.add(name)
                         elif name in wine_fonts:
@@ -126,6 +135,8 @@ def stage_prefix_baseline(runtime, prefix):
                 dest.write_bytes(package.extractfile(member).read())
     if wanted:
         raise SystemExit('Pinned GE package lacks baseline files: ' + ', '.join(wanted))
+    # Existing prefixes still hold what earlier runtimes put there: wine/ps5/pw_wine_prefix.c removes these names.
+    (fonts / '.pw-retired').write_text(''.join(name + '\n' for name in sorted(LEFT_OUT_FONTS)))
     # The source-built external-rendering fix is shared by every program.
     for arch, target in (('x86_64-windows', 'system32'), ('i386-windows', 'syswow64')):
         for module in patched_dxvk_modules(arch):
@@ -182,7 +193,8 @@ def stage_prefix_baseline(runtime, prefix):
         shutil.copy2(ui / 'windows11.msstyles', destination / 'light.msstyles')
     # Font paths registered by Wine must resolve in both locations.
     for font in fonts.iterdir():
-        shutil.copy2(font, runtime / 'share/wine/fonts' / font.name)
+        if not font.name.startswith('.'):
+            shutil.copy2(font, runtime / 'share/wine/fonts' / font.name)
     for directory in sorted(bundle.rglob('*')) + [bundle]:
         if not directory.is_dir():
             continue
@@ -302,8 +314,9 @@ def main():
     if not client_manifest.get('wsi') or hashlib.sha256(image).hexdigest() != client_manifest['sha256']:
         raise SystemExit('The GPU broker client (.deps/gpu-wsi-client) differs from its manifest')
     (unix / 'libvulkan-helper.prx').write_bytes(image)
-    # The unsigned module ELFs, beside the fake-signed SELFs: the payload helper's user-space loader (13.59, where
-    # the kernel refuses a fake-signed SELF in a payload, errno 92) maps these instead of calling the kernel.
+    # The unsigned module ELFs, beside the fake-signed SELFs: every payload helper's user-space loader maps these
+    # instead of asking the kernel (src/pw_prx_elf.h: the kernel refused a fake-signed SELF in a helper, errno 92,
+    # on 11.00 to 13.59). The SELFs stay for the title and for WINE_PS5_PRX_LOADER=0.
     for source in sorted((DEPS / 'wine-ps5/prx').glob('*.elf')):
         if source.name.endswith('.shared.elf'):
             continue
@@ -351,6 +364,15 @@ def main():
         for patched in (DEPS / 'wine-ps5/pe/i386-windows').iterdir():
             shutil.copy2(patched, runtime / 'lib/wine/i386-windows' / patched.name)
             shutil.copy2(patched, syswow64_target(patched))
+    # And every module of the template's syswow64 (wbem and the rest), as for system32 above: its wbem\wmiutils.dll
+    # stayed an older i386 build of the runtime's size, which wineboot replaced on the console and the deploy, judging
+    # by the last manifest and the size, never put back (the Pro, 2026-10-27).
+    if (runtime / 'lib/wine/i386-windows').is_dir():
+        modules32 = {module.name.lower(): module for module in (runtime / 'lib/wine/i386-windows').iterdir()
+                     if module.suffix != '.a'}
+        for path in (prefix / 'drive_c/windows/syswow64').rglob('*'):
+            if path.is_file() and path.name.lower() in modules32:
+                shutil.copy2(modules32[path.name.lower()], path)
     # The i386 HID drivers a 32-bit game loads into its own process, with a version stamp: the title syncs them into
     # each prefix's syswow64\drivers (native/proton_wine.cpp), where wineboot installs none (a run of 2026-10-07).
     if (runtime / 'lib/wine/i386-windows').is_dir():
@@ -428,7 +450,7 @@ def main():
         (prefix / 'drive_c' / path).mkdir(parents=True, exist_ok=True)
     for name in ('wine-probe.exe', 'xinput-probe.exe', 'hid-probe.exe', 'sync-probe.exe', 'shell-open-probe.exe', 'exit-probe.exe', 'priority-probe.exe',
                  'hang-probe.exe', 'window-probe.exe', 'fs-probe.exe', 'stack-probe.exe', 'gl-exit-probe.exe', 'gl-present-probe.exe', 'gl-sprite-probe.exe', 'vm-protect-probe.exe', 'vm-protect32-probe.exe', 'remote-memory-probe.exe', 'mem-probe.exe', 'gl-vertex-probe.exe', 'stdout-probe.exe', 'nt-file-probe.exe', 'thread-leak-probe.exe', 'd3d11-probe.exe', 'gpu-host-memory-probe.exe', 'section-memory-probe.exe',
-                 'process-probe.exe', 'graphics-render-probe.exe', 'memory-class-probe.exe', 'desktop-probe.exe', 'desktop-overlap-probe.exe', 'mouse-controls32-probe.exe', 'virtual-query32-probe.exe', 'virtual-query64-probe.exe', 'registry-flush64-probe.exe', 'file-write32-probe.exe', 'file-write64-probe.exe', 'net-throughput32-probe.exe', 'net-throughput64-probe.exe', 'system-memory32-probe.exe', 'system-memory64-probe.exe', 'image-protect32-probe.exe', 'image-protect64-probe.exe', 'kill-convert-probe.exe', 'guest-address-space-probe.exe', 'section-view-probe.exe', 'late-library-probe.exe', 'dnsapi32-probe.exe', 'dnsapi64-probe.exe', 'mf-video32-probe.exe', 'mf-video64-probe.exe', 'mf-video.mp4', 'mf-video.txt', 'network-adapters32-probe.exe', 'network-adapters64-probe.exe', 'socket-options32-probe.exe', 'socket-options64-probe.exe', 'memory-guard-probe.exe',
+                 'process-probe.exe', 'graphics-render-probe.exe', 'memory-class-probe.exe', 'desktop-probe.exe', 'desktop-overlap-probe.exe', 'mouse-controls32-probe.exe', 'virtual-query32-probe.exe', 'virtual-query64-probe.exe', 'registry-flush64-probe.exe', 'file-write32-probe.exe', 'file-write64-probe.exe', 'relative-dir32-probe.exe', 'relative-dir64-probe.exe', 'file-cost32-probe.exe', 'file-cost64-probe.exe', 'handles-paths32-probe.exe', 'handles-paths64-probe.exe', 'pipe-cancel32-probe.exe', 'pipe-cancel64-probe.exe', 'lock32-probe.exe', 'lock64-probe.exe', 'wt-session.exe', 'path-limit64-probe.exe', 'continue64-probe.exe', 'stack-limit64-probe.exe', 'aurelia_windows-fixture.exe', 'steamcmd-fixture.exe', 'syscall-cost32-probe.exe', 'syscall-cost64-probe.exe', 'net-throughput32-probe.exe', 'net-throughput64-probe.exe', 'system-memory32-probe.exe', 'system-memory64-probe.exe', 'image-protect32-probe.exe', 'image-protect64-probe.exe', 'kill-convert-probe.exe', 'guest-address-space-probe.exe', 'section-view-probe.exe', 'late-library-probe.exe', 'dnsapi32-probe.exe', 'dnsapi64-probe.exe', 'mf-video32-probe.exe', 'mf-video64-probe.exe', 'mf-video.mp4', 'mf-video.txt', 'network-adapters32-probe.exe', 'network-adapters64-probe.exe', 'socket-options32-probe.exe', 'socket-options64-probe.exe', 'memory-guard-probe.exe',
                  'dns-probe.exe', 'tls-probe.exe', 'pe32-probe.exe', 'fixed-base32-probe.exe', 'games-autodetect-probe.exe',
                  'cross32-probe.exe', 'cross64-probe.exe', 'wow64-probe.exe',
                  'hid32-probe.exe', 'vk32-probe.exe', 'vk64-probe.exe', 'gl-vertex32-probe.exe',
@@ -451,7 +473,7 @@ def main():
                  'work-area32-probe.exe', 'work-area64-probe.exe',
                  'shell32-probe.exe', 'shell64-probe.exe',
                  'desktop-session32-probe.exe', 'desktop-session64-probe.exe', 'shell-surfaces64-probe.exe', 'shell-scorecard64-probe.exe', 'frame-pacing64-probe.exe', 'desktop-view64-probe.exe', 'agent-permissions64-probe.exe', 'desktop-items64-probe.exe', 'memory-cap64-probe.exe', 'game-mode64-probe.exe',
-                 'game-focus64-probe.exe', 'hid-enum64-probe.exe', 'gate-sequence.exe'):
+                 'game-focus64-probe.exe', 'hid-enum64-probe.exe', 'umip32-probe.exe', 'umip64-probe.exe', 'gate-sequence.exe'):
         shutil.copy2(DEPS / 'probes' / name, prefix / 'drive_c' / name)
     for test in sorted((DEPS / 'wine-tests/exe').glob('*.exe')):  # tools/build-wine-tests.sh and tools/fetch-vkd3d-tests.sh
         shutil.copy2(test, prefix / 'drive_c' / test.name)

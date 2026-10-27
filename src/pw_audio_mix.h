@@ -19,7 +19,9 @@
 
 enum {
     PW_AUDIO_MIX_RATE=48000,
-    PW_AUDIO_MIX_MAX_CHANNELS=8,
+    /* every WAVEFORMATEXTENSIBLE speaker position: spatial audio's 7.1.4 bed is 12 channels, which
+     * mmdevapi's ISpatialAudioClient asks for (its conformance test, 2026-10-25) */
+    PW_AUDIO_MIX_MAX_CHANNELS=18,
     PW_AUDIO_MIX_MIN_RATE=1000,PW_AUDIO_MIX_MAX_RATE=384000,
     /* PCM: 8-bit unsigned, 16/24/32-bit signed little-endian; FLOAT: 32-bit */
     PW_AUDIO_MIX_PCM=1,PW_AUDIO_MIX_FLOAT=3,

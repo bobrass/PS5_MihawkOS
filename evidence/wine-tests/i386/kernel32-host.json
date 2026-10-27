@@ -1,19 +1,669 @@
 {
- "loader": {
+ "actctx": {
   "context": {
    "arch": "i386",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "host_wine_sha256": "ddaea569e3f97724ccae7bbc063aed6dbec0549eb67f5a70559d6babf4f8a5d1",
-   "test_sha256": "ef926e46248346351ba19abdeb556d37b26383e8830809232daa9a051bee7814",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
   "exit_code": 0,
   "failure_count": 0,
   "failures": [],
   "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
   "last_line": "winetest-batch: done",
-  "log": "klog/wt-host-i386-kernel32-loader-1791424202588084217.log",
-  "seconds": 10.9,
+  "log": "klog/wt-host-i386-kernel32-actctx-1792940937722681007.log",
+  "seconds": 1.0,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 3349,
+   "todo": 15
+  },
+  "todo_lines": 15
+ },
+ "atom": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-atom-1792940938691542534.log",
+  "seconds": 1.0,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1049715,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "change": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-change-1792940939160057669.log",
+  "seconds": 0.5,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 333,
+   "todo": 1
+  },
+  "todo_lines": 1
+ },
+ "codepage": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-codepage-1792940939728058900.log",
+  "seconds": 0.6,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 394761,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "comm": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-comm-1792940939797015796.log",
+  "seconds": 0.1,
+  "skipped_lines": [
+   "comm.c:2236: Tests skipped: interactive tests (set WINETEST_INTERACTIVE=1)"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 10922,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "console": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-console-1792940967457764997.log",
+  "seconds": 27.7,
+  "skipped_lines": [
+   "console.c:3945: Tests skipped: GetConsoleFontInfo is not implemented",
+   "console.c:4047: Tests skipped: SetConsoleFont is not implemented"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 2,
+   "tests": 20060,
+   "todo": 33
+  },
+  "todo_lines": 33
+ },
+ "debugger": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 37,
+  "failure_count": 37,
+  "failures": [
+   {
+    "file": "debugger.c",
+    "line": 718,
+    "text": "Timed out waiting for the debugger"
+   },
+   {
+    "file": "debugger.c",
+    "line": 167,
+    "text": "wrong size for 'C:\\users\\steamuser\\AppData\\Local\\Temp\\wtb915.tmp': read=0"
+   },
+   {
+    "file": "debugger.c",
+    "line": 722,
+    "text": "wrong debugger argument count: 2072373337"
+   },
+   {
+    "file": "debugger.c",
+    "line": 723,
+    "text": "the child and debugged pids don't match: 1792 != 104"
+   },
+   {
+    "file": "debugger.c",
+    "line": 724,
+    "text": "debugger: SetEvent(debug_event) failed err=2288448"
+   },
+   {
+    "file": "debugger.c",
+    "line": 728,
+    "text": "debugger reported 2288540 failures"
+   },
+   {
+    "file": "debugger.c",
+    "line": 691,
+    "text": "wrong exit code : c0000005"
+   },
+   {
+    "file": "debugger.c",
+    "line": 718,
+    "text": "Timed out waiting for the debugger"
+   },
+   {
+    "file": "debugger.c",
+    "line": 167,
+    "text": "wrong size for 'C:\\users\\steamuser\\AppData\\Local\\Temp\\wtccd1.tmp': read=0"
+   },
+   {
+    "file": "debugger.c",
+    "line": 722,
+    "text": "wrong debugger argument count: 2072373337"
+   },
+   {
+    "file": "debugger.c",
+    "line": 723,
+    "text": "the child and debugged pids don't match: 1804 != 104"
+   },
+   {
+    "file": "debugger.c",
+    "line": 724,
+    "text": "debugger: SetEvent(debug_event) failed err=2288448"
+   },
+   {
+    "file": "debugger.c",
+    "line": 728,
+    "text": "debugger reported 2288540 failures"
+   },
+   {
+    "file": "debugger.c",
+    "line": 718,
+    "text": "Timed out waiting for the debugger"
+   },
+   {
+    "file": "debugger.c",
+    "line": 167,
+    "text": "wrong size for 'C:\\users\\steamuser\\AppData\\Local\\Temp\\wte08d.tmp': read=0"
+   },
+   {
+    "file": "debugger.c",
+    "line": 722,
+    "text": "wrong debugger argument count: 2072373337"
+   },
+   {
+    "file": "debugger.c",
+    "line": 723,
+    "text": "the child and debugged pids don't match: 1816 != 104"
+   },
+   {
+    "file": "debugger.c",
+    "line": 724,
+    "text": "debugger: SetEvent(debug_event) failed err=2288448"
+   },
+   {
+    "file": "debugger.c",
+    "line": 728,
+    "text": "debugger reported 2288540 failures"
+   },
+   {
+    "file": "debugger.c",
+    "line": 718,
+    "text": "Timed out waiting for the debugger"
+   },
+   {
+    "file": "debugger.c",
+    "line": 167,
+    "text": "wrong size for 'C:\\users\\steamuser\\AppData\\Local\\Temp\\wtf449.tmp': read=0"
+   },
+   {
+    "file": "debugger.c",
+    "line": 722,
+    "text": "wrong debugger argument count: 2072373337"
+   },
+   {
+    "file": "debugger.c",
+    "line": 723,
+    "text": "the child and debugged pids don't match: 1828 != 104"
+   },
+   {
+    "file": "debugger.c",
+    "line": 724,
+    "text": "debugger: SetEvent(debug_event) failed err=2288448"
+   },
+   {
+    "file": "debugger.c",
+    "line": 728,
+    "text": "debugger reported 2288540 failures"
+   },
+   {
+    "file": "debugger.c",
+    "line": 718,
+    "text": "Timed out waiting for the debugger"
+   },
+   {
+    "file": "debugger.c",
+    "line": 167,
+    "text": "wrong size for 'C:\\users\\steamuser\\AppData\\Local\\Temp\\wt805.tmp': read=0"
+   },
+   {
+    "file": "debugger.c",
+    "line": 722,
+    "text": "wrong debugger argument count: 2072373337"
+   },
+   {
+    "file": "debugger.c",
+    "line": 723,
+    "text": "the child and debugged pids don't match: 1840 != 104"
+   },
+   {
+    "file": "debugger.c",
+    "line": 724,
+    "text": "debugger: SetEvent(debug_event) failed err=2288448"
+   },
+   {
+    "file": "debugger.c",
+    "line": 728,
+    "text": "debugger reported 2288540 failures"
+   },
+   {
+    "file": "debugger.c",
+    "line": 718,
+    "text": "Timed out waiting for the debugger"
+   },
+   {
+    "file": "debugger.c",
+    "line": 167,
+    "text": "wrong size for 'C:\\users\\steamuser\\AppData\\Local\\Temp\\wt1bc1.tmp': read=0"
+   },
+   {
+    "file": "debugger.c",
+    "line": 722,
+    "text": "wrong debugger argument count: 2072373337"
+   },
+   {
+    "file": "debugger.c",
+    "line": 723,
+    "text": "the child and debugged pids don't match: 1852 != 104"
+   },
+   {
+    "file": "debugger.c",
+    "line": 724,
+    "text": "debugger: SetEvent(debug_event) failed err=2288448"
+   },
+   {
+    "file": "debugger.c",
+    "line": 728,
+    "text": "debugger reported 2288540 failures"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-debugger-1792941003827172860.log",
+  "seconds": 36.4,
+  "skipped_lines": [
+   "debugger.c:835: Tests skipped: \"none\" debugger test needs user interaction",
+   "debugger.c:1156: Tests skipped: Skipping test on incompatible config"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 37,
+   "flaky": 0,
+   "skipped": 2,
+   "tests": 1285,
+   "todo": 6
+  },
+  "todo_lines": 6
+ },
+ "directory": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-directory-1792941003895803128.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 104,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "drive": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-drive-1792941004014354589.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 130,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "environ": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-environ-1792941004584115273.log",
+  "seconds": 0.6,
+  "skipped_lines": [
+   "environ.c:333: Tests skipped: GetACP() == 1252, need 932 for A/W tests",
+   "environ.c:661: Tests skipped: Skipping japanese language tests"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 2,
+   "tests": 432,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "fiber": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 5,
+  "failure_count": 3,
+  "failures": [
+   {
+    "file": "fiber.c",
+    "line": 342,
+    "text": "Got unexpected count 2."
+   },
+   {
+    "file": "fiber.c",
+    "line": 343,
+    "text": "Got unexpected index 1."
+   },
+   {
+    "file": "fiber.c",
+    "line": 347,
+    "text": "Got unexpected fls_high_index 0."
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "fiber.c:347: Test failed: Got unexpected fls_high_index 0.",
+  "log": "klog/wt-host-i386-kernel32-fiber-1792941005103509033.log",
+  "seconds": 0.5,
+  "skipped_lines": [],
+  "status": "incomplete",
+  "summary": null,
+  "todo_lines": 0
+ },
+ "file": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-file-1792941006723393462.log",
+  "seconds": 1.6,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 571310,
+   "todo": 241
+  },
+  "todo_lines": 241
+ },
+ "format_msg": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-format_msg-1792941008594242960.log",
+  "seconds": 1.9,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1551,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "generated": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-generated-1792941008661604649.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 0,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "heap": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 3,
+  "failure_count": 3,
+  "failures": [
+   {
+    "file": "heap.c",
+    "line": 3675,
+    "text": "got dwTotalPhys 0xffffffff"
+   },
+   {
+    "file": "heap.c",
+    "line": 3678,
+    "text": "got dwAvailPhys 0xffffffff"
+   },
+   {
+    "file": "heap.c",
+    "line": 3685,
+    "text": "got dwAvailPageFile 0x80000000"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-heap-1792941010182384282.log",
+  "seconds": 1.5,
+  "skipped_lines": [
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:3234: Tests skipped: realloc in place failed",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:2993: Tests skipped: skipping block tests",
+   "heap.c:3471: Tests skipped: Skipping test with HEAP_PAGE_ALLOCS.",
+   "heap.c:3516: Tests skipped: Session Manager flags not set"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 3,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 278655,
+   "todo": 145
+  },
+  "todo_lines": 167
+ },
+ "loader": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-loader-1792941020014788982.log",
+  "seconds": 9.8,
   "skipped_lines": [],
   "status": "complete",
   "summary": {
@@ -25,21 +675,241 @@
   },
   "todo_lines": 26
  },
- "pipe": {
+ "locale": {
   "context": {
    "arch": "i386",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "host_wine_sha256": "ddaea569e3f97724ccae7bbc063aed6dbec0549eb67f5a70559d6babf4f8a5d1",
-   "test_sha256": "ef926e46248346351ba19abdeb556d37b26383e8830809232daa9a051bee7814",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
   "exit_code": 0,
   "failure_count": 0,
   "failures": [],
   "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
   "last_line": "winetest-batch: done",
-  "log": "klog/wt-host-i386-kernel32-pipe-1791424191690720467.log",
-  "seconds": 8.6,
+  "log": "klog/wt-host-i386-kernel32-locale-1792941020282798665.log",
+  "seconds": 0.3,
+  "skipped_lines": [
+   "locale.c:6567: Tests skipped: Non US-English locale"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 2306938,
+   "todo": 17
+  },
+  "todo_lines": 17
+ },
+ "mailslot": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-mailslot-1792941021352211096.log",
+  "seconds": 1.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 126,
+   "todo": 3
+  },
+  "todo_lines": 3
+ },
+ "module": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 4,
+  "failure_count": 4,
+  "failures": [
+   {
+    "file": "module.c",
+    "line": 1768,
+    "text": "Dep 0 (L\"advapi32.dll\"): Got unexpected module L\"user32.dll\"."
+   },
+   {
+    "file": "module.c",
+    "line": 1768,
+    "text": "Dep 1 (L\"msvcrt.dll\"): Got unexpected module L\"advapi32.dll\"."
+   },
+   {
+    "file": "module.c",
+    "line": 1768,
+    "text": "Dep 2 (L\"user32.dll\"): Got unexpected module L\"msvcrt.dll\"."
+   },
+   {
+    "file": "module.c",
+    "line": 2078,
+    "text": "Got \"C:\\\\psapi.dll\"."
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-module-1792941021470235569.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 4,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 908,
+   "todo": 5
+  },
+  "todo_lines": 5
+ },
+ "path": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 17,
+  "failure_count": 17,
+  "failures": [
+   {
+    "file": "path.c",
+    "line": 2450,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;C:\\\\windows\\\\system32;C:\\\\windows;C:\\\\windows\\\\system32\\\\wbem;C:\\\\windows\\\\system32\\\\WindowsPowershell"
+   },
+   {
+    "file": "path.c",
+    "line": 2458,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"C:;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2468,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"C:;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2499,
+    "text": "got L\"C:\\\\;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;C:\\\\windows\\\\system32;C:\\\\windows;C:\\\\windows\\\\system32\\\\wbem;C:\\\\windows\\\\system32\\\\WindowsPowershell"
+   },
+   {
+    "file": "path.c",
+    "line": 2506,
+    "text": "got L\"C:\\\\;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;C:\\\\windows\\\\system32;C:\\\\windows;C:\\\\windows\\\\system32\\\\wbem;C:\\\\windows\\\\system32\\\\WindowsPowershell"
+   },
+   {
+    "file": "path.c",
+    "line": 2515,
+    "text": "got L\"C:\\\\;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;C:\\\\windows\\\\system32;C:\\\\windows;C:\\\\windows\\\\system32\\\\wbem;C:\\\\windows\\\\system32\\\\WindowsPowershell"
+   },
+   {
+    "file": "path.c",
+    "line": 2522,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;C:\\\\windows\\\\system32;C:\\\\windows;C:\\\\windows\\\\system32\\\\wbem;C:\\\\windows\\\\system32\\\\WindowsPowershell\\\\"
+   },
+   {
+    "file": "path.c",
+    "line": 2530,
+    "text": "got L\"C:\\\\;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;foo\" expected L\"C:;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2540,
+    "text": "got L\"C:\\\\;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;foo\" expected L\"C:;.;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2570,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;C:\\\\windows\\\\system32;C:\\\\windows;C:\\\\windows\\\\system32\\\\wbem;C:\\\\windows\\\\system32\\\\WindowsPowershell"
+   },
+   {
+    "file": "path.c",
+    "line": 2578,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"C:;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2588,
+    "text": "got L\"C:\\\\;C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;foo\" expected L\"C:;C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2633,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"C:;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2640,
+    "text": "got L\"C:\\\\;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"C:;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2647,
+    "text": "got L\".\\\\foo;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\".\\\\foo;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2654,
+    "text": "got L\"temp;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"temp;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   },
+   {
+    "file": "path.c",
+    "line": 2661,
+    "text": "got L\"c:\\\\temp;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;C:\\\\Program Files (x86)\\\\Steam;.;foo\" expected L\"c:\\\\temp;C:\\\\windows\\\\system32;C:\\\\windows\\\\system;C:\\\\windows;.;foo\""
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-path-1792941021888906009.log",
+  "seconds": 0.4,
+  "skipped_lines": [
+   "path.c:2036: Tests skipped: Skipping DBCS(Japanese) GetFullPathNameA test in this codepage (1252)"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 17,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 202573,
+   "todo": 10
+  },
+  "todo_lines": 10
+ },
+ "pipe": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-pipe-1792941029368931333.log",
+  "seconds": 7.5,
   "skipped_lines": [],
   "status": "complete",
   "summary": {
@@ -51,246 +921,356 @@
   },
   "todo_lines": 27
  },
- "process": {
+ "power": {
   "context": {
    "arch": "i386",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "host_wine_sha256": "ddaea569e3f97724ccae7bbc063aed6dbec0549eb67f5a70559d6babf4f8a5d1",
-   "test_sha256": "ef926e46248346351ba19abdeb556d37b26383e8830809232daa9a051bee7814",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
-  "exit_code": 48,
-  "failure_count": 43,
-  "failures": [
-   {
-    "file": "process.c",
-    "line": 1615,
-    "text": "Getting sb info"
-   },
-   {
-    "file": "process.c",
-    "line": 1616,
-    "text": "Getting console in mode"
-   },
-   {
-    "file": "process.c",
-    "line": 1617,
-    "text": "Getting console out mode"
-   },
-   {
-    "file": "process.c",
-    "line": 1628,
-    "text": "Getting sb info"
-   },
-   {
-    "file": "process.c",
-    "line": 1629,
-    "text": "Getting console in mode"
-   },
-   {
-    "file": "process.c",
-    "line": 1630,
-    "text": "Getting console out mode"
-   },
-   {
-    "file": "process.c",
-    "line": 1645,
-    "text": "GetLastError: expecting 87 got 6"
-   },
-   {
-    "file": "process.c",
-    "line": 1655,
-    "text": "GetLastError: expecting 87 got 6"
-   },
-   {
-    "file": "process.c",
-    "line": 1684,
-    "text": "Console:SizeX expected 132, but got 0"
-   },
-   {
-    "file": "process.c",
-    "line": 1685,
-    "text": "Console:SizeY expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1686,
-    "text": "Console:CursorX expected 136, but got 0"
-   },
-   {
-    "file": "process.c",
-    "line": 1687,
-    "text": "Console:CursorY expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1688,
-    "text": "Console:Attributes expected 408, but got 0"
-   },
-   {
-    "file": "process.c",
-    "line": 1689,
-    "text": "Console:winLeft expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1690,
-    "text": "Console:winTop expected 412, but got 0"
-   },
-   {
-    "file": "process.c",
-    "line": 1691,
-    "text": "Console:winRight expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1692,
-    "text": "Console:winBottom expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1693,
-    "text": "Console:maxWinWidth expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1694,
-    "text": "Console:maxWinHeight expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1697,
-    "text": "Console:InputMode expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1698,
-    "text": "Console:OutputMode expected 0, but got 1"
-   },
-   {
-    "file": "process.c",
-    "line": 1702,
-    "text": "Wrong console CP (expected 1252 got 0/0)"
-   },
-   {
-    "file": "process.c",
-    "line": 1703,
-    "text": "Wrong console-SB CP (expected 1252 got 0/0)"
-   },
-   {
-    "file": "process.c",
-    "line": 1708,
-    "text": "Wrong console mode"
-   },
-   {
-    "file": "process.c",
-    "line": 1709,
-    "text": "Wrong console-SB mode"
-   },
-   {
-    "file": "process.c",
-    "line": 3682,
-    "text": "nothing_gui[6] : StartupInfoA:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3683,
-    "text": "nothing_gui[6] : StartupInfoA:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3687,
-    "text": "nothing_gui[6] : StartupInfoW:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3688,
-    "text": "nothing_gui[6] : StartupInfoW:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3690,
-    "text": "nothing_gui[6] : TEB:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3691,
-    "text": "nothing_gui[6] : TEB:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3690,
-    "text": "nothing_gui[7] : TEB:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3691,
-    "text": "nothing_gui[7] : TEB:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3682,
-    "text": "detached_gui[1] : StartupInfoA:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3683,
-    "text": "detached_gui[1] : StartupInfoA:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3687,
-    "text": "detached_gui[1] : StartupInfoW:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3688,
-    "text": "detached_gui[1] : StartupInfoW:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3690,
-    "text": "detached_gui[1] : TEB:hStdInputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3691,
-    "text": "detached_gui[1] : TEB:hStdOutputEncode expected 0x8, but got 0x2e"
-   },
-   {
-    "file": "process.c",
-    "line": 3690,
-    "text": "pseudoconsole_cui[17] : TEB:hStdInputEncode expected 0x2e, but got 0xe"
-   },
-   {
-    "file": "process.c",
-    "line": 3691,
-    "text": "pseudoconsole_cui[17] : TEB:hStdOutputEncode expected 0x2e, but got 0xe"
-   },
-   {
-    "file": "process.c",
-    "line": 3690,
-    "text": "pseudoconsole_cui[19] : TEB:hStdInputEncode expected 0x2e, but got 0x4e"
-   },
-   {
-    "file": "process.c",
-    "line": 3691,
-    "text": "pseudoconsole_cui[19] : TEB:hStdOutputEncode expected 0x2e, but got 0x4e"
-   }
-  ],
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
   "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
   "last_line": "winetest-batch: done",
-  "log": "klog/wt-host-i386-kernel32-process-1791424183095214522.log",
-  "seconds": 22.2,
+  "log": "klog/wt-host-i386-kernel32-power-1792941029436978765.log",
+  "seconds": 0.1,
   "skipped_lines": [],
   "status": "complete",
   "summary": {
-   "failures": 48,
+   "failures": 0,
    "flaky": 0,
    "skipped": 0,
-   "tests": 3624,
+   "tests": 5,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "process": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-process-1792941042226048418.log",
+  "seconds": 12.8,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 3725,
    "todo": 172
   },
   "todo_lines": 172
+ },
+ "profile": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-profile-1792941047359981767.log",
+  "seconds": 5.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 578,
+   "todo": 28
+  },
+  "todo_lines": 28
+ },
+ "resource": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-resource-1792941048031210519.log",
+  "seconds": 0.7,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 559,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "sync": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 2,
+  "failure_count": 2,
+  "failures": [
+   {
+    "file": "sync.c",
+    "line": 393,
+    "text": "got 0x102"
+   },
+   {
+    "file": "sync.c",
+    "line": 397,
+    "text": "got 0x102"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-sync-1792941058723244322.log",
+  "seconds": 10.7,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 2,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 360048,
+   "todo": 4
+  },
+  "todo_lines": 4
+ },
+ "thread": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 3,
+  "failure_count": 3,
+  "failures": [
+   {
+    "file": "thread.c",
+    "line": 2699,
+    "text": "Couldn't create thread 87 12"
+   },
+   {
+    "file": "thread.c",
+    "line": 2702,
+    "text": "Couldn't wait for thread termination"
+   },
+   {
+    "file": "thread.c",
+    "line": 2704,
+    "text": "Unexpected affinity 118418 (expecting 4)"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-thread-1792941063549006649.log",
+  "seconds": 4.8,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 3,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 982,
+   "todo": 43
+  },
+  "todo_lines": 43
+ },
+ "time": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-time-1792941063616273019.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2358,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "timer": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-timer-1792941063684160702.log",
+  "seconds": 0.1,
+  "skipped_lines": [
+   "timer.c:213: Tests skipped: can't adjust system clock (1314)"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 4,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "toolhelp": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-toolhelp-1792941064253429737.log",
+  "seconds": 0.6,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 102,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "version": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-version-1792941064822224154.log",
+  "seconds": 0.6,
+  "skipped_lines": [
+   "version.c:610: Tests skipped: There is no ServicePack on this system. Some tests will be skipped.",
+   "version.c:621: Tests skipped: GetVersionEx and VerifyVersionInfo are faking values"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 2,
+   "tests": 220,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "virtual": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-i386-kernel32-virtual-1792941066692812229.log",
+  "seconds": 1.9,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 31501,
+   "todo": 147
+  },
+  "todo_lines": 147
+ },
+ "volume": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "0750653e83df17c7021f724be7767a3c2bfaf8e1ab0805285795bcddc61cb8ee",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 1,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "double free or corruption (out)",
+  "log": "klog/wt-host-i386-kernel32-volume-1792941066811145624.log",
+  "seconds": 0.1,
+  "skipped_lines": [
+   "volume.c:468: Tests skipped: Please re-run from another device than C:"
+  ],
+  "status": "incomplete",
+  "summary": null,
+  "todo_lines": 30
  }
 }

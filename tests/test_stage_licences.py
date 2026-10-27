@@ -29,7 +29,7 @@ RUNTIME = OWN + ['wine/COPYING.LIB', 'wine/LICENSE', 'wine/AUTHORS', 'vkd3d-prot
                  'wine-gecko/MPL-2.0.txt'] + [f'ps5-opengl/{name}' for name in tool.OPENGL_SDK_TEXTS]
 TITLE = OWN + ['lapy-daemon/LICENSE', 'mesa/license.rst', 'sascha-willems-vulkan/LICENSE.md', 'volk/LICENSE.md',
                'imgui/LICENSE.txt', 'ktx/LICENSE.md', 'tinygltf/LICENSE', 'nlohmann-json/LICENSE.MIT', 'glm/manual.md', 'zstd/LICENSE', 'mbedtls/LICENSE',
-               'monocypher/LICENCE.md']
+               'monocypher/LICENCE.md', 'libmicrohttpd/COPYING']
 
 
 class StageLicences(unittest.TestCase):

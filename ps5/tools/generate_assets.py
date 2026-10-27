@@ -876,7 +876,9 @@ def gen_setup(out, download):
         from fontTools.ttLib import TTFont
         from fontTools.varLib import instancer
         url, sha256 = SETUP_FACES[face]
-        variable = TTFont(str(download(url, sha256)))
+        # The source's own timestamps, not the time of the cut: a new head.modified each build gave a face of the same
+        # size with other bytes, which the title deploy (by size) skipped (c4a3458, 2026-10-27)
+        variable = TTFont(str(download(url, sha256)), recalcTimestamp=False)
         options = subset.Options()
         options.layout_features = ["*"]
         subsetter = subset.Subsetter(options)
@@ -886,6 +888,8 @@ def gen_setup(out, download):
         instancer.instantiateVariableFont(variable, {"wght": 500}).save(str(medium))
         subprocess.run([str(baker), str(medium), str(fonts / (face + ".huifont")), str(characters), "56", "8", "2048"],
                        check=True)
+        # The cut face itself too: the title draws the Steam guide's session screens with it (src/pw_steam_screen.h)
+        shutil.copyfile(medium, fonts / (face + ".ttf"))
 
 
 # Files beside this one that a generator reads: a change makes it run again

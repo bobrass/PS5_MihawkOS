@@ -9,8 +9,6 @@
  * PW_PRX_ELF_OK or a negative status; error gets one line. The caller calls image->module_start after this
  * returns and registers the descriptor with ntdll. Modules loaded earlier resolve their Wine imports. */
 int pw_prx_elf_ps5_load(const char *path, PwPrxElfImage *image, char *error, size_t error_size);
-/* The firmware's version word, as the helper read it; below 12.00 the kernel path keeps working. */
-int pw_prx_elf_ps5_needed(unsigned firmware);
 /* PwWineDlOps: every sibling module the Windows side opens loads through the user-space loader too. load_start
  * returns a positive handle for module_info, or -1; module_info fills ntdll's SceKernelModuleInfo record. */
 int32_t pw_prx_elf_ps5_load_start(const char *path, size_t argc, const void *argv, uint32_t flags,

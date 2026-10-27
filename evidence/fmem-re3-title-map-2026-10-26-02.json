@@ -1,0 +1,4078 @@
+{
+ "telemetry_hold": null,
+ "launch_readiness": {
+  "ready": true,
+  "seconds": 0.165,
+  "settle_seconds": 0.0,
+  "census_seconds": 0.152,
+  "previous_cleanup_verified": true
+ },
+ "native_close_failures": [],
+ "run": "fmem-re3-title-map-2026-10-26-02",
+ "what": "profile mihawk-os program C:\\windows\\system32\\cmd.exe",
+ "env": [
+  "WINE_PS5_EARLY=1",
+  "PROTON_STOP_TERMINATE=0",
+  "WINE_PS5_TITLE_PROCESS=re3.exe"
+ ],
+ "result": "finished",
+ "seconds": 323.5,
+ "probe_verdict": null,
+ "stages": {
+  "launched": 1.04,
+  "title_started": 1.48,
+  "elevated": 1.49,
+  "wine_loaded": 1.69,
+  "wineboot_started": 4.45,
+  "wineboot_ended": 6.56,
+  "program_started": 6.61,
+  "program_ended": 320.62,
+  "wine_ended": 320.81,
+  "launcher_started": 322.34,
+  "launcher_ended": 322.66,
+  "closed": 323.54
+ },
+ "clean_owner_restart": true,
+ "launcher_end_status": 0,
+ "initial_status": 0,
+ "closed_on_request": true,
+ "child_logs": [
+  "klog/fmem-re3-title-map-2026-10-26-02-wine-child-1001.log",
+  "klog/fmem-re3-title-map-2026-10-26-02-wine-child-1002.log",
+  "klog/fmem-re3-title-map-2026-10-26-02-wine-child-1003.log",
+  "klog/fmem-re3-title-map-2026-10-26-02-wine-child-1004.log",
+  "klog/fmem-re3-title-map-2026-10-26-02-wine-child-1005.log"
+ ],
+ "child_logs_missing": [],
+ "session_logs_status": 0,
+ "storage_errors": 0,
+ "stop_terminate": "0",
+ "injected_fault": null,
+ "exec_protection": {
+  "refused": 0,
+  "conversions": 254,
+  "converted_kib": 4064,
+  "convert_failed": 0,
+  "exec_refused": 0,
+  "grant_retries": 0,
+  "modules": 0,
+  "sdk_refused": 0
+ },
+ "code_share": {
+  "shared": 307,
+  "shared_kib": 4912,
+  "offered": 249,
+  "mismatched": 0,
+  "failed": 0,
+  "private_writes": 0,
+  "private_kib": 0
+ },
+ "helpers": [
+  {
+   "program": null,
+   "libcef": false,
+   "resident_peak_mib": null,
+   "resident_last_mib": null,
+   "images_held_mib": null,
+   "vm_last": null,
+   "exec": null
+  },
+  {
+   "program": null,
+   "libcef": false,
+   "resident_peak_mib": 18,
+   "resident_last_mib": 18,
+   "images_held_mib": 17,
+   "vm_last": {
+    "resident_mib": 13,
+    "direct_resident_mib": 23,
+    "flexible_mib": 29
+   },
+   "exec": {
+    "refused": 0,
+    "conversions": 43,
+    "converted_kib": 688,
+    "convert_failed": 0,
+    "exec_refused": 0,
+    "grant_retries": 0,
+    "modules": 0,
+    "sdk_refused": 0
+   }
+  },
+  {
+   "program": null,
+   "libcef": false,
+   "resident_peak_mib": null,
+   "resident_last_mib": null,
+   "images_held_mib": null,
+   "vm_last": null,
+   "exec": {
+    "refused": 0,
+    "conversions": 151,
+    "converted_kib": 2416,
+    "convert_failed": 0,
+    "exec_refused": 0,
+    "grant_retries": 0,
+    "modules": 0,
+    "sdk_refused": 0
+   }
+  },
+  {
+   "program": null,
+   "libcef": false,
+   "resident_peak_mib": 15,
+   "resident_last_mib": 15,
+   "images_held_mib": 6,
+   "vm_last": {
+    "resident_mib": 9,
+    "direct_resident_mib": 28,
+    "flexible_mib": 26
+   },
+   "exec": {
+    "refused": 0,
+    "conversions": 31,
+    "converted_kib": 496,
+    "convert_failed": 0,
+    "exec_refused": 0,
+    "grant_retries": 0,
+    "modules": 0,
+    "sdk_refused": 0
+   }
+  },
+  {
+   "program": null,
+   "libcef": false,
+   "resident_peak_mib": 15,
+   "resident_last_mib": 15,
+   "images_held_mib": 7,
+   "vm_last": {
+    "resident_mib": 10,
+    "direct_resident_mib": 34,
+    "flexible_mib": 26
+   },
+   "exec": {
+    "refused": 0,
+    "conversions": 29,
+    "converted_kib": 464,
+    "convert_failed": 0,
+    "exec_refused": 0,
+    "grant_retries": 0,
+    "modules": 0,
+    "sdk_refused": 0
+   }
+  }
+ ],
+ "foreign_mappings": {
+  "found": 0,
+  "skipped_unmaps": 0,
+  "refused_maps": 0,
+  "query_failed": 0,
+  "holes": 0,
+  "hole_list": []
+ },
+ "helper_sched": {
+  "helpers": [
+   {
+    "kind": "memory",
+    "mode": "rr",
+    "main_tid": "101614",
+    "entry": "1/700",
+    "entry_kernel": "10/700",
+    "entry_cpus": "0xea00",
+    "plain": "1/700",
+    "plain_kernel": "10/700",
+    "plain_cpus": "0xea00",
+    "service": "700",
+    "program": "767",
+    "program_cpus": "0",
+    "census": "0",
+    "error": "0",
+    "service_status": "0",
+    "now": "3/700",
+    "now_kernel": "2/700"
+   },
+   {
+    "kind": "program",
+    "mode": "rr",
+    "main_tid": "101671",
+    "entry": "1/700",
+    "entry_kernel": "10/700",
+    "entry_cpus": "0xffff",
+    "plain": "1/700",
+    "plain_kernel": "10/700",
+    "plain_cpus": "0xffff",
+    "service": "700",
+    "program": "767",
+    "program_cpus": "0",
+    "census": "0",
+    "error": "0",
+    "service_status": "0",
+    "now": "3/700",
+    "now_kernel": "2/700"
+   },
+   {
+    "kind": "program",
+    "mode": "rr",
+    "main_tid": "101721",
+    "entry": "1/700",
+    "entry_kernel": "10/700",
+    "entry_cpus": "0xffff",
+    "plain": "1/700",
+    "plain_kernel": "10/700",
+    "plain_cpus": "0xffff",
+    "service": "700",
+    "program": "767",
+    "program_cpus": "0",
+    "census": "0",
+    "error": "0",
+    "service_status": "0",
+    "now": "3/700",
+    "now_kernel": "2/700"
+   },
+   {
+    "kind": "program",
+    "mode": "rr",
+    "main_tid": "101720",
+    "entry": "1/700",
+    "entry_kernel": "10/700",
+    "entry_cpus": "0xffff",
+    "plain": "1/700",
+    "plain_kernel": "10/700",
+    "plain_cpus": "0xffff",
+    "service": "700",
+    "program": "767",
+    "program_cpus": "0",
+    "census": "0",
+    "error": "0",
+    "service_status": "0",
+    "now": "3/700",
+    "now_kernel": "2/700"
+   },
+   {
+    "kind": "program",
+    "mode": "rr",
+    "main_tid": "101736",
+    "entry": "1/700",
+    "entry_kernel": "10/700",
+    "entry_cpus": "0xffff",
+    "plain": "1/700",
+    "plain_kernel": "10/700",
+    "plain_cpus": "0xffff",
+    "service": "700",
+    "program": "767",
+    "program_cpus": "0",
+    "census": "0",
+    "error": "0",
+    "service_status": "0",
+    "now": "3/700",
+    "now_kernel": "2/700"
+   }
+  ],
+  "workers": [
+   {
+    "worker": "3/767",
+    "worker_kernel": "2/767",
+    "worker_cpus": "0xffff",
+    "status": "0",
+    "inherit": "3/767",
+    "inherit_kernel": "2/767",
+    "inherit_cpus": "0xffff"
+   },
+   {
+    "worker": "3/767",
+    "worker_kernel": "2/767",
+    "worker_cpus": "0xffff",
+    "status": "0",
+    "inherit": "3/767",
+    "inherit_kernel": "2/767",
+    "inherit_cpus": "0xffff"
+   },
+   {
+    "worker": "3/767",
+    "worker_kernel": "2/767",
+    "worker_cpus": "0xffff",
+    "status": "0",
+    "inherit": "3/767",
+    "inherit_kernel": "2/767",
+    "inherit_cpus": "0xffff"
+   },
+   {
+    "worker": "3/767",
+    "worker_kernel": "2/767",
+    "worker_cpus": "0xffff",
+    "status": "0",
+    "inherit": "3/767",
+    "inherit_kernel": "2/767",
+    "inherit_cpus": "0xffff"
+   }
+  ],
+  "program_threads": {
+   "set": 9,
+   "failed": 0
+  },
+  "census": null,
+  "census_processes": 0,
+  "row": null,
+  "scheduled": {
+   "ok": true,
+   "reasons": []
+  }
+ },
+ "helpers_ended": {
+  "why": null,
+  "count": 0,
+  "signals": {},
+  "gone_ms": {},
+  "still_there": [],
+  "after_kill": null,
+  "stalled": null,
+  "wedge_s": null,
+  "recorder_rows": "process rows from kern.proc (the title's own: state=3 pri=10/0 cpu=15 threads=20)"
+ },
+ "helper_doom": [
+  {
+   "seen": [
+    "exit"
+   ],
+   "doomed": null,
+   "stamped_ms_ago": null,
+   "ended": true
+  },
+  {
+   "seen": [
+    "exit"
+   ],
+   "doomed": null,
+   "stamped_ms_ago": null,
+   "ended": true
+  },
+  {
+   "seen": [
+    "exit"
+   ],
+   "doomed": null,
+   "stamped_ms_ago": null,
+   "ended": true
+  }
+ ],
+ "broker_phases": {
+  "suspend": 3,
+  "submit": 0
+ },
+ "memory_helper_slowest": {
+  "census": 2,
+  "alloc": 1,
+  "shared": 0,
+  "touch": 3,
+  "dmem": 2,
+  "grant": 0,
+  "free": 1,
+  "stall": 0
+ },
+ "memory_helper": {
+  "dead": [],
+  "stall_tests": 0,
+  "sections_mib": [],
+  "given_back": 0,
+  "lost": 0,
+  "gave_back_lines": 0
+ },
+ "assertion": false,
+ "chunk_maps": null,
+ "mapped_mib": null,
+ "ask_failures_max": null,
+ "misplaced_max": null,
+ "rep_step_us": null,
+ "exec_rewrites_us": null,
+ "exit_stall": false,
+ "stop_requested": "run budget reached",
+ "returned_to_launcher": true,
+ "passed": true,
+ "bench": {},
+ "steady": {
+  "vulkan_first_frame_ms": 12086.0,
+  "vulkan": {
+   "frames": 593.0,
+   "fps": 115.7,
+   "p50_ms": 8.75,
+   "p95_ms": 9.5,
+   "p99_ms": 9.5,
+   "max_ms": 10.0,
+   "present_avg_ms": 0.061,
+   "present_max_all_ms": 5.346,
+   "intervals": 59,
+   "worst_p99_ms": 23.75,
+   "worst_max_ms": 64.25
+  },
+  "server": {
+   "calls": 7628.0,
+   "per_s": 1487.0,
+   "avg_us": 20.5,
+   "selects": 24.0,
+   "blocked": 24.0,
+   "block_avg_us": 174.15,
+   "waits": 713059.5,
+   "handles_avg": 1.0,
+   "wait_all": 0.0,
+   "polled": 1854.0,
+   "delays": 2284.0,
+   "yields": 0.0,
+   "intervals": 60
+  }
+ },
+ "intervals": {
+  "frames": [
+   {
+    "api": "vulkan",
+    "first_frame_ms": 12086.0
+   },
+   {
+    "api": "vulkan",
+    "frames": 103.0,
+    "fps": 19.5,
+    "p50_ms": 9.25,
+    "p95_ms": 10.0,
+    "p99_ms": 16.75,
+    "max_ms": 30.25,
+    "present_avg_ms": 0.064,
+    "present_max_all_ms": 0.114
+   },
+   {
+    "api": "vulkan",
+    "frames": 548.0,
+    "fps": 107.1,
+    "p50_ms": 8.5,
+    "p95_ms": 9.5,
+    "p99_ms": 23.75,
+    "max_ms": 64.25,
+    "present_avg_ms": 0.065,
+    "present_max_all_ms": 1.38
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 120.0,
+    "p50_ms": 8.5,
+    "p95_ms": 9.0,
+    "p99_ms": 9.25,
+    "max_ms": 9.25,
+    "present_avg_ms": 0.055,
+    "present_max_all_ms": 1.38
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.0,
+    "p99_ms": 9.5,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.056,
+    "present_max_all_ms": 1.38
+   },
+   {
+    "api": "vulkan",
+    "frames": 610.0,
+    "fps": 119.4,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.75,
+    "max_ms": 22.25,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 1.38
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.7,
+    "p50_ms": 8.25,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 64.25,
+    "present_avg_ms": 0.079,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 612.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.5,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 614.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.5,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 614.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.5,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.5,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 614.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.5,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 614.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 16.0,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.8,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.058,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 613.0,
+    "fps": 119.9,
+    "p50_ms": 8.5,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.059,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 615.0,
+    "fps": 120.0,
+    "p50_ms": 8.25,
+    "p95_ms": 9.5,
+    "p99_ms": 10.25,
+    "max_ms": 11.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 10.0,
+    "p99_ms": 10.75,
+    "max_ms": 11.0,
+    "present_avg_ms": 0.068,
+    "present_max_all_ms": 4.452
+   },
+   {
+    "api": "vulkan",
+    "frames": 578.0,
+    "fps": 107.9,
+    "p50_ms": 9.0,
+    "p95_ms": 9.75,
+    "p99_ms": 10.5,
+    "max_ms": 64.25,
+    "present_avg_ms": 0.091,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 589.0,
+    "fps": 115.1,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.063,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.6,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.7,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.063,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 16.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 591.0,
+    "fps": 115.4,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 10.5,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.4,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.06,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 594.0,
+    "fps": 115.9,
+    "p50_ms": 8.75,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.7,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 598.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 16.25,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.063,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 591.0,
+    "fps": 115.4,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 11.0,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 591.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.2,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 591.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 16.0,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.6,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.6,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.7,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.063,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 590.0,
+    "fps": 115.3,
+    "p50_ms": 8.75,
+    "p95_ms": 9.25,
+    "p99_ms": 9.5,
+    "max_ms": 10.0,
+    "present_avg_ms": 0.061,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.7,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 9.75,
+    "present_avg_ms": 0.063,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 591.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 11.0,
+    "present_avg_ms": 0.06,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.5,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.75,
+    "max_ms": 17.75,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 592.0,
+    "fps": 115.7,
+    "p50_ms": 8.75,
+    "p95_ms": 9.5,
+    "p99_ms": 9.5,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   },
+   {
+    "api": "vulkan",
+    "frames": 593.0,
+    "fps": 115.8,
+    "p50_ms": 8.75,
+    "p95_ms": 9.25,
+    "p99_ms": 9.75,
+    "max_ms": 10.25,
+    "present_avg_ms": 0.062,
+    "present_max_all_ms": 5.346
+   }
+  ],
+  "server": [
+   {
+    "calls": 5148.0,
+    "per_s": 1011.0,
+    "avg_us": 22.7,
+    "selects": 7.0,
+    "blocked": 1.0,
+    "block_avg_us": 95.6,
+    "waits": 387.0,
+    "handles_avg": 1.33,
+    "wait_all": 0.0,
+    "polled": 252.0,
+    "delays": 6.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 11673.0,
+    "per_s": 2212.0,
+    "avg_us": 12.8,
+    "selects": 172.0,
+    "blocked": 109.0,
+    "block_avg_us": 485.6,
+    "waits": 33966.0,
+    "handles_avg": 1.02,
+    "wait_all": 0.0,
+    "polled": 1306.0,
+    "delays": 628.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 12095.0,
+    "per_s": 2365.0,
+    "avg_us": 15.5,
+    "selects": 72.0,
+    "blocked": 58.0,
+    "block_avg_us": 139.8,
+    "waits": 424810.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1795.0,
+    "delays": 2286.0,
+    "yields": 1.0
+   },
+   {
+    "calls": 7662.0,
+    "per_s": 1500.0,
+    "avg_us": 17.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 121.9,
+    "waits": 513394.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1868.0,
+    "delays": 2280.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 8267.0,
+    "per_s": 1616.0,
+    "avg_us": 17.5,
+    "selects": 29.0,
+    "blocked": 27.0,
+    "block_avg_us": 170.7,
+    "waits": 516515.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1873.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7957.0,
+    "per_s": 1557.0,
+    "avg_us": 18.4,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 153.4,
+    "waits": 564747.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1869.0,
+    "delays": 2321.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7614.0,
+    "per_s": 1488.0,
+    "avg_us": 19.2,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 149.1,
+    "waits": 565282.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1849.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7655.0,
+    "per_s": 1498.0,
+    "avg_us": 18.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 160.3,
+    "waits": 587103.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1871.0,
+    "delays": 2280.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7674.0,
+    "per_s": 1499.0,
+    "avg_us": 18.9,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 147.3,
+    "waits": 588160.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1874.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7665.0,
+    "per_s": 1499.0,
+    "avg_us": 18.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 120.1,
+    "waits": 585703.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1873.0,
+    "delays": 2281.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7670.0,
+    "per_s": 1498.0,
+    "avg_us": 18.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 141.3,
+    "waits": 587235.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1873.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7661.0,
+    "per_s": 1498.0,
+    "avg_us": 18.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 140.6,
+    "waits": 586998.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1871.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7669.0,
+    "per_s": 1499.0,
+    "avg_us": 18.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 109.6,
+    "waits": 587118.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1874.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7654.0,
+    "per_s": 1497.0,
+    "avg_us": 18.9,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 146.0,
+    "waits": 587425.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1871.0,
+    "delays": 2280.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7675.0,
+    "per_s": 1499.0,
+    "avg_us": 18.9,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 193.4,
+    "waits": 587214.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1873.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7655.0,
+    "per_s": 1498.0,
+    "avg_us": 19.0,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 144.1,
+    "waits": 584262.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1871.0,
+    "delays": 2281.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7691.0,
+    "per_s": 1503.0,
+    "avg_us": 19.0,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 116.2,
+    "waits": 587271.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1873.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7683.0,
+    "per_s": 1499.0,
+    "avg_us": 18.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 147.2,
+    "waits": 586575.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1876.0,
+    "delays": 2287.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7666.0,
+    "per_s": 1498.0,
+    "avg_us": 19.0,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 137.7,
+    "waits": 585780.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1872.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7659.0,
+    "per_s": 1498.0,
+    "avg_us": 18.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 123.1,
+    "waits": 585865.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1870.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7671.0,
+    "per_s": 1499.0,
+    "avg_us": 18.9,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 151.5,
+    "waits": 586548.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1874.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7666.0,
+    "per_s": 1499.0,
+    "avg_us": 18.9,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 145.6,
+    "waits": 586804.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1871.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 10601.0,
+    "per_s": 2068.0,
+    "avg_us": 15.1,
+    "selects": 30.0,
+    "blocked": 30.0,
+    "block_avg_us": 145.2,
+    "waits": 576677.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1876.0,
+    "delays": 2291.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 11888.0,
+    "per_s": 2323.0,
+    "avg_us": 14.4,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 159.7,
+    "waits": 624896.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1848.0,
+    "delays": 4161.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 8365.0,
+    "per_s": 1562.0,
+    "avg_us": 19.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 221.2,
+    "waits": 704607.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1896.0,
+    "delays": 2387.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7600.0,
+    "per_s": 1485.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 186.0,
+    "waits": 712945.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1848.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7611.0,
+    "per_s": 1486.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 199.3,
+    "waits": 714551.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1851.0,
+    "delays": 2286.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7613.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 183.6,
+    "waits": 713032.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1851.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7629.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 174.0,
+    "waits": 716049.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1854.0,
+    "delays": 2290.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7599.0,
+    "per_s": 1485.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 204.2,
+    "waits": 710883.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1848.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7626.0,
+    "per_s": 1488.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 159.6,
+    "waits": 717348.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1855.0,
+    "delays": 2286.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7607.0,
+    "per_s": 1486.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 177.3,
+    "waits": 712463.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7626.0,
+    "per_s": 1488.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 167.9,
+    "waits": 715306.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1855.0,
+    "delays": 2286.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7600.0,
+    "per_s": 1485.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 177.9,
+    "waits": 710626.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1849.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7637.0,
+    "per_s": 1487.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 160.7,
+    "waits": 714091.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1855.0,
+    "delays": 2292.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7615.0,
+    "per_s": 1487.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 237.0,
+    "waits": 713874.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1851.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7615.0,
+    "per_s": 1485.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 188.0,
+    "waits": 717487.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1853.0,
+    "delays": 2288.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7616.0,
+    "per_s": 1487.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 201.6,
+    "waits": 717210.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1852.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7628.0,
+    "per_s": 1488.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 185.8,
+    "waits": 716477.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1856.0,
+    "delays": 2286.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7609.0,
+    "per_s": 1486.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 181.4,
+    "waits": 717235.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1852.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7628.0,
+    "per_s": 1489.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 172.7,
+    "waits": 717056.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1855.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7607.0,
+    "per_s": 1486.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 165.6,
+    "waits": 717331.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7624.0,
+    "per_s": 1487.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 182.7,
+    "waits": 715479.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1854.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7607.0,
+    "per_s": 1487.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 173.7,
+    "waits": 713716.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7696.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 178.4,
+    "waits": 719623.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1872.0,
+    "delays": 2309.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7725.0,
+    "per_s": 1510.0,
+    "avg_us": 20.9,
+    "selects": 48.0,
+    "blocked": 48.0,
+    "block_avg_us": 180.7,
+    "waits": 711536.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1849.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7613.0,
+    "per_s": 1486.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 233.4,
+    "waits": 713299.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2286.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7602.0,
+    "per_s": 1485.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 231.1,
+    "waits": 715447.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1849.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7615.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 174.3,
+    "waits": 714532.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1851.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7610.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 179.4,
+    "waits": 715642.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7637.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 185.4,
+    "waits": 714815.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1857.0,
+    "delays": 2291.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7606.0,
+    "per_s": 1486.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 187.7,
+    "waits": 715769.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1851.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7615.0,
+    "per_s": 1487.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 194.9,
+    "waits": 714341.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1851.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7608.0,
+    "per_s": 1487.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 181.6,
+    "waits": 716141.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2282.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7618.0,
+    "per_s": 1487.0,
+    "avg_us": 20.6,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 203.2,
+    "waits": 718834.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1854.0,
+    "delays": 2285.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7613.0,
+    "per_s": 1487.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 190.1,
+    "waits": 713087.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7618.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 191.6,
+    "waits": 714375.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1853.0,
+    "delays": 2286.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7603.0,
+    "per_s": 1486.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 178.9,
+    "waits": 714719.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1849.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7636.0,
+    "per_s": 1487.0,
+    "avg_us": 20.5,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 180.5,
+    "waits": 714573.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1856.0,
+    "delays": 2289.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7605.0,
+    "per_s": 1486.0,
+    "avg_us": 20.7,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 169.5,
+    "waits": 715228.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1850.0,
+    "delays": 2283.0,
+    "yields": 0.0
+   },
+   {
+    "calls": 7619.0,
+    "per_s": 1487.0,
+    "avg_us": 20.8,
+    "selects": 24.0,
+    "blocked": 24.0,
+    "block_avg_us": 172.5,
+    "waits": 717322.0,
+    "handles_avg": 1.0,
+    "wait_all": 0.0,
+    "polled": 1853.0,
+    "delays": 2284.0,
+    "yields": 0.0
+   }
+  ],
+  "top": [
+   {
+    "create_mapping": {
+     "count": 100,
+     "avg_us": 566.0
+    },
+    "get_key_value": {
+     "count": 553,
+     "avg_us": 18.5
+    },
+    "create_file": {
+     "count": 105,
+     "avg_us": 55.3
+    },
+    "is_same_mapping": {
+     "count": 298,
+     "avg_us": 17.2
+    },
+    "open_key": {
+     "count": 264,
+     "avg_us": 18.3
+    }
+   },
+   {
+    "send_hardware_message": {
+     "count": 653,
+     "avg_us": 29.0
+    },
+    "create_mapping": {
+     "count": 36,
+     "avg_us": 369.9
+    },
+    "create_file": {
+     "count": 207,
+     "avg_us": 62.5
+    },
+    "close_handle": {
+     "count": 2566,
+     "avg_us": 4.8
+    },
+    "get_thread_info": {
+     "count": 620,
+     "avg_us": 17.0
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 471,
+     "avg_us": 68.1
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 46.9
+    },
+    "get_message": {
+     "count": 506,
+     "avg_us": 50.1
+    },
+    "close_handle": {
+     "count": 3662,
+     "avg_us": 5.3
+    },
+    "create_event": {
+     "count": 3409,
+     "avg_us": 3.8
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 612,
+     "avg_us": 69.7
+    },
+    "get_message": {
+     "count": 616,
+     "avg_us": 51.1
+    },
+    "send_hardware_message": {
+     "count": 628,
+     "avg_us": 48.9
+    },
+    "close_handle": {
+     "count": 1884,
+     "avg_us": 5.7
+    },
+    "get_inproc_sync_fd": {
+     "count": 1886,
+     "avg_us": 4.0
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 614,
+     "avg_us": 69.5
+    },
+    "get_message": {
+     "count": 622,
+     "avg_us": 51.0
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 49.0
+    },
+    "close_handle": {
+     "count": 2092,
+     "avg_us": 5.8
+    },
+    "create_event": {
+     "count": 2007,
+     "avg_us": 4.0
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 610,
+     "avg_us": 73.6
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 53.0
+    },
+    "get_message": {
+     "count": 621,
+     "avg_us": 53.4
+    },
+    "close_handle": {
+     "count": 1992,
+     "avg_us": 6.1
+    },
+    "create_event": {
+     "count": 1992,
+     "avg_us": 4.2
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 82.6
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 53.7
+    },
+    "get_message": {
+     "count": 597,
+     "avg_us": 53.7
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.1
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 612,
+     "avg_us": 73.8
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 54.2
+    },
+    "get_message": {
+     "count": 617,
+     "avg_us": 52.2
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.3
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 614,
+     "avg_us": 73.5
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 54.9
+    },
+    "get_message": {
+     "count": 621,
+     "avg_us": 53.1
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.3
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 73.6
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 54.2
+    },
+    "get_message": {
+     "count": 618,
+     "avg_us": 51.5
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.2
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.4
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 614,
+     "avg_us": 72.5
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 54.7
+    },
+    "get_message": {
+     "count": 619,
+     "avg_us": 52.7
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.3
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 73.3
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 53.7
+    },
+    "get_message": {
+     "count": 619,
+     "avg_us": 51.4
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.2
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 73.8
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 54.6
+    },
+    "get_message": {
+     "count": 620,
+     "avg_us": 52.6
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.1
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 73.8
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 54.2
+    },
+    "get_message": {
+     "count": 616,
+     "avg_us": 54.0
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.3
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 614,
+     "avg_us": 73.8
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 54.6
+    },
+    "get_message": {
+     "count": 621,
+     "avg_us": 52.2
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.2
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 612,
+     "avg_us": 73.7
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 54.5
+    },
+    "get_message": {
+     "count": 617,
+     "avg_us": 54.5
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.3
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 614,
+     "avg_us": 74.9
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 54.6
+    },
+    "get_message": {
+     "count": 630,
+     "avg_us": 53.5
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.2
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 73.4
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 54.6
+    },
+    "get_message": {
+     "count": 621,
+     "avg_us": 52.7
+    },
+    "close_handle": {
+     "count": 1893,
+     "avg_us": 6.2
+    },
+    "get_inproc_sync_fd": {
+     "count": 1893,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 614,
+     "avg_us": 73.8
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 54.4
+    },
+    "get_message": {
+     "count": 621,
+     "avg_us": 52.5
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.3
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.4
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 73.5
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 54.8
+    },
+    "get_message": {
+     "count": 619,
+     "avg_us": 53.5
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.1
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.4
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 72.9
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 55.5
+    },
+    "get_message": {
+     "count": 620,
+     "avg_us": 52.4
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.2
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 613,
+     "avg_us": 74.6
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 54.5
+    },
+    "get_message": {
+     "count": 619,
+     "avg_us": 54.0
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.1
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.4
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 615,
+     "avg_us": 73.9
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 53.3
+    },
+    "get_message": {
+     "count": 628,
+     "avg_us": 53.2
+    },
+    "close_handle": {
+     "count": 3305,
+     "avg_us": 5.9
+    },
+    "create_event": {
+     "count": 3292,
+     "avg_us": 4.1
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 590,
+     "avg_us": 80.5
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 56.3
+    },
+    "get_message": {
+     "count": 594,
+     "avg_us": 55.4
+    },
+    "close_handle": {
+     "count": 4000,
+     "avg_us": 6.3
+    },
+    "create_event": {
+     "count": 4010,
+     "avg_us": 4.3
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 578,
+     "avg_us": 90.3
+    },
+    "send_hardware_message": {
+     "count": 659,
+     "avg_us": 60.3
+    },
+    "get_message": {
+     "count": 578,
+     "avg_us": 57.9
+    },
+    "close_handle": {
+     "count": 2221,
+     "avg_us": 6.9
+    },
+    "create_event": {
+     "count": 2220,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 589,
+     "avg_us": 89.4
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.8
+    },
+    "get_message": {
+     "count": 589,
+     "avg_us": 56.0
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.3
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 88.1
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.3
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 57.6
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 87.8
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 59.9
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 54.9
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.5
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 87.8
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 59.7
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 55.7
+    },
+    "close_handle": {
+     "count": 1893,
+     "avg_us": 6.3
+    },
+    "get_inproc_sync_fd": {
+     "count": 1893,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 590,
+     "avg_us": 87.9
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.5
+    },
+    "get_message": {
+     "count": 590,
+     "avg_us": 55.8
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.3
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 88.0
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 59.8
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 55.7
+    },
+    "close_handle": {
+     "count": 1893,
+     "avg_us": 6.7
+    },
+    "create_event": {
+     "count": 1893,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.2
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.0
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 56.4
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 60.2
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 55.5
+    },
+    "close_handle": {
+     "count": 1893,
+     "avg_us": 6.2
+    },
+    "get_inproc_sync_fd": {
+     "count": 1893,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 590,
+     "avg_us": 87.7
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.2
+    },
+    "get_message": {
+     "count": 590,
+     "avg_us": 55.6
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.6
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.4
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 87.9
+    },
+    "send_hardware_message": {
+     "count": 632,
+     "avg_us": 61.0
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 55.9
+    },
+    "close_handle": {
+     "count": 1896,
+     "avg_us": 6.5
+    },
+    "create_event": {
+     "count": 1896,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 88.9
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.1
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 56.0
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.7
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.4
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 88.5
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.2
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 57.1
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.7
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.3
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 57.7
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.6
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.6
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 60.6
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 55.7
+    },
+    "close_handle": {
+     "count": 1893,
+     "avg_us": 6.4
+    },
+    "create_event": {
+     "count": 1893,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.4
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.0
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 56.0
+    },
+    "close_handle": {
+     "count": 1889,
+     "avg_us": 6.4
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 594,
+     "avg_us": 87.7
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 61.0
+    },
+    "get_message": {
+     "count": 594,
+     "avg_us": 56.9
+    },
+    "close_handle": {
+     "count": 1891,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1893,
+     "avg_us": 4.8
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.8
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 55.0
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.4
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 88.7
+    },
+    "send_hardware_message": {
+     "count": 631,
+     "avg_us": 60.4
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 56.3
+    },
+    "close_handle": {
+     "count": 1893,
+     "avg_us": 6.4
+    },
+    "create_event": {
+     "count": 1893,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 87.8
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.8
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 55.7
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.7
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 597,
+     "avg_us": 88.2
+    },
+    "send_hardware_message": {
+     "count": 637,
+     "avg_us": 59.6
+    },
+    "get_message": {
+     "count": 597,
+     "avg_us": 55.6
+    },
+    "close_handle": {
+     "count": 1911,
+     "avg_us": 6.5
+    },
+    "create_event": {
+     "count": 1911,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 89.1
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.0
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 57.4
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.5
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 59.8
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 57.1
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 590,
+     "avg_us": 88.2
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.8
+    },
+    "get_message": {
+     "count": 590,
+     "avg_us": 56.8
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.5
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 87.6
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.0
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 56.6
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.4
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 88.5
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 59.7
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 55.7
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.3
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 632,
+     "avg_us": 59.6
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 55.9
+    },
+    "close_handle": {
+     "count": 1896,
+     "avg_us": 6.7
+    },
+    "get_inproc_sync_fd": {
+     "count": 1896,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 88.0
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 59.9
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 56.7
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.4
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.4
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 55.9
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.7
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.8
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 89.2
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.5
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 55.5
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.0
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 56.5
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.5
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 590,
+     "avg_us": 88.2
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.7
+    },
+    "get_message": {
+     "count": 590,
+     "avg_us": 56.8
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.5
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.7
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 87.7
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 60.3
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 56.0
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.2
+    },
+    "create_event": {
+     "count": 1890,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 591,
+     "avg_us": 88.1
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 60.0
+    },
+    "get_message": {
+     "count": 591,
+     "avg_us": 55.5
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.4
+    },
+    "create_event": {
+     "count": 1887,
+     "avg_us": 4.5
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 87.3
+    },
+    "send_hardware_message": {
+     "count": 632,
+     "avg_us": 60.2
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 55.4
+    },
+    "close_handle": {
+     "count": 1896,
+     "avg_us": 6.7
+    },
+    "create_event": {
+     "count": 1896,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 592,
+     "avg_us": 87.4
+    },
+    "send_hardware_message": {
+     "count": 629,
+     "avg_us": 61.0
+    },
+    "get_message": {
+     "count": 592,
+     "avg_us": 56.2
+    },
+    "close_handle": {
+     "count": 1887,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1887,
+     "avg_us": 4.6
+    }
+   },
+   {
+    "set_cursor": {
+     "count": 593,
+     "avg_us": 88.3
+    },
+    "send_hardware_message": {
+     "count": 630,
+     "avg_us": 59.9
+    },
+    "get_message": {
+     "count": 593,
+     "avg_us": 57.1
+    },
+    "close_handle": {
+     "count": 1890,
+     "avg_us": 6.6
+    },
+    "get_inproc_sync_fd": {
+     "count": 1890,
+     "avg_us": 4.6
+    }
+   }
+  ]
+ },
+ "shown": {
+  "frames": 34794,
+  "per_10s": [
+   1,
+   114,
+   1163,
+   1224,
+   1204,
+   1227,
+   1227,
+   1226,
+   1226,
+   1228,
+   1226,
+   1226,
+   1205,
+   1167,
+   1182,
+   1183,
+   1185,
+   1183,
+   1183,
+   1185,
+   1187,
+   1186,
+   1184,
+   1188,
+   1182,
+   1181,
+   1185,
+   1184,
+   1183,
+   1184,
+   1185
+  ],
+  "longest_gap_ms": 3733
+ },
+ "broker": {
+  "local_offer": 8589934592,
+  "host_limit": 1073741824,
+  "windows": null,
+  "refused": [],
+  "refused_count": 0,
+  "clients": [
+   {
+    "pid": -1,
+    "frames": 0,
+    "submissions": 0
+   },
+   {
+    "pid": -1,
+    "frames": 0,
+    "submissions": 0
+   },
+   {
+    "pid": -1,
+    "frames": 0,
+    "submissions": 0
+   },
+   {
+    "pid": -1,
+    "frames": 0,
+    "submissions": 0
+   }
+  ],
+  "wedged": false,
+  "failure_reasons": [],
+  "host_peak": null,
+  "local_peak": null
+ },
+ "pacing": {
+  "windows": [
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "size",
+    "direct": 938.0,
+    "composed": 185.0,
+    "seconds": 10.0,
+    "frames": 1123.0,
+    "hidden": 0.0,
+    "fps": 112.2,
+    "mean": 8.92,
+    "p50": 8.5,
+    "p95": 9.5,
+    "p99": 11.75,
+    "max": 183.67,
+    "over20": 6.0,
+    "over34": 4.0,
+    "present_avg": 8.28,
+    "present_max": 16.16
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1197.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1197.0,
+    "hidden": 0.0,
+    "fps": 119.7,
+    "mean": 8.36,
+    "p50": 8.5,
+    "p95": 9.0,
+    "p99": 9.5,
+    "max": 21.5,
+    "over20": 1.0,
+    "over34": 0.0,
+    "present_avg": 8.12,
+    "present_max": 9.92
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1177.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1177.0,
+    "hidden": 0.0,
+    "fps": 117.7,
+    "mean": 8.5,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 197.31,
+    "over20": 1.0,
+    "over34": 1.0,
+    "present_avg": 8.11,
+    "present_max": 10.53
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.9,
+    "mean": 8.34,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.52,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.12,
+    "present_max": 9.31
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.9,
+    "mean": 8.34,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.51,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.11,
+    "present_max": 9.3
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.9,
+    "mean": 8.34,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.59,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.11,
+    "present_max": 9.38
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.9,
+    "mean": 8.34,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.88,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.12,
+    "present_max": 9.66
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1198.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1198.0,
+    "hidden": 0.0,
+    "fps": 119.8,
+    "mean": 8.35,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 15.94,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.12,
+    "present_max": 15.72
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.9,
+    "mean": 8.34,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.67,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.11,
+    "present_max": 9.43
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.9,
+    "mean": 8.34,
+    "p50": 8.5,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.81,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.11,
+    "present_max": 9.57
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1199.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1199.0,
+    "hidden": 0.0,
+    "fps": 119.8,
+    "mean": 8.34,
+    "p50": 8.25,
+    "p95": 9.25,
+    "p99": 10.0,
+    "max": 11.11,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.11,
+    "present_max": 10.86
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1106.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1106.0,
+    "hidden": 0.0,
+    "fps": 110.6,
+    "mean": 9.04,
+    "p50": 9.0,
+    "p95": 9.75,
+    "p99": 10.5,
+    "max": 216.53,
+    "over20": 1.0,
+    "over34": 1.0,
+    "present_avg": 8.62,
+    "present_max": 15.89
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1154.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1154.0,
+    "hidden": 0.0,
+    "fps": 115.3,
+    "mean": 8.67,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.98,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.44,
+    "present_max": 9.75
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1155.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1155.0,
+    "hidden": 0.0,
+    "fps": 115.5,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.74,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 9.5
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1155.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1155.0,
+    "hidden": 0.0,
+    "fps": 115.4,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 10.06,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 9.84
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1158.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1158.0,
+    "hidden": 0.0,
+    "fps": 115.7,
+    "mean": 8.64,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.83,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.41,
+    "present_max": 9.62
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1153.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1153.0,
+    "hidden": 0.0,
+    "fps": 115.3,
+    "mean": 8.67,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 16.14,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.44,
+    "present_max": 15.89
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1155.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1155.0,
+    "hidden": 0.0,
+    "fps": 115.5,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.75,
+    "max": 10.43,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 10.2
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1158.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1158.0,
+    "hidden": 0.0,
+    "fps": 115.7,
+    "mean": 8.64,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.8,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.41,
+    "present_max": 9.57
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1160.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1160.0,
+    "hidden": 0.0,
+    "fps": 115.9,
+    "mean": 8.63,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 10.15,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.39,
+    "present_max": 9.93
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1157.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1157.0,
+    "hidden": 0.0,
+    "fps": 115.6,
+    "mean": 8.65,
+    "p50": 8.75,
+    "p95": 9.25,
+    "p99": 9.5,
+    "max": 9.83,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.42,
+    "present_max": 9.59
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1156.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1156.0,
+    "hidden": 0.0,
+    "fps": 115.5,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 16.1,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.42,
+    "present_max": 15.87
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1155.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1155.0,
+    "hidden": 0.0,
+    "fps": 115.4,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.83,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 9.57
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1155.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1155.0,
+    "hidden": 0.0,
+    "fps": 115.4,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 10.74,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 10.51
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1154.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1154.0,
+    "hidden": 0.0,
+    "fps": 115.3,
+    "mean": 8.67,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.75,
+    "max": 15.73,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.44,
+    "present_max": 15.5
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1158.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1158.0,
+    "hidden": 0.0,
+    "fps": 115.7,
+    "mean": 8.64,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 10.13,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.41,
+    "present_max": 9.9
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1157.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1157.0,
+    "hidden": 0.0,
+    "fps": 115.7,
+    "mean": 8.65,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.84,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.41,
+    "present_max": 9.63
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1156.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1156.0,
+    "hidden": 0.0,
+    "fps": 115.5,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.78,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 9.55
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1155.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1155.0,
+    "hidden": 0.0,
+    "fps": 115.5,
+    "mean": 8.66,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.75,
+    "max": 17.61,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.43,
+    "present_max": 17.39
+   },
+   {
+    "cookie": 5,
+    "pid": 998,
+    "route": "independent",
+    "final": false,
+    "refused": "none",
+    "direct": 1157.0,
+    "composed": 0.0,
+    "seconds": 10.0,
+    "frames": 1157.0,
+    "hidden": 0.0,
+    "fps": 115.6,
+    "mean": 8.65,
+    "p50": 8.75,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 10.41,
+    "over20": 0.0,
+    "over34": 0.0,
+    "present_avg": 8.42,
+    "present_max": 10.2
+   }
+  ],
+  "clients": {
+   "5": {
+    "pid": 998,
+    "route": "independent",
+    "routes": {
+     "independent": 35002
+    },
+    "windows": 30,
+    "seconds": 300.0,
+    "frames": 35002,
+    "hidden": 0,
+    "direct": 34817,
+    "composed": 185,
+    "refused": [
+     "size"
+    ],
+    "fps": 116.7,
+    "p50_median_ms": 8.75,
+    "p95_worst_ms": 9.75,
+    "p99_worst_ms": 11.75,
+    "max_ms": 216.53,
+    "over20": 9,
+    "over34": 6,
+    "present_avg_ms": 8.32,
+    "present_max_ms": 17.39
+   }
+  }
+ },
+ "captures": [
+  "klog/fmem-re3-title-map-2026-10-26-02-capture-01.png",
+  "klog/fmem-re3-title-map-2026-10-26-02-capture-02.png",
+  "klog/fmem-re3-title-map-2026-10-26-02-capture-03.png",
+  "klog/fmem-re3-title-map-2026-10-26-02-capture-04.png",
+  "klog/fmem-re3-title-map-2026-10-26-02-capture-05.png",
+  "klog/fmem-re3-title-map-2026-10-26-02-capture-06.png"
+ ],
+ "pad_script": [
+  "# fmem: Resident Evil 3 from the desktop, the owner's save: title screen, Continue, the save, then gameplay",
+  "90 capture",
+  "130 capture",
+  "150 cross",
+  "165 cross",
+  "180 capture",
+  "185 cross",
+  "200 cross",
+  "215 cross",
+  "230 capture",
+  "260 capture",
+  "300 capture",
+  "360 capture",
+  "420 capture"
+ ],
+ "cleanup_verified": true,
+ "hooks_removed": true
+}

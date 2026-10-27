@@ -12,16 +12,50 @@ static int intersects(int64_t left, int64_t top, int64_t right, int64_t bottom, 
 }
 
 static int direct_enabled = 1;
+/* Each slot: the pid in the high 32 bits, the choice + 1 (1 off, 2 on) in the low; 0 empty. One word, so the broker's
+ * thread reads a slot whole while Wine's spawning thread writes it. */
+static uint64_t processes[PW_DIRECT_PROCESSES];
+static unsigned next_slot;
 
 void pw_window_direct_set_enabled(int enabled)
 {
     __atomic_store_n(&direct_enabled, enabled != 0, __ATOMIC_RELAXED);
 }
 
+void pw_window_direct_set_process(int32_t pid, int enabled)
+{
+    if (pid <= 0) return;
+    const uint64_t word = enabled < 0 ? 0 : (uint64_t)(uint32_t)pid << 32 | (uint64_t)(enabled ? 2 : 1);
+    for (unsigned i = 0; i < PW_DIRECT_PROCESSES; ++i) {
+        const uint64_t slot = __atomic_load_n(&processes[i], __ATOMIC_RELAXED);
+        if (slot && (int32_t)(slot >> 32) == pid) {
+            __atomic_store_n(&processes[i], word, __ATOMIC_RELAXED);
+            return;
+        }
+    }
+    if (!word) return;
+    for (unsigned i = 0; i < PW_DIRECT_PROCESSES; ++i)
+        if (!__atomic_load_n(&processes[i], __ATOMIC_RELAXED)) {
+            __atomic_store_n(&processes[i], word, __ATOMIC_RELAXED);
+            return;
+        }
+    __atomic_store_n(&processes[__atomic_fetch_add(&next_slot, 1, __ATOMIC_RELAXED) % PW_DIRECT_PROCESSES], word,
+                     __ATOMIC_RELAXED);
+}
+
+static int enabled_for(int32_t pid)
+{
+    for (unsigned i = 0; i < PW_DIRECT_PROCESSES; ++i) {
+        const uint64_t slot = __atomic_load_n(&processes[i], __ATOMIC_RELAXED);
+        if (slot && (int32_t)(slot >> 32) == pid) return (slot & 0xff) == 2;
+    }
+    return __atomic_load_n(&direct_enabled, __ATOMIC_RELAXED);
+}
+
 int pw_window_direct_flip(const PwWindowSnapshot *snapshot, int32_t pid, uint32_t hwnd, uint64_t generation,
                           uint32_t frame_width, uint32_t frame_height, uint32_t screen_width, uint32_t screen_height)
 {
-    if (!__atomic_load_n(&direct_enabled, __ATOMIC_RELAXED)) return PW_DIRECT_OFF;
+    if (!enabled_for(pid)) return PW_DIRECT_OFF;
     if (!snapshot || snapshot->overflow || snapshot->count > PW_WINDOW_LIMIT ||
         snapshot->clip_count > PW_WINDOW_CLIP_LIMIT || snapshot->thumbnail_count > PW_WINDOW_THUMBNAIL_LIMIT)
         return PW_DIRECT_INCOMPLETE;

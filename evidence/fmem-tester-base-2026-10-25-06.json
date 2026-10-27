@@ -1,0 +1,71 @@
+{
+  "run": "fmem-tester-base-2026-10-25-06",
+  "source": "the tester probe (PPSA99171, the shipped build) on our base PS5, its result file fetched from the console; runs -01 to -05 were earlier builds of the probe, kept in klog only",
+  "probe_version": 1,
+  "model": "unknown-model",
+  "model_source": "unavailable",
+  "firmware_installed": "13.60",
+  "firmware_reported": "13.59",
+  "pro_mode_bit22_shipped": 1,
+  "pro_memory_mode": "Pro memory mode off",
+  "elevation_status": "ok",
+  "elevated": 1,
+  "direct_pool_mib": 11712,
+  "title_flexible_free_mib": 985,
+  "execute": {
+    "direct0": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "direct12": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "main12": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "mapx": {
+      "title": "map refused",
+      "title_prot": -1,
+      "helper": "map refused",
+      "helper_prot": -1
+    },
+    "anon": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "jit": {
+      "title": "refused",
+      "title_prot": -1,
+      "helper": "refused",
+      "helper_prot": -1
+    }
+  },
+  "sony_helper": {
+    "spawned": 1,
+    "spawn_status": "0x14018f61",
+    "answered": 1,
+    "faulted": 0,
+    "jit_create": "0x80020001",
+    "title_flexible_before_mib": 985,
+    "title_flexible_held_mib": 918,
+    "title_flexible_after_mib": 985
+  },
+  "save_errno": "/app0=0 /mnt/usb0=2 /mnt/usb1=2 /download0=0 ",
+  "verdict": [
+    "unknown-model, firmware 13.60 (the system says 13.59); Pro memory mode off",
+    "MihawkOS's /data grant: granted",
+    "This probe's title: code runs from nothing (JIT refused)",
+    "Sony helper: code runs from nothing; JIT refused",
+    "Sony helper's 64 MiB came from the title's memory: yes (67 MiB)"
+  ]
+}

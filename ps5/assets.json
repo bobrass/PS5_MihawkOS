@@ -189,7 +189,7 @@
       "author": "Adobe and Google (Noto Sans CJK)",
       "licence": "OFL-1.1",
       "url": "https://github.com/google/fonts/tree/main/ofl/notosanssc",
-      "changes": "Google Fonts' variable TrueType files at revision 47d54ca1ebb14fd864695f1d39dc734f39017c33, cut to the characters the setup's text uses and set at the Medium weight with fontTools, then baked into signed-distance-field atlases by tools/bake-huifont.cpp",
+      "changes": "Google Fonts' variable TrueType files at revision 47d54ca1ebb14fd864695f1d39dc734f39017c33, cut to the characters the setup's text uses and set at the Medium weight with fontTools: shipped as TrueType for the title's own screens (the Steam guide's sessions) and baked into signed-distance-field atlases for the launcher by tools/bake-huifont.cpp",
       "licence_file": "licenses/NotoSansCJK-OFL.txt"
     },
     {

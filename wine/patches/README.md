@@ -371,8 +371,10 @@ Patch 1127 runs a helper's code from JIT shared memory, the only memory a payloa
 converts the faulting host page and its neighbours of the same protection, within one 64 KiB window (four host pages;
 256 KiB before 2026-10-16: `evidence/cluster-ab-2026-10-16-ab.json`; 16 KiB waits for a gate), through
 `__wine_ps5_exec_convert`; a fault the host already allows runs again under the virtual mutex, replacing 0954's
-pre-lock wait; an execute fault nothing can serve (a section view) is counted. The hook is host-tested and
-`vm-protect-probe` cases E1-E7 pass on the pinned desktop Wine; it has not run on the console.
+pre-lock wait; an execute fault nothing can serve (a section view) is counted. An image view's code goes through
+`__wine_ps5_exec_convert_image` instead, which maps a copy another helper made of the same bytes when the title's
+registry has one (shared code copies, `wine/ps5/pw_wine_codeshare.h`, docs/PLAN.md; host-tested, not run on the console).
+The hook is host-tested and `vm-protect-probe` cases E1-E7 pass on the pinned desktop Wine; it has not run on the console.
 
 Patch 1128 answers the hang of 2026-10-15 (late-library: "unwire timeout at 0xc80000000" while a helper with RADV up
 unmapped a bare 28 GiB reservation; the freezes of the earlier emulator experiment (removed) had the same signature). `unmap_area` no longer unmaps a range the

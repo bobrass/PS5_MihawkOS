@@ -182,11 +182,12 @@ other private LAN addresses, blocked personal e-mail addresses (`tools/privacy_c
 addresses, serial numbers and console ids, the build user's home path and Windows user folders, in the tree and in
 history; and in the tree, tracked files under `klog/` or `.claude/`, files that could hold game data, firmware or keys,
 source files without an SPDX line, the licence texts of a production build (a title or runtime without its licences
-folder fails), and what a build must never carry: a wallpaper other than the project's Aero Meadow (`proton.bmp`, drawn
-by `tools/make-mihawk-wallpaper.py`; its thumbnail is compared with the generator's: the real one is about 1 level away,
-Bloom about 74), a native Microsoft binary (a PE without Wine's builtin marker that names Microsoft Corporation), and
-the probe prefix or test programs. Every build, the owner's own and a public one alike, ships Aero Meadow since
-2026-10-18, when it replaced Windows 11's Bloom. It prints counts and places, never a
+folder fails), and what a build must never carry: a wallpaper other than the project's Bubble Earth (`proton.bmp`, drawn
+by `tools/make-aero-wallpapers.py`; its thumbnail is compared with the generator's: the build's is about 3.5 levels
+away, Glass City 41, Aqua World 49, Aero Meadow 53, Bloom farther), a native Microsoft binary (a PE without Wine's builtin
+marker that names Microsoft Corporation), and the probe prefix or test programs. Every build, the owner's own and a
+public one alike, ships the project's own wallpaper: Aero Meadow from 2026-10-18, when it replaced Windows 11's Bloom,
+and Bubble Earth from 2026-10-25. It prints counts and places, never a
 value; known false positives are listed in the tool and reported as allowed. `--allow '<category>'` accepts a finding
 the owner has decided to keep (for example `--allow 'home path'` while the history in section 2 stays). Its host test
 plants each category in a scratch repository and checks it is caught and not printed.

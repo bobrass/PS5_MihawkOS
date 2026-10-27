@@ -4,6 +4,10 @@
 #include "proton_sched_probe.h"
 #include "proton_loading.h"
 #include "proton_limits_probe.h"
+extern "C" {
+#include "pw_dmem_share.h"
+}
+
 #include "proton_gpu_identity.h"
 #include "proton_flight_recorder.h"
 #ifdef PS5_GPU_BROKER
@@ -38,6 +42,12 @@ extern "C" {
 #include "../src/pw_wine_profile.h"
 #include "../src/pw_pe_arch.h"
 #include "../src/pw_memory_helper.h"
+#include "../src/pw_aurelia.h"
+#include "../src/pw_steam.h"
+#include "../src/pw_steam_guide.h"
+#include "../src/pw_path_nocase.h"
+#include "../src/pw_steamcmd.h"
+#include "../src/pw_steamcmd_setup.h"
 #include "../src/pw_ntsync.h"
 #include "../src/pw_speed_defaults.h"
 #include "../src/pw_display_rate.h"
@@ -48,6 +58,8 @@ extern "C" {
 #include "pw_audio_ps5.h"
 #include "pw_usb_input_ps5.h"
 #include "../src/pw_game_mode.h"
+#include "../src/pw_high_refresh.h"
+#include "../src/pw_controller.h"
 #include "../src/pw_detailed_logs.h"
 #ifdef PS5_GPU_BROKER
 #include "../src/pw_window_direct.h"
@@ -73,6 +85,7 @@ void catchReturnFromMain(int);
 #include <algorithm>
 #include <vector>
 #include <atomic>
+#include <mutex>
 #include <memory>
 #include <thread>
 #include <cstdlib>
@@ -80,6 +93,7 @@ void catchReturnFromMain(int);
 #include <cstdio>
 #include <cstdarg>
 #include <cctype>
+#include <dirent.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -122,13 +136,20 @@ unsigned long long ended_flips = 0;
 int (*stop_audio)(unsigned) = nullptr;
 void (*fdv_stats)(PwWineFdvStats *) = nullptr;
 int (*server_snapshot)(unsigned) = nullptr;
+int (*server_user_processes)() = nullptr;   // the server's count of user processes (patch 2073)
 void (*device_dump)(void (*)(void *, const char *), void *, uint32_t, uint32_t) = nullptr;
 void (*device_counters)(PwNtsyncCounters *) = nullptr;
 int (*device_gone)(int, int, uint32_t) = nullptr;   // pw_ntsync_process_gone
 // The census of the console's system memory the memory helper takes (src/pw_memory_helper.h).
 int (*memory_census)(pw_memory_census *) = nullptr;
+// The helpers' mappings of shared code copies beyond the first of each (wine/ps5/pw_wine_codeshare.h), which the census
+// counts per mapping and the kernel of firmware 13 once.
+uint64_t (*code_share_duplicates)() = nullptr;
+unsigned (*code_cache_stats)(uint64_t *, unsigned) = nullptr;   // the program in the title's code budget (__wine_ps5_code_cache_stats)
 std::atomic<bool> leaving{false};
 std::atomic<bool> graphics_claimed{false};
+// The one program the title runs itself beside the broker (start_title_client).
+std::atomic<bool> title_client_claimed{false};
 int (*owner_result)() = nullptr;
 // The Mihawk OS desktop session, supervised here (src/pw_desktop_session.h): the launch named its entry, Explorer is
 // the session root, and game mode unloads and restarts it. session_result is the session's own verdict when it ends
@@ -148,7 +169,7 @@ void (*owner_wait)() = nullptr;
 // for the launcher, which shows it after the session (PROTON_SESSION_NOTICES), in case it was missed. Each kind is said
 // once a session, from the title's loop or on the way back to the launcher; any other thread only fills its slot.
 enum NoticeKind { NOTICE_MEMORY_CLOSE, NOTICE_MEMORY_END, NOTICE_SPAWN, NOTICE_GPU, NOTICE_FOLDER,
-                  NOTICE_TEST, NOTICE_KINDS };
+                  NOTICE_MEMORY_SWAP, NOTICE_TEST, NOTICE_KINDS };
 // 0 empty, 1 being written, 2 ready, 3 kept for the launcher and posted
 struct Notice { std::atomic<int> state{0}; char text[512]; };
 Notice notices[NOTICE_KINDS];
@@ -177,6 +198,9 @@ void child_notice(int kind, int pid, int value)
             spawn_pid.store(pid, std::memory_order_relaxed);
     }
     else if (kind == PW_CHILD_NOTICE_GPU) gpu_lost_pid.compare_exchange_strong(none, pid > 0 ? pid : -1);
+#ifdef PS5_GPU_BROKER
+    else if (kind == PW_CHILD_NOTICE_GAME_MODE) pw_window_direct_set_process(pid, value);   // a game's own Game Mode
+#endif
 }
 
 void notices_post()
@@ -328,6 +352,468 @@ void cpu_topology()
 }
 
 void output(const char *text, size_t length);
+// The Aurelia client's --json lines (src/pw_aurelia.h): a session that runs its binary has its library, sign-in
+// challenge and results read from the session's own output, for the title's overlay. list --json prints its array as
+// one long line, which is why output()'s line buffer holds 16 KiB for every session.
+bool aurelia_session()
+{
+    static int on = -1;
+    if (on < 0) {
+        // A launcher launch names the game by profile (the launcher's Aurelia entry), a test run by path; either one
+        // that names the client turns the capture and the overlay on (2026-10-22: only the path was checked, so a
+        // launcher launch ran headless with the broker on the display and showed black).
+        const std::string &path = proton_launch().path;
+        const std::string &profile = proton_launch().profile;
+        on = proton_launch().aurelia || profile == "aurelia" || path.find("aurelia_windows") != std::string::npos ? 1 : 0;
+    }
+    return on == 1;
+}
+// The Steam runtime session (docs/aegis/plans/2026-10-23-steamcmd-runtime.md): Valve's headless
+// SteamCMD started as the program, its console output read for the overlay. The profile "steamcmd"
+// is the diagnostic entry; a game's prelaunch reuses the same reader once the runtime is signed in.
+bool steamcmd_session()
+{
+    static int on = -1;
+    if (on < 0) {
+        const std::string &path = proton_launch().path;
+        const std::string &profile = proton_launch().profile;
+        on = profile == "steamcmd" || path.find("steamcmd") != std::string::npos ? 1 : 0;
+    }
+    return on == 1;
+}
+void aurelia_line(const char *line);
+uint64_t monotonic_ms();
+// When the sign-in was confirmed: the session ends this many ms later (0: none). Read and written under the same lock.
+static volatile uint64_t aurelia_end_ms;
+// A list session parsed a library: the shelf is the screen until a game is chosen.
+static bool aurelia_library_ready;
+// What the session hands over to: the sign-in's library list, or the game the shelf chose. return_to_launcher gives
+// this to the launcher in its own final restart, which otherwise writes a bare launcher request and overwrites
+// anything wine-run.txt held (2026-10-22: the shelf's play request was lost exactly that way).
+static bool aurelia_next_set;
+static ProtonGame aurelia_next;
+// The install target's name, from the library snapshot (or the app id when the snapshot does not know it): the install
+// session's command line carries the app id, not a name, and the screen says "Installing <name> · N%".
+static std::string aurelia_install_name;
+
+// The phase the loading screen starts from, known from the client's own command line (the launcher's profile arguments
+// or a test run's args= override, both already applied to game.arguments): login, list or install <app id>.
+void aurelia_phase_from_arguments(const std::string &command)
+{
+    size_t at = command.find_first_not_of(" \t");
+    if (at == std::string::npos) return;
+    const size_t end = command.find_first_of(" \t", at);
+    const std::string word = command.substr(at, end == std::string::npos ? std::string::npos : end - at);
+    if (word == "install") {
+        size_t start = command.find_first_of("0123456789", at);
+        std::string id;
+        if (start != std::string::npos)
+            for (size_t i = start; i < command.size() && command[i] >= '0' && command[i] <= '9'; ++i) id += command[i];
+        std::string name = id.empty() ? std::string("the game") : id;
+        if (!id.empty()) {
+            if (FILE *file = fopen(PROTON_DATA_ROOT "/aurelia-library.txt", "r")) {
+                char line[512];
+                while (fgets(line, sizeof(line), file)) {
+                    unsigned app = 0;
+                    char game[160] = {};
+                    if (sscanf(line, "%u\t%159[^\t]", &app, game) >= 2 && std::to_string(app) == id) { name = game; break; }
+                }
+                fclose(file);
+            }
+        }
+        aurelia_install_name = name;
+        proton_aurelia_phase(("Installing " + name).c_str());
+        proton_aurelia_status("Waiting for the download to start");
+    } else if (word == "list") {
+        proton_aurelia_phase("Listing your library");
+        proton_aurelia_status("Waiting for the client to finish");
+    } else if (word == "login") {
+        proton_aurelia_phase("Signing in");
+        proton_aurelia_status("Waiting for the sign-in code");
+    }
+}
+
+// One JSON document, however it is printed: a signed-in list --json is pretty-printed over many lines, the login
+// result over four. Lines accumulate until the brackets balance (quotes respected), then the whole document is parsed.
+void aurelia_feed(const char *line)
+{
+    static std::string document;
+    static int depth;
+    static bool in_string, escaped;
+
+    if (document.empty()) {
+        const char *at = line;
+        while (*at == ' ' || *at == '\t') ++at;
+        if (*at != '{' && *at != '[') return;
+    }
+    for (const char *at = line; *at; ++at) {
+        const char c = *at;
+        if (in_string) {
+            if (escaped) escaped = false;
+            else if (c == '\\') escaped = true;
+            else if (c == '"') in_string = false;
+        } else if (c == '"') in_string = true;
+        else if (c == '{' || c == '[') depth++;
+        else if (c == '}' || c == ']') depth--;
+    }
+    document += line;
+    document += '\n';
+    if (depth <= 0) {
+        aurelia_line(document.c_str());
+        document.clear();
+        depth = 0;
+        in_string = escaped = false;
+    }
+}
+
+// What the launcher's Aurelia page reads: the library a session parsed, and the account a sign-in named, as small
+// text files under /data (rewritten whole, so a reader never sees a half line).
+void aurelia_save_library(const PwAureliaGame *games, int count)
+{
+    const std::string path = PROTON_DATA_ROOT "/aurelia-library.txt", temporary = path + ".tmp";
+    FILE *file = fopen(temporary.c_str(), "w");
+    if (!file) return;
+    for (int i = 0; i < count; i++)
+        fprintf(file, "%u\t%s\t%u\t%d\n", games[i].app_id, games[i].name, games[i].playtime_minutes,
+                games[i].update_available);
+    fclose(file);
+    rename(temporary.c_str(), path.c_str());
+}
+
+void aurelia_save_account(const char *account)
+{
+    const std::string path = PROTON_DATA_ROOT "/aurelia-account.txt", temporary = path + ".tmp";
+    FILE *file = fopen(temporary.c_str(), "w");
+    if (!file) return;
+    fprintf(file, "%s\n", account && *account ? account : "signed in");
+    fclose(file);
+    rename(temporary.c_str(), path.c_str());
+}
+
+// ponytail: 128 games and 16 KiB lines, the prototype's ceiling; a library past it logs its first games and says so.
+void aurelia_line(const char *line)
+{
+    static std::mutex lock;
+    PwAureliaEvent event;
+    static PwAureliaGame games[1024];   // a library of any size the client lists, up to 1024 (the page held 128 before)
+    int count, libraries;
+
+    if (line[0] != '{' && line[0] != '[') return;
+    std::lock_guard<std::mutex> held(lock);
+    if (pw_aurelia_parse_event(line, &event)) {
+        switch (event.kind) {
+        case PW_AURELIA_EVENT_QR_CHALLENGE:
+            say("Aurelia: challenge %s", event.url);
+            proton_aurelia_challenge(event.url);
+            break;
+        case PW_AURELIA_EVENT_QR_SCANNED:
+            // The client says the phone read the code; the account still has to approve it. Until now this line was
+            // "a JSON line the client does not know" (the Pro, 2026-10-22).
+            say("Aurelia: the code was scanned; the account confirms it next");
+            proton_aurelia_phase("Code scanned");
+            proton_aurelia_status("Confirm the sign-in in the Steam app");
+            break;
+        case PW_AURELIA_EVENT_AUTH_REQUIRED:
+            say("Aurelia: not signed in (%s)", event.hint);
+            proton_aurelia_status("Not signed in");
+            break;
+        case PW_AURELIA_EVENT_RESULT:
+            say("Aurelia: command finished (%s)%s%s", event.result_ok ? "ok" : "failed",
+                event.status[0] ? " status=" : "", event.status);
+            if (event.result_ok) proton_aurelia_status(event.status[0] ? event.status : "Finished");
+            else proton_aurelia_error("The command failed");
+            break;
+        case PW_AURELIA_EVENT_ERROR:
+            say("Aurelia: error %s", event.error);
+            proton_aurelia_error(event.error);
+            break;
+        case PW_AURELIA_EVENT_PROGRESS: {
+            static int last_tenth = -100;
+            std::string status = event.state[0] ? std::string(event.state) : std::string("working");
+            if (status == "downloading") status = "Downloading";
+            // The phase carries the name and the percent the client is sure of; the status is the state's own word.
+            if (!aurelia_install_name.empty()) {
+                std::string phase = "Installing " + aurelia_install_name;
+                if (event.percent >= 0) phase += " \xc2\xb7 " + std::to_string(event.percent) + "%";
+                proton_aurelia_phase(phase.c_str());
+            }
+            proton_aurelia_progress(event.percent, status.c_str());
+            if (event.percent >= 0 && event.percent / 10 != last_tenth / 10) {
+                last_tenth = event.percent;
+                say("Aurelia: %s %d%%", status.c_str(), event.percent);
+            }
+            break;
+        }
+        case PW_AURELIA_EVENT_SIGNED_IN: {
+            std::string signed_in = event.account[0] ? std::string("Signed in as ") + event.account : "Signed in";
+            say("Aurelia: %s", signed_in.c_str());
+            aurelia_save_account(event.account);
+            // The confirmation is followed by the library, on this same screen: the session hands over to a list
+            // session through its own final restart (see aurelia_next).
+            aurelia_next = ProtonGame{};
+            aurelia_next.id = "aurelia";
+            aurelia_next.arguments = "list --json";
+            aurelia_next_set = true;
+            proton_aurelia_phase(signed_in.c_str());
+            proton_aurelia_status("Opening your library");
+            // The client keeps its daemon after the login: end the session itself once the confirmation has shown, so
+            // the launcher comes back instead of the overlay waiting for a code that was already approved.
+            aurelia_end_ms = monotonic_ms() + 4000;
+            break;
+        }
+        default: break;
+        }
+        return;
+    }
+    count = pw_aurelia_parse_library(line, games, sizeof(games) / sizeof(games[0]));
+    if (count >= 0) {
+        say("Aurelia: the library lists %d game%s", count, count == 1 ? "" : "s");
+        aurelia_save_library(games, count);
+        {
+            // The session's own screen becomes the library: names and ids to the overlay, the account from the file.
+            std::vector<const char *> names;
+            std::vector<unsigned> ids;
+            for (int i = 0; i < count; ++i) {
+                names.push_back(games[i].name);
+                ids.push_back(games[i].app_id);
+            }
+            std::string account;
+            if (FILE *file = fopen(PROTON_DATA_ROOT "/aurelia-account.txt", "r")) {
+                char line[80] = {};
+                if (fgets(line, sizeof(line), file)) {
+                    account = line;
+                    while (!account.empty() && (account.back() == '\n' || account.back() == '\r')) account.pop_back();
+                }
+                fclose(file);
+            }
+            proton_aurelia_library(account.empty() ? nullptr : account.c_str(), names.data(), ids.data(), count);
+            aurelia_library_ready = count > 0;
+        }
+        proton_aurelia_status(count ? "Your library is ready" : "Your library is empty");
+        for (int i = 0; i < count && i < 3; i++) say("Aurelia:   %u %s", games[i].app_id, games[i].name);
+        return;
+    }
+    libraries = pw_aurelia_parse_libraries(line);
+    if (libraries >= 0) {
+        say("Aurelia: %d library folder%s", libraries, libraries == 1 ? "" : "s");
+        return;
+    }
+    say("Aurelia: a JSON line the client does not know: %.160s", line);
+}
+// Where the client's --json lines land: WINE_PS5_STDOUT when the launch set it, else the session's fallback file.
+std::string aurelia_output_path()
+{
+    const char *configured = getenv("WINE_PS5_STDOUT");
+    return configured && *configured ? configured : PROTON_DATA_ROOT "/logs/wine-stdout.txt";
+}
+
+// The program's standard output (WINE_PS5_STDOUT, which every session sets) is where the client's --json lines land:
+// the program runs as a payload helper, so the title's own output sink never sees them. Polled from the session loop.
+void aurelia_poll()
+{
+    static off_t offset;
+    static char pending[16384];
+    static size_t used;
+    const std::string path = aurelia_output_path();
+    struct stat status;
+    char buffer[4096];
+    ssize_t got;
+    int fd = open(path.c_str(), O_RDONLY);
+
+    if (fd < 0) return;
+    static int watching;
+    if (!watching++) say("Aurelia: watching %s", path.c_str());
+    if (fstat(fd, &status) == 0 && status.st_size < offset) offset = 0; // a new session truncated it
+    if (lseek(fd, offset, SEEK_SET) >= 0) {
+        while ((got = read(fd, buffer, sizeof(buffer))) > 0) {
+            for (ssize_t at = 0; at < got; at++) {
+                if (buffer[at] == '\n' || used == sizeof(pending) - 1) {
+                    pending[used] = 0;
+                    aurelia_feed(pending);
+                    used = 0;
+                } else pending[used++] = buffer[at];
+            }
+            offset += got;
+        }
+    }
+    close(fd);
+}
+// The Steam runtime's first-run page state (defined below; steamcmd_line needs it first).
+static PwSteamcmdSetup steamcmd_setup;
+static int steamcmd_stdin = -1;
+static void steamcmd_setup_show();
+
+// The SteamCMD console lines: the same program output the Aurelia client's JSON lands in, mapped to the
+// overlay's phase/status/progress. Slice 1 only reports; slice 2 adds the setup page that writes stdin.
+void steamcmd_line(const char *line)
+{
+    static std::mutex lock;
+    static PwSteamcmdStatus status;
+    if (!line || !*line) return;
+    std::lock_guard<std::mutex> held(lock);
+    if (!pw_steamcmd_line(&status, line)) return;
+    say("SteamCMD: %s %.120s", pw_steamcmd_state_name(status.state), status.detail);
+    if (pw_steamcmd_setup_event(&steamcmd_setup, &status)) steamcmd_setup_show();
+    switch (status.state) {
+    case PW_STEAMCMD_UPDATE: {
+        std::string phase = "Updating the Steam runtime";
+        if (status.percent >= 0) phase += " \xc2\xb7 " + std::to_string(status.percent) + "%";
+        proton_aurelia_phase(phase.c_str());
+        proton_aurelia_progress(status.percent, "Updating");
+        break;
+    }
+    case PW_STEAMCMD_SIGNING_IN:
+        proton_aurelia_phase("Signing in to Steam");
+        proton_aurelia_status(status.account[0] ? (std::string("Signing in as ") + status.account).c_str()
+                                                 : "Signing in to Steam");
+        break;
+    case PW_STEAMCMD_GUARD:
+        proton_aurelia_phase("Signing in to Steam");
+        proton_aurelia_status("Steam Guard code needed");
+        break;
+    case PW_STEAMCMD_SIGNED_IN:
+        proton_aurelia_status("Steam runtime signed in");
+        break;
+    case PW_STEAMCMD_READY:
+        proton_aurelia_phase("Steam runtime");
+        proton_aurelia_status("Steam runtime ready");
+        break;
+    case PW_STEAMCMD_FAILED:
+        proton_aurelia_error("Steam did not accept the sign-in");
+        break;
+    default:
+        break;
+    }
+}
+
+// The Steam runtime's first-run page: the setup state feeds the overlay, and the login/Guard lines go to the
+// SteamCMD's stdin (the pipe the session's program was started with). The password lives only in this struct and
+// the one write; the SteamCMD's own machine token (ssfn) is what persists.
+static void steamcmd_setup_show()
+{
+    proton_aurelia_setup(true, steamcmd_setup.account, steamcmd_setup.password, steamcmd_setup.guard,
+                         steamcmd_setup.focus, steamcmd_setup.status, steamcmd_setup.error,
+                         steamcmd_setup.state == PW_STEAMCMD_SETUP_SIGNED_IN);
+}
+
+static void steamcmd_setup_begin()
+{
+    static bool begun;
+    if (begun) return;
+    begun = true;
+    proton_loading_keep_display(true);
+    pw_steamcmd_setup_init(&steamcmd_setup);
+    steamcmd_setup_show();
+}
+
+static void steamcmd_key(int key)
+{
+    char line[256];
+    FILE *file;
+    if (!pw_steamcmd_setup_key(&steamcmd_setup, key)) return;
+    steamcmd_setup_show();
+    if (!pw_steamcmd_setup_command(&steamcmd_setup, line, sizeof line)) return;
+    /* SteamCMD's interactive console does not read the title's stdin pipe; +runscript does read a file. The wrapper
+     * watches this file and starts SteamCMD with it. It is removed after use and never logged. */
+    file = fopen(PROTON_DATA_ROOT "/logs/steamcmd-login.txt", "w");
+    if (file) {
+        fputs(line, file);
+        fclose(file);
+        chmod(PROTON_DATA_ROOT "/logs/steamcmd-login.txt", 0600);
+    }
+    memset(line, 0, sizeof line);
+    say(file ? "SteamCMD: login file written" : "SteamCMD: login file not written");
+}
+
+// The USB keyboard's event code is the Windows virtual key in its low byte (src/pw_usb_input.h); Shift comes from the
+// merged keyboard state. Only what a Steam account or password can carry is mapped; the rest is ignored.
+static void steamcmd_handle_key(uint32_t code, bool shift)
+{
+    const unsigned vk = code & 0xff;
+    int key = 0;
+    static const char shifted_digits[] = ")!@#$%^&*(";
+    static const char numpad[] = "0123456789";
+    if (vk >= 'A' && vk <= 'Z') key = shift ? int(vk) : int(vk - 'A' + 'a');
+    else if (vk >= '0' && vk <= '9') key = shift ? shifted_digits[vk - '0'] : int(vk);
+    else if (vk >= 0x60 && vk <= 0x69) key = numpad[vk - 0x60];
+    else if (vk == 0x6a) key = '*';
+    else if (vk == 0x6b) key = '+';
+    else if (vk == 0x6d) key = '-';
+    else if (vk == 0x6e) key = '.';
+    else if (vk == 0x6f) key = '/';
+    else if (vk == 0x0d) key = PW_STEAMCMD_KEY_ENTER;
+    else if (vk == 0x09) key = PW_STEAMCMD_KEY_TAB;
+    else if (vk == 0x08) key = PW_STEAMCMD_KEY_BACKSPACE;
+    else if (vk == 0x1b) key = PW_STEAMCMD_KEY_ESCAPE;
+    else if (vk == 0x20) key = ' ';
+    else if (vk == 0xbd) key = shift ? '_' : '-';
+    else if (vk == 0xbb) key = shift ? '+' : '=';
+    else if (vk == 0xba) key = shift ? ':' : ';';
+    else if (vk == 0xbc) key = shift ? '<' : ',';
+    else if (vk == 0xbe) key = shift ? '>' : '.';
+    else if (vk == 0xbf) key = shift ? '?' : '/';
+    else if (vk == 0xde) key = shift ? '"' : '\'';
+    else if (vk == 0xdb) key = shift ? '{' : '[';
+    else if (vk == 0xdd) key = shift ? '}' : ']';
+    else if (vk == 0xdc) key = shift ? '|' : '\\';
+    else if (vk == 0xc0) key = shift ? '~' : '`';
+    if (key) steamcmd_key(key);
+}
+
+// The SteamCMD console output is the session's program stdout (WINE_PS5_STDOUT, the path every session sets):
+// polled from the session loop exactly like the Aurelia client's JSON. Offsets survive a truncated file.
+void steamcmd_poll()
+{
+    static off_t offset;
+    static char pending[4096];
+    static size_t used;
+    static bool started;
+    const std::string path = aurelia_output_path();
+
+    if (!started) {
+        started = true;
+        steamcmd_setup_begin();
+        say("SteamCMD: watching %s", path.c_str());
+    }
+    static off_t log_offset;
+    static char log_pending[4096];
+    static size_t log_used;
+    static bool log_started;
+    const auto feed = [](const char *path, off_t &offset, char *pending, size_t &used) {
+        int fd = open(path, O_RDONLY);
+        struct stat status;
+        char buffer[2048];
+        ssize_t got;
+        if (fd < 0) return;
+        if (fstat(fd, &status) == 0 && status.st_size < offset) offset = 0;
+        if (lseek(fd, offset, SEEK_SET) >= 0) {
+            while ((got = read(fd, buffer, sizeof(buffer))) > 0) {
+                for (ssize_t at = 0; at < got; at++) {
+                    if (buffer[at] == '\n' || used == 4095) {
+                        pending[used] = 0;
+                        steamcmd_line(pending);
+                        used = 0;
+                    } else {
+                        pending[used++] = buffer[at];
+                    }
+                }
+                offset += got;
+            }
+        }
+        close(fd);
+    };
+    if (!log_started) {
+        log_started = true;
+        struct stat old;
+        if (stat(PROTON_DATA_ROOT "/prefixes/mihawk/drive_c/Games/SteamCMD/logs/connection_log.txt", &old) == 0)
+            log_offset = old.st_size;
+    }
+    feed(path.c_str(), offset, pending, used);
+    /* SteamCMD's console text is not the redirected stdout; its log carries the sign-in verdict. */
+    feed(PROTON_DATA_ROOT "/prefixes/mihawk/drive_c/Games/SteamCMD/logs/connection_log.txt", log_offset, log_pending,
+         log_used);
+}
+
 // Through the Wine log as well as klog: the log file is written as it goes.
 void dump_line(void *, const char *text)
 {
@@ -368,6 +854,20 @@ void build_application_table(const std::vector<ProtonGame> &catalog, const std::
     }
 }
 
+// The Steam guide's sign-in session (src/pw_steam_guide.h) counts the processes the client starts (each of its updates
+// restarts it) and sees its browser start (steamwebhelper), which opens the sign-in page about 20 s later (docs/STEAM.md).
+static std::atomic<unsigned> guide_processes{0};
+static std::atomic<bool> guide_browser{false};
+static void guide_process(const char *image, const char *command_line)
+{
+    guide_processes.fetch_add(1, std::memory_order_relaxed);
+    for (const char *text : {image, command_line}) {
+        char lower[1024] = {};
+        for (size_t i = 0; text && text[i] && i + 1 < sizeof(lower); ++i) lower[i] = (char)tolower((unsigned char)text[i]);
+        if (strstr(lower, "steamwebhelper")) guide_browser.store(true, std::memory_order_relaxed);
+    }
+}
+
 int title_application_lookup(const char *image, const char *command_line, char *block, size_t capacity, uint32_t *bytes)
 {
     size_t index = 0;
@@ -386,6 +886,7 @@ int title_application_lookup(const char *image, const char *command_line, char *
         }
     }
     proton_cover_process(command_line);
+    guide_process(image, command_line);
     if (match == PW_APP_AMBIGUOUS) {
         say("Mihawk: %s is in the library more than once and its command line does not say which; no settings", shown);
         return -1;
@@ -556,20 +1057,60 @@ void return_to_launcher(const char *reason)
         if (title_log_fd >= 0) fsync(title_log_fd);
     }
     if(owner_wait)owner_wait();
+    // The client's standard output is flushed at its exit, which has just happened: the session's final read.
+    if (aurelia_session()) aurelia_poll();
+    if (steamcmd_session()) steamcmd_poll();
     log_line(proton_cover_stop("the session ended"));
+    log_line(proton_guide_stop("the session ended"));
     bool broker_stopped = true;
 #ifdef PS5_GPU_BROKER
-    if (owner_broker_running) broker_stopped = proton_gpu_broker_stop();
+    // A program the title ran itself may still be drawing: its broker slot is never closed under it (closing it freed
+    // buffers the Unity game's render thread still used, and the title died: fmem-bd-title-2026-10-26-01). The broker
+    // stays as it is and ends with the process (docs/TITLE_CLIENT.md, "Stop and end").
+    if (owner_broker_running) broker_stopped = !title_client_claimed && proton_gpu_broker_stop();
     owner_broker_running = false;
 #endif
     // No presenter may be live when the process is replaced (R4): a game that ends before it
     // presents still has the loading screen.
-    log_line(proton_loading_stop("the game ended"));
+    // A list's games are the screen until something is chosen, so the loading screen stays up for them.
+    if (!(aurelia_session() && aurelia_library_ready)) log_line(proton_loading_stop("the game ended"));
     say("Wine: process completed; returning to launcher");
+    if (aurelia_session() && aurelia_library_ready) {
+        long choice = 0;
+        struct pad browse{};
+        while (!choice) {
+            pad_poll(&browse);
+            const uint32_t pressed = browse.pressed;
+            choice = proton_aurelia_browse((pressed & PAD_LEFT) != 0, (pressed & PAD_RIGHT) != 0,
+                                           (pressed & PAD_UP) != 0, (pressed & PAD_DOWN) != 0,
+                                           (pressed & PAD_CROSS) != 0, (pressed & PAD_CIRCLE) != 0);
+            if (!choice) usleep(33000);
+        }
+        say("Aurelia: the shelf chose %ld", choice);
+        if (choice > 0) {
+            // A harness timeout leaves stop-game behind while the shelf keeps the title up. The choice is the user
+            // asking for that game, not for the test to end: a new game session that found the stale file closed at
+            // 0 s (the Pro, 2026-10-22, title-last.log: "stop requested; asking the game to close (0)").
+            unlink(PROTON_DATA_ROOT "/stop-game");
+            const std::string id = std::to_string(choice);
+            const bool installed = access((std::string(PROTON_DATA_ROOT "/games/") + id + "/game.json").c_str(), F_OK) == 0;
+            aurelia_next = ProtonGame{};
+            if (installed) {
+                aurelia_next.id = id;
+            } else {
+                aurelia_next.id = "aurelia";
+                aurelia_next.arguments = "install " + id + " --json";
+            }
+            aurelia_next_set = true;
+        }
+        aurelia_library_ready = false;
+        log_line(proton_loading_stop(choice > 0 ? "a game was chosen from the shelf" : "the shelf was left"));
+    }
     if(owner_result) {
         const int code=session_result>=0 ? session_result : owner_result();
-        say("PS5_PROTON_OWNER_BOOTSTRAP %s initial_status=%d graphics_claimed=%d broker_stopped=%d",
-            code==0 && broker_stopped ? "PASS" : "FAIL",code,graphics_claimed.load(),broker_stopped);
+        say("PS5_PROTON_OWNER_BOOTSTRAP %s initial_status=%d graphics_claimed=%d broker_stopped=%d title_client=%d",
+            code==0 && (broker_stopped || title_client_claimed) ? "PASS" : "FAIL",code,graphics_claimed.load(),broker_stopped,
+            title_client_claimed.load());
     }
     log_line("Wine: process completed; returning to launcher");
     if (fdv_stats) {
@@ -613,6 +1154,11 @@ void return_to_launcher(const char *reason)
     if (!reason && ended_ready.load(std::memory_order_acquire) && !ended_reason.empty()) reason = ended_reason.c_str();
     // The session came back through the title: the launcher is told why only when it failed.
     remove(proton_title_path(PROTON_SESSION_MARKER).c_str());
+    if (aurelia_next_set) {
+        aurelia_next_set = false;
+        say("Wine: the session hands over to %s", aurelia_next.id.c_str());
+        proton_restart(&aurelia_next, proton_launch().cycle + 1, "aurelia chosen", reason);
+    }
     proton_restart(nullptr, proton_launch().cycle + 1, "wine-ended", reason);
     catchReturnFromMain(1);
 }
@@ -671,6 +1217,10 @@ void end_game(const char *why, bool server_fallback)
     for (unsigned i = 0; i < ended.count; ++i) refused |= ended.sent[i] == EPERM;
     if (refused && server_fallback && server_terminate_asked() && terminate_game)
         say("Wine: SIGKILL was refused; ending the game through the server as well (%d)", terminate_game());
+    // The client's standard output is flushed when its process exits, which is now: one last read before the session
+    // ends (the loop's polls saw nothing while it was still buffered).
+    if (aurelia_session()) aurelia_poll();
+    if (steamcmd_session()) steamcmd_poll();
     back_to_launcher();
 }
 
@@ -680,7 +1230,7 @@ void output(const char *text, size_t length)
     // them, so one thread's output never waits for another's, and a thread
     // that ends mid-line holds nothing up. The log is opened O_APPEND, so
     // every chunk lands whole at its end.
-    static thread_local char line[1024];
+    static thread_local char line[16384];
     static thread_local size_t used;
     // Keep exception diagnostics even if the process dies before klog drains.
     if (log_fd >= 0) {
@@ -695,6 +1245,7 @@ void output(const char *text, size_t length)
     for (size_t i = 0; i < length; ++i) {
         if (text[i] == '\n' || used == sizeof(line) - 1) {
             line[used] = 0;
+            if (aurelia_session()) aurelia_line(line);
             say("Wine: %s", line);
             used = 0;
         }
@@ -800,6 +1351,41 @@ int start_owner_graphics(int server_fd,const struct pw_child_bootstrap *boot)
     say("Wine: graphics Windows child uses the original native title");
     return 0;
 }
+
+#ifdef PS5_GPU_BROKER
+/* The one Windows program the title runs itself beside the broker (docs/TITLE_CLIENT.md, WINE_PS5_TITLE_PROCESS): its
+ * code and memory come from the title's partition, not the system pool. Its graphics are a helper's: a broker client in
+ * this process (graphics patch 0031, PROTON_GPU_IN_OWNER), the helpers' win32u and Vulkan builds (WINE_PS5_TITLE_CLIENT:
+ * wine/ps5/pw_wine_dl.c, patch 2301), its windows attached here as a helper's are. Its end ends the session, as a
+ * title's program's does (the first version, docs/TITLE_CLIENT.md). */
+int start_title_client(int server_fd,const struct pw_child_bootstrap *boot)
+{
+    if(title_client_claimed.exchange(true)) { errno=EBUSY;return -1; }
+    int cookie=0;
+    const int gpu=proton_gpu_broker_open_in_owner(&cookie);
+    const int socket=gpu>=0 ? dup(server_fd) : -1;
+    char server[24],broker[24];
+    snprintf(server,sizeof(server),"%d",socket);snprintf(broker,sizeof(broker),"%d",gpu);
+    auto set_cwd=symbol<int (*)(const char *)>("pw_cwd_set");
+    if(socket<0 || !set_cwd || set_cwd(boot->cwd) || setenv("WINESERVERSOCKET",server,1) ||
+       setenv("WINE_PS5_GPU_FD",broker,1) || setenv("WINE_PS5_GPU_BROKER","1",1) || setenv("PROTON_GPU_IN_OWNER","1",1) ||
+       setenv("WINE_PS5_TITLE_CLIENT","1",1) ||
+       /* What any client in the title needs (patch 0927): the in-process server's callbacks bound before the socket
+        * is attached, and the routing request taken out of the program's environment so its children go to helpers. */
+       setenv("WINE_PS5_GRAPHICS_OWNER","1",1)) {
+        const int error=errno ? errno : EIO;
+        if(socket>=0)close(socket);
+        if(gpu>=0) { close(gpu);proton_gpu_broker_close(cookie,0); }
+        title_client_claimed=false;errno=error;return -1;
+    }
+    const char *const argv[]={"wine","title-client.exe",nullptr};
+    const PwWineStartConfig config={.argc=2,.argv=argv,.stack_bytes=16u<<20};
+    const PwWineStartOps ops={.start_thread=start_thread};
+    if(pw_wine_start_run(&wine,&config,&ops)) { errno=EIO;return -1; }   // claimed for good: the environment is set
+    say("Wine: %s runs in the title beside the broker",boot->image[0] ? boot->image : "a program");
+    return 0;
+}
+#endif
 
 /* ntdll's runtime counters (wine/ps5/pw_wine_perf.h), printed as the difference
  * between two snapshots from this thread, never from a game thread. */
@@ -1123,7 +1709,8 @@ void log_line(const std::string &line)
 }
 int release_display(void *)
 {
-    log_line(proton_loading_stop("the game's presenter takes the display"));
+    // The SteamCMD session has no game presenter: its console window must not take the setup page's display.
+    if (!steamcmd_session()) log_line(proton_loading_stop("the game's presenter takes the display"));
     say("Wine: display handed to the game's presenter");
     return 0;
 }
@@ -1191,10 +1778,41 @@ void detailed_logs_begin()
 }
 }
 
+/* A test run can hold N MiB of the title's direct pool under the load, to measure whether the in-title memory model
+ * has the headroom a program such as the Steam client needs (tools/run-console.py with PROTON_DMEM_TITLE_TEST=<MiB>
+ * in the profile's environment). The pool stays held until the title ends; the pattern is verified once. */
+static void proton_dmem_title_test(long mib)
+{
+    const size_t bytes = ((size_t)mib << 20) & ~(size_t)(PW_DMEM_SHARE_PAGE - 1);
+    int64_t offset = -1;
+    void *at = nullptr;
+
+    if (mib > 0 && !pw_dmem_share_alloc(bytes, getpid(), 0, &offset)) {
+        const int status = sceKernelMapDirectMemory(&at, bytes, PW_DMEM_SHARE_PROT, 0, offset, PW_DMEM_SHARE_PAGE);
+        if (!status && at) {
+            volatile unsigned char *p = static_cast<volatile unsigned char *>(at);
+            size_t bad = 0;
+            for (size_t i = 0; i < bytes; i += 4096) p[i] = static_cast<unsigned char>(i >> 12);
+            for (size_t i = 0; i < bytes; i += 4096) if (p[i] != static_cast<unsigned char>(i >> 12)) ++bad;
+            say("dmem-title: held %ld MiB at %p touched_bad=%zu", mib, at, bad);
+            return;
+        }
+        say("dmem-title: map %ld MiB failed: %#x", mib, status);
+        (void)pw_dmem_share_free(offset, bytes);
+        return;
+    }
+    say("dmem-title: alloc %ld MiB failed: %s", mib, strerror(errno));
+}
+
 void proton_run_wine()
 {
     const auto &launch = proton_launch();
+    // The Steam runtime's setup page owns the display from the first moment: the runtime's own display init opens
+    // VideoOut within 0.1 s, before the SteamCMD even starts, and used to close the page.
+    if (steamcmd_session()) proton_loading_keep_display(true);
     // A test run can measure the scheduler instead of starting a game.
+    for (const std::string &entry : launch.env)
+        if (entry.rfind("PROTON_DMEM_TITLE_TEST=", 0) == 0) { proton_dmem_title_test(atol(entry.c_str() + 23)); break; }
     if (std::find(launch.env.begin(), launch.env.end(), "PROTON_LIMITS_PROBE=1") != launch.env.end()) {
         proton_limits_probe(PROTON_DATA_ROOT "/limits-probe");
         back_to_launcher();
@@ -1214,6 +1832,8 @@ void proton_run_wine()
     // The GPU broker empties its results file only when it starts: a run whose broker never started was read with the
     // previous run's (a 2026-10-14 run fetched another game's numbers; record removed from the tree).
     const int broker_results = unlink((std::string(proton_app_root()) + "/gpu-broker-results.txt").c_str()) ? errno : 0;
+    say("Aurelia: capture=%s path=%s stdout=%s", aurelia_session() ? "on" : "off", launch.path.c_str(),
+        getenv("WINE_PS5_STDOUT") ? getenv("WINE_PS5_STDOUT") : "(unset, the fallback)");
     log_fd = open(PROTON_DATA_ROOT "/logs/wine-last.log", O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, 0644);
     // Every say() line also lands on /data, flushed every 2 s by the loop below: a run that freezes the console
     // keeps the title's last seconds (a 2026-10-10 launcher run kept nothing; record removed from the tree).
@@ -1226,16 +1846,6 @@ void proton_run_wine()
     const int detailed_setting = pw_detailed_logs_load(&detailed, proton_logging_path().c_str());
     if (detailed) detailed_logs_begin();
     else say("Logging: off%s", detailed_setting == ENOENT ? " (default)" : detailed_setting ? " (setting unreadable)" : "");
-    {
-        // The player's Game Mode setting (src/pw_game_mode.h): off composes every frame, so the desktop never unloads.
-        int game_mode = 1;
-        const int game_mode_error = pw_game_mode_load(&game_mode, proton_game_mode_path().c_str());
-#ifdef PS5_GPU_BROKER
-        pw_window_direct_set_enabled(game_mode);
-#endif
-        say("Game Mode: %s%s", game_mode ? "on" : "off",
-            game_mode_error == ENOENT ? " (default)" : game_mode_error ? " (setting unreadable; default)" : "");
-    }
     ProtonGame game;
     const std::vector<ProtonGame> catalog = proton_read_games(nullptr);
     for (const auto &candidate : catalog)
@@ -1284,10 +1894,8 @@ void proton_run_wine()
             say("Wine: open files limit unknown");
         }
     }
-    // The controller reaches every program through Wine's HID stack; the rest
-    // of a program's environment (WINE_PS5_OPENGL for OpenGL, SDL_XINPUT_ENABLED
-    // to make SDL use the DualSense's HID device) is its game.json "env".
-    setenv("WINE_PS5_HID", "1", 1);
+    // The controller reaches programs as the player chose (below, after the game's own environment); the rest of a
+    // program's environment (WINE_PS5_OPENGL for OpenGL, say) is its game.json "env".
     {
         // The installed firmware ("13.40") for Windows programs that need a per-console figure: tests/late-library-probe.c's
         // floor of reservable address space is one (src/pw_firmware.h: the system's own word is spoofed by enablers).
@@ -1397,6 +2005,12 @@ void proton_run_wine()
         // each one was symbolized and logged twice (WINE_BACKTRACE_LOG_ON is WARN_ON(seh)); crashes still log as err.
         detailed ? "+timestamp,+pid,+tid,+debugstr,+loaddll,+process,+ps5audio,warn+all,warn-seh" :
                    "+timestamp,+pid,+tid,+debugstr,+loaddll,+ps5audio,warn+explorer,warn-seh";
+    // A test run's own channels (tools/run-console.py --env PROTON_WINEDEBUG=...): what a failure needs traced, for that launch only.
+    // Read from this launch's own entries: they are applied to the environment only further down.
+    std::string launch_winedebug;
+    for (const auto &word : launch.env)
+        if (word.rfind("PROTON_WINEDEBUG=", 0) == 0 && word.size() > 17) launch_winedebug = word.substr(17);
+    if (!launch_winedebug.empty()) winedebug = launch_winedebug.c_str();
     // Logging also keeps the synchronization device's last 8192 operations (256 KiB a process) for a hang's dump.
     if (detailed) setenv("WINE_PS5_NTSYNC_TRACE", "8192", 0);
     const PwWineStartEnv env[] = {
@@ -1433,6 +2047,51 @@ void proton_run_wine()
         setenv(word.substr(0, equals).c_str(), word.c_str() + equals + 1, 1);
         say("Wine: launch environment entry applied");
     }
+    {
+        // The player's Game Mode setting (src/pw_game_mode.h), or the game's or a test's own WINE_PS5_GAME_MODE: off
+        // composes every frame, so the desktop never unloads. A program started in the session has its own the same
+        // way (its entry's, or inherited: PW_CHILD_NOTICE_GAME_MODE, src/pw_window_direct.h).
+        const char *own = getenv(PW_GAME_MODE_ENV);
+        int game_mode = 1, game_mode_error = 0;
+        if (own && (!strcmp(own, "1") || !strcmp(own, "0"))) game_mode = own[0] == '1';
+        else game_mode_error = pw_game_mode_load(&game_mode, proton_game_mode_path().c_str());
+#ifdef PS5_GPU_BROKER
+        pw_window_direct_set_enabled(game_mode);
+#endif
+        say("Game Mode: %s%s", game_mode ? "on" : "off",
+            own && !game_mode_error && (!strcmp(own, "1") || !strcmp(own, "0")) ? " (this game's or launch's own)" :
+            game_mode_error == ENOENT ? " (default)" : game_mode_error ? " (setting unreadable; default)" : "");
+    }
+    {
+        // The controller programs see (src/pw_controller.h): the player's setting, or a game's or a test's own
+        // WINE_PS5_CONTROLLER. Only the DualSense has the HID device; xinput reads WINE_PS5_CONTROLLER (patch 2400).
+        // A game's SDL_XINPUT_ENABLED=0 chose the DualSense over HID when both were there; with an Xbox controller,
+        // XInput is the only one, so it goes.
+        const char *own = getenv("WINE_PS5_CONTROLLER");
+        int controller = pw_controller_kind(own), error = 0;
+        if (controller < 0) error = own ? EINVAL : pw_controller_load(&controller, proton_controller_path().c_str());
+        if (controller < 0) controller = PW_CONTROLLER_XBOX_360;
+        setenv("WINE_PS5_CONTROLLER", pw_controller_word(controller), 1);
+        if (controller == PW_CONTROLLER_DUALSENSE) setenv("WINE_PS5_HID", "1", 1);
+        else unsetenv("WINE_PS5_HID");
+        const char *sdl = getenv("SDL_XINPUT_ENABLED");
+        const bool sdl_dropped = controller != PW_CONTROLLER_DUALSENSE && sdl && !strcmp(sdl, "0");
+        if (sdl_dropped) unsetenv("SDL_XINPUT_ENABLED");
+        say("Controller: %s%s%s", pw_controller_word(controller),
+            own && !error ? " (this game's or launch's own)" : own ? " (WINE_PS5_CONTROLLER not understood; default)" :
+            error == ENOENT ? " (default)" : error ? " (setting unreadable; default)" : "",
+            sdl_dropped ? "; the game's SDL_XINPUT_ENABLED=0 dropped: XInput is its only controller" : "");
+    }
+    {
+        // The player's 120 Hz setting (src/pw_high_refresh.h): off asks for 60 Hz, unless the game or the launch
+        // named PROTON_120HZ itself.
+        const char *own = getenv("PROTON_120HZ");
+        int high = 1, error = 0;
+        if (!own) error = pw_high_refresh_load(&high, proton_high_refresh_path().c_str());
+        if (!high) setenv("PROTON_120HZ", "0", 1);
+        say("120 Hz: %s%s", own ? "the game's or launch's own" : high ? "on" : "off",
+            own ? "" : error == ENOENT ? " (default)" : error ? " (setting unreadable; default)" : "");
+    }
     // The speed switches on by default, after the game's and this launch's own, so either can still turn one off
     // with NAME=0 (src/pw_speed_defaults.h: the sync device, the helpers' CPUs, the asynchronous present, the present
     // link, 120 Hz).
@@ -1465,10 +2124,35 @@ void proton_run_wine()
     // The guided setup's first session (its marker; examples/ps5proton/setup_tour.hpp) shows the setup's cover in place
     // of the desktop once the broker runs (src/pw_setup.h), so not the loading screen before it.
     const bool setup_preparing = access(PROTON_DATA_ROOT "/setup-preparing", F_OK) == 0;
-    if (!setup_preparing) {
+    // The Steam guide's sessions (src/pw_steam_guide.h; their entries say which) show its screens the same way.
+    const char *guide_env = getenv("PROTON_STEAM_GUIDE");
+    const int steam_guide = !guide_env ? 0 : !strcmp(guide_env, "install") ? 1 : !strcmp(guide_env, "signin") ? 2 : 0;
+    bool guide_screens = false;   // they are up: without them (no faces) the client's windows show and the pad is theirs
+    // A test's pictures of those screens on the console (tools/run-console.py --env PROTON_STEAM_GUIDE_SHOWCASE=1, or one
+    // language's tag): each screen in each language for three seconds and a broker capture of each; then the session ends.
+    std::vector<const PwSetupLanguage *> showcase;
+    if (const char *word = steam_guide ? nullptr : getenv("PROTON_STEAM_GUIDE_SHOWCASE")) {
+        size_t count = 0;
+        const PwSetupLanguage *all = pw_setup_languages(&count);
+        for (size_t i = 0; i < count; ++i)
+            if (all[i].text && (!strcmp(word, "1") || !strcmp(word, all[i].tag))) showcase.push_back(&all[i]);
+        say("steam guide showcase: %zu languages, 5 screens each", showcase.size());
+    }
+    std::vector<unsigned> showcase_captures;   // the pad script's capture numbers the showcase asked for
+    if (!setup_preparing && !steam_guide) {
         const size_t slash = game.executable.find_last_of("\\/");
         const std::string shown = !game.name.empty() ? game.name
             : slash == std::string::npos ? game.executable : game.executable.substr(slash + 1);
+        // A session that runs the client shows its screen: the sign-in QR and what the client last said.
+        // A hand-off restarts the title in place, so the previous session's captured output is still on disk; the poller
+        // starts at byte 0 and would replay it as this session's events (2026-10-22: the sign-in's list hand-off re-ran
+        // the login from the stale file and looped, cycle after cycle). Empty it before this session's client starts.
+        if (aurelia_session()) {
+            const std::string output = aurelia_output_path();
+            const int cleared = remove(output.c_str());
+            say("Aurelia: previous output %s (%s)", cleared == 0 ? "cleared" : "absent", output.c_str());
+        }
+        proton_aurelia_overlay(aurelia_session());
         proton_loading_start(shown.c_str(), (std::string(proton_app_root()) + "/assets/hui/fonts").c_str());
     }
     const char *cache_setting = getenv("PROTON_SHADER_CACHE");
@@ -1539,6 +2223,7 @@ void proton_run_wine()
     perf.percentile = symbol<uint32_t (*)(const PwWinePerfFrames *, const PwWinePerfFrames *, unsigned)>(
         "pw_wine_perf_frame_percentile");
     flush_registry = symbol<int (*)(unsigned)>("pw_wine_server_flush");
+    code_cache_stats = symbol<unsigned (*)(uint64_t *, unsigned)>("__wine_ps5_code_cache_stats");
     terminate_game = symbol<int (*)()>("pw_wine_server_terminate");
     stop_audio = symbol<int (*)(unsigned)>("pw_wine_stop_audio");
     server_snapshot = symbol<int (*)(unsigned)>("pw_wine_server_snapshot");
@@ -1600,8 +2285,11 @@ void proton_run_wine()
     const bool owner_bootstrap=owner && !strcmp(owner,"1");
     const char *graphics_host=getenv("WINE_PS5_GRAPHICS_HOST");
     const char *gpu_setting=getenv("WINE_PS5_GPU_BROKER");
-    const bool owner_gpu=owner_bootstrap && gpu_setting && !strcmp(gpu_setting,"1");
-    const bool owner_graphics=!owner_gpu && owner_bootstrap && graphics_host && !strcmp(graphics_host,"1");
+    // The SteamCMD session is headless: it is a console program, the loading screen owns the display (the setup
+    // page), and the runtime's GPU broker/graphics owner would take VideoOut away from the page.
+    const bool steam_runtime=steamcmd_session();
+    const bool owner_gpu=!steam_runtime && owner_bootstrap && gpu_setting && !strcmp(gpu_setting,"1");
+    const bool owner_graphics=!steam_runtime && !owner_gpu && owner_bootstrap && graphics_host && !strcmp(graphics_host,"1");
     // Explicit caller overrides also belong to the initial Windows process.
     // Catalog first, launch last; Wine applies Unicode/case-insensitive precedence.
     std::vector<const char *> application_entries;
@@ -1645,7 +2333,12 @@ void proton_run_wine()
         }
         set_remote(remote_signal,remote_close);
         server_windows=module_symbol ? (int (*)(void *,unsigned))module_symbol(server,"pw_wineserver_windows") : nullptr;
-        if(owner_gpu) {
+        // An Aurelia session runs a headless client: the sign-in overlay owns the display, and the broker's own
+        // presenter would take it a tenth of a second in and close the screen (2026-10-22). No window is shown, so the
+        // broker stays off for it.
+        if (aurelia_session())
+            say("Aurelia: no GPU broker: the sign-in screen keeps the display");
+        else if(owner_gpu) {
 #ifdef PS5_GPU_BROKER
             auto set_gpu=symbol<void (*)(int (*)(int *,int),void (*)(int,int))>("pw_ps5_set_gpu_broker");
             const char *capture=getenv("PROTON_GPU_CAPTURE"),*local=getenv("PROTON_GPU_LOCAL");
@@ -1662,6 +2355,12 @@ void proton_run_wine()
             }
             set_gpu(proton_gpu_broker_open,proton_gpu_broker_close);
             owner_broker_running=true;
+            if(const char *named=getenv("WINE_PS5_TITLE_PROCESS"); named && *named) {
+                auto set_title_client=symbol<void (*)(int (*)(int,const struct pw_child_bootstrap *))>("pw_ps5_set_title_client_start");
+                if(set_title_client)set_title_client(start_title_client);
+                say("Wine: %s runs in the title beside the broker when started (%s)",named,
+                    set_title_client ? "offered" : "an older runtime: in a helper");
+            }
             // Wine offers 120 Hz modes (patches 0924, 1188) only when the broker's display kept 119.88 Hz, asked here,
             // before any helper starts (graphics patch 0029); on a TV that refuses it every program sees 60 Hz alone.
             if(const char *high=getenv("PROTON_120HZ"); high && !strcmp(high,"1")) {
@@ -1677,6 +2376,14 @@ void proton_run_wine()
                 module_symbol ? (int (*)())module_symbol(server,"pw_wineserver_foreground") : nullptr,
                 module_symbol ? (void (*)(int *,int *))module_symbol(server,"pw_wineserver_cursor") : nullptr);
             if(setup_preparing)proton_cover_start(PROTON_DATA_ROOT "/" PW_SETUP_COVER_NAME,proton_gpu_broker_set_cover);
+            if(steam_guide) {
+                PwSetupRecord setup_record;
+                pw_setup_record_load(&setup_record,PROTON_DATA_ROOT "/setup.txt");
+                guide_screens=proton_guide_start(setup_record.language,proton_app_root(),proton_gpu_broker_set_cover);
+                if(guide_screens)
+                    proton_guide_show(steam_guide==2 ? PW_STEAM_SCREEN_UPDATING : PW_STEAM_SCREEN_INSTALLING,0,0,nullptr);
+            }
+            if(!showcase.empty())proton_guide_start(showcase[0]->tag,proton_app_root(),proton_gpu_broker_set_cover);
 #else
             fail("PS5_PROTON_OWNER_BOOTSTRAP FAIL GPU broker absent from this build");
 #endif
@@ -1686,6 +2393,7 @@ void proton_run_wine()
         // only for a game whose helpers the kernel would not let the title SIGKILL (end_game).
         server_snapshot=module_symbol ? (int (*)(unsigned))module_symbol(server,"pw_wineserver_snapshot") : nullptr;
         terminate_game=module_symbol ? (int (*)())module_symbol(server,"pw_wineserver_terminate") : nullptr;
+        server_user_processes=module_symbol ? (int (*)())module_symbol(server,"pw_wineserver_user_processes") : nullptr;
         // With every program in a helper, a game that does not close is ended by SIGKILL to its helpers.
         programs_in_helpers=!owner_graphics;
         list_helpers=symbol<unsigned (*)(int *,unsigned,int *)>("pw_ps5_helpers");
@@ -1786,6 +2494,7 @@ void proton_run_wine()
             say("Wine: memory helper %s", memory ? "started: the server's and the broker's shared memory is made there" :
                 "missing: the title makes its shared memory");
             if (memory) memory_census = symbol<int (*)(pw_memory_census *)>("pw_ps5_memory_census");
+            code_share_duplicates = symbol<uint64_t (*)()>("pw_ps5_code_share_duplicate_bytes");
         }
         // Another process's memory: each helper serves its own (src/pw_memory_service.h), and the server copies
         // through it for ReadProcessMemory and WriteProcessMemory, which it refused for every helper before.
@@ -1819,6 +2528,20 @@ void proton_run_wine()
             owner_result=root_result;owner_wait=wait_children;
         }
     }
+    if (steamcmd_session()) {
+        int input[2];
+        // Before the SteamCMD starts: its console window must never take the display the setup page is drawn on.
+        proton_loading_keep_display(true);
+        // A login file left by an earlier attempt would sign in before the page; start from a clean page.
+        unlink(PROTON_DATA_ROOT "/logs/steamcmd-login.txt");
+        if (pipe(input) == 0) {
+            steamcmd_stdin = input[1];
+            dup2(input[0], STDIN_FILENO);
+            say("SteamCMD: the console's input is a pipe");
+        } else {
+            say("SteamCMD: no input pipe (%s)", strerror(errno));
+        }
+    }
     if(!owner_bootstrap) status = pw_wine_start_run(&wine, &config, &ops);
     if (status) fail("Wine: thread failed=%d", status);
     // This loop feeds the pad, watches for stop-game and reports: above every
@@ -1845,11 +2568,154 @@ void proton_run_wine()
     }
     bool was_connected = false;
     unsigned stop_tick = 0;
+    bool stop_escalated = false;
     // The guided setup's first session (its marker; examples/ps5proton/setup_tour.hpp) ends itself once wineboot has made
     // the prefix: in a new prefix's first session games never get the DualSense (README, "The Mihawk OS prefix"), so
     // no game is opened in it. The launcher then shows the setup's Done step.
     unsigned prefix_made_tick = 0;
     if (setup_preparing) say("setup: the first session; it ends 5 s after the prefix is made");
+    // The store-client option's sign-in session (src/pw_steam.h): the client's own window is more than the console's memory
+    // holds, so once the sign-in is saved (a remembered user in the client's loginusers.vdf that was not there at the
+    // start) the session ends 20 s later, when the client has written the rest of its state, and the launcher shows the
+    // client signed in. A session that starts already signed in is left alone.
+    // A program that restarts itself ends its first process after starting its second (a store client's first update does,
+    // twice): with PROTON_SESSION_FOLLOWS=processes the root's end is the session's end only once the server counts no
+    // user process for 5 s, the way Proton waits for the wineserver. Off by default: a game's stray process would hold
+    // a session that used to end with its game.
+    const char *follow_env = getenv("PROTON_SESSION_FOLLOWS");
+    const bool follow_processes = follow_env && !strcmp(follow_env, "processes") && server_user_processes;
+    if (follow_env && !follow_processes) say("Wine: PROTON_SESSION_FOLLOWS=%s is not available: the server does not export its user process count", follow_env);
+    uint64_t no_processes_since_ms = 0;
+    bool follow_said = false;
+    auto programs_remain = [&]() {
+        if (!follow_processes) return false;
+        const uint64_t now = monotonic_ms();
+        const int count = server_user_processes();
+        if (count > 0) {
+            no_processes_since_ms = 0;
+            if (!follow_said) {
+                follow_said = true;
+                say("Wine: the first program ended; the session follows the %d user process(es) that remain", count);
+            }
+            return true;
+        }
+        if (!no_processes_since_ms) no_processes_since_ms = now;
+        return now - no_processes_since_ms < 5000;
+    };
+    const char *client_watch_env = getenv("PROTON_STEAM_SIGNIN_WATCH");
+    const bool client_watch = client_watch_env && !strcmp(client_watch_env, "1");
+    const std::string client_users = prefix + PW_STEAM_LOGINUSERS_REL;
+    auto client_signed_in = [&client_users]() {
+        char text[65536];
+        size_t got = 0;
+        if (FILE *file = fopen(client_users.c_str(), "rb")) {
+            got = fread(text, 1, sizeof(text), file);
+            fclose(file);
+        }
+        return pw_steam_remembered_user(text, got, nullptr, 0) != 0;
+    };
+    const bool client_signed_at_start = client_watch && client_signed_in();
+    unsigned client_signed_tick = 0;
+    // When the sign-in was first seen; then the client is ended once its token is written after it (the stop below).
+    time_t client_signed_wall = 0;
+    const std::string client_token = prefix + PW_STEAM_LOCAL_VDF_REL;
+    auto client_token_written = [&client_token, &client_signed_wall]() {
+        struct stat info;
+        return stat(client_token.c_str(), &info) == 0 && info.st_mtime + 2 >= client_signed_wall;
+    };
+    // What the client's own connection log says about the logon, read only from where it stood when the session began (the
+    // file keeps earlier sessions). Observation for now: the session still ends 20 s after the sign-in is saved, and the
+    // title log says when the logon line came, so the next real sign-in shows which of the two is the better end.
+    const std::string client_conn = prefix + PW_STEAM_CONNECTION_LOG_REL;
+    long client_conn_start = -1;
+    if (client_watch) {
+        struct stat info;
+        client_conn_start = stat(client_conn.c_str(), &info) == 0 ? (long)info.st_size : 0;
+    }
+    auto client_logged_on = [&client_conn, &client_conn_start]() {
+        char text[16384];
+        size_t got = 0;
+        if (client_conn_start < 0) return false;
+        if (FILE *file = fopen(client_conn.c_str(), "rb")) {
+            if (fseek(file, 0, SEEK_END) == 0) {
+                const long size = ftell(file);
+                const long from = std::max<long>(client_conn_start, size - (long)sizeof(text) + 1);
+                if (size > from && fseek(file, from, SEEK_SET) == 0) got = fread(text, 1, sizeof(text) - 1, file);
+            }
+            fclose(file);
+        }
+        text[got] = 0;
+        return strstr(text, "RecvMsgClientLogOnResponse(): OK") != nullptr || strstr(text, "[Logged On]") != nullptr;
+    };
+    bool client_logon_said = false, client_cancel_said = false;
+    unsigned client_options_tick = 0;
+    // The Steam guide's sign-in session: its screens follow the client's update (the package folder's bytes, the processes
+    // it starts), its browser, the sign-in and a Steam Guard request; a CROSS on a screen is the guide's, not the client's.
+    PwSteamSession guide_session;
+    pw_steam_session_begin(&guide_session, steam_guide == 2);
+    const std::string guide_package = prefix + "/drive_c/Program Files (x86)/Steam/package";
+    unsigned long long guide_bytes = 0;
+    std::string guide_persona;
+    bool guide_cross = false, guide_guard = false, guide_ended = false;
+    uint32_t guide_buttons = 0;   // buttons first pressed over a guide screen: kept from the client until released
+    int guide_said = -1;          // the screen the log last named
+    // How the session ended, for the launcher's return (the record's result); later results replace earlier ones
+    auto guide_record = [&](PwSteamResult result) {
+        PwSteamGuideRecord record;
+        pw_steam_guide_record_load(&record, PW_STEAM_GUIDE_RECORD);
+        record.stage = PW_STEAM_STAGE_SIGNIN;
+        record.result = result;
+        const int error = pw_steam_guide_record_save(&record, PW_STEAM_GUIDE_RECORD);
+        say("steam guide: the session's result is %s%s", pw_steam_guide_result_word(result), error ? " (not saved)" : "");
+    };
+    // The bytes the client's update has written into its package folder, to two levels
+    auto guide_package_bytes = [&guide_package]() {
+        unsigned long long total = 0;
+        char folder[1024];
+        if (!pw_path_nocase(guide_package.c_str(), folder, sizeof(folder))) return total;
+        std::vector<std::string> folders{folder};
+        for (size_t at = 0; at < folders.size() && at < 64; ++at) {
+            DIR *dir = opendir(folders[at].c_str());
+            if (!dir) continue;
+            while (const struct dirent *entry = readdir(dir)) {
+                if (entry->d_name[0] == '.') continue;
+                const std::string path = folders[at] + "/" + entry->d_name;
+                struct stat info;
+                if (stat(path.c_str(), &info) != 0) continue;
+                if (S_ISREG(info.st_mode)) total += (unsigned long long)info.st_size;
+                else if (S_ISDIR(info.st_mode) && at == 0) folders.push_back(path);
+            }
+            closedir(dir);
+        }
+        return total;
+    };
+    // The client's own connection log, since the session began: a sign-in that needs a Steam Guard code
+    auto guide_guard_asked = [&client_conn, &client_conn_start]() {
+        char text[16384];
+        size_t got = 0;
+        if (client_conn_start < 0) return false;
+        if (FILE *file = fopen(client_conn.c_str(), "rb")) {
+            if (fseek(file, 0, SEEK_END) == 0) {
+                const long size = ftell(file);
+                const long from = std::max<long>(client_conn_start, size - (long)sizeof(text) + 1);
+                if (size > from && fseek(file, from, SEEK_SET) == 0) got = fread(text, 1, sizeof(text) - 1, file);
+            }
+            fclose(file);
+        }
+        text[got] = 0;
+        return strstr(text, "Logon Denied") || strstr(text, "LogonDenied") || strstr(text, "TwoFactor") ||
+               strstr(text, "Two Factor");
+    };
+    auto client_persona = [&client_users]() {
+        char text[65536], persona[96] = {};
+        size_t got = 0;
+        if (FILE *file = fopen(client_users.c_str(), "rb")) {
+            got = fread(text, 1, sizeof(text), file);
+            fclose(file);
+        }
+        return pw_steam_remembered_user(text, got, persona, sizeof(persona)) ? std::string(persona) : std::string();
+    };
+    if (client_watch) say("Client sign-in: watching for a saved sign-in (%s)", client_signed_at_start ? "already signed in" : "none yet");
     PwDesktopSession session{};
     bool session_begun = false;
     uint64_t session_unload_ms = 0;  // when the shell was asked to end
@@ -1878,12 +2744,13 @@ void proton_run_wine()
     unsigned firmware_reported = 0;
     const unsigned firmware_installed = pw_firmware_installed(&firmware_reported);
     const unsigned default_limit = pw_memory_guard_default_limit_mib(firmware_installed);
+    const unsigned swap_notice = pw_memory_guard_swap_notice_mib(firmware_installed);
     {
         char installed_text[8] = "?", reported_text[8] = "?";
         pw_firmware_text(firmware_installed, installed_text, sizeof(installed_text));
         pw_firmware_text(firmware_reported, reported_text, sizeof(reported_text));
-        say("Wine: firmware %s installed (the system reports %s); the memory guard's limit is %u MiB", installed_text,
-            reported_text, default_limit);
+        say("Wine: firmware %s installed (the system reports %s); the memory guard's limit is %u MiB, its swap notice "
+            "%u MiB", installed_text, reported_text, default_limit, swap_notice);
     }
     const char *memory_limit_setting = getenv("PROTON_SYSTEM_MEMORY_LIMIT");
     const char *memory_end_setting = getenv("PROTON_SYSTEM_MEMORY_END");
@@ -1896,17 +2763,55 @@ void proton_run_wine()
         say("Wine: PROTON_SYSTEM_MEMORY_LIMIT=%u MiB is past the guard's %u MiB; using %u MiB", memory_limit_asked,
             default_limit, memory_limit);
     const unsigned memory_end_asked = memory_end_setting ? (unsigned)strtoul(memory_end_setting, nullptr, 10)
-                                                         : memory_limit + PW_MEMORY_GUARD_END_MARGIN_MIB;
+                                                         : pw_memory_guard_default_end_mib(memory_limit);
     // An end mark past the guard's own is past the console's ~989 MiB before it is reached, and turns the steep-climb
     // rule off. Not the lowered limit plus the margin: the gate's memory-guard case keeps its end out of reach.
-    unsigned memory_end = std::min(memory_end_asked, default_limit + PW_MEMORY_GUARD_END_MARGIN_MIB);
+    unsigned memory_end = std::min(memory_end_asked, pw_memory_guard_default_end_mib(default_limit));
     if (memory_end != memory_end_asked)
         say("Wine: PROTON_SYSTEM_MEMORY_END=%u MiB is past the guard's %u MiB; using %u MiB", memory_end_asked,
-            default_limit + PW_MEMORY_GUARD_END_MARGIN_MIB, memory_end);
+            pw_memory_guard_default_end_mib(default_limit), memory_end);
+    // A shared code copy is counted once: the kernel charges a shared object's physical pages once and leaves 1.5 GiB of extra
+    // mappings alone (K19, docs/PLAN.md, the standard PS5 at 13.40, and the Pro at 10.01 on 2026-10-24, below).
+    const char *shared_once_setting = getenv("PROTON_CENSUS_SHARED_ONCE");
+    // Counted once on every console now (2026-10-24): the Pro's kernel too acts on physical pages. One 64 MiB object mapped again
+    // and again, to a per-mapping total of 1175 MiB, moved nothing there (pro-charge-shared-2026-10-24-03), where 64 MiB steps of
+    // new pages made it trim other processes and swap (pro-charge-distinct-2026-10-24-05). PROTON_CENSUS_SHARED_ONCE=0 counts every mapping.
+    const bool census_shared_once = code_share_duplicates &&
+        (shared_once_setting && *shared_once_setting ? strcmp(shared_once_setting, "0") != 0 : true);
+    say("Wine: the memory census counts a shared code copy %s", census_shared_once ? "once" : "in every helper that maps it");
+    uint64_t census_shared = 0, census_raw_peak = 0;   // what the last census left out; the peak before leaving it out
+    // PROTON_MEMORY_OBSERVE=1 (a test's env, never a default): the census runs and logs but no verdict can fire (limit 4000 MiB). The
+    // owner asked for a run with no guard at all (2026-10-24); the harness's own brake on the kernel's figures is the only one.
+    if (const char *observe = getenv("PROTON_MEMORY_OBSERVE"); observe && !strcmp(observe, "1")) {
+        say("Wine: PROTON_MEMORY_OBSERVE=1: the memory guard only observes (it was %u/%u MiB)", memory_limit, memory_end);
+        memory_limit = 4000;
+        memory_end = 4070;
+    }
+    // A measurement, never a default: a client sign-in session reads /data/ps5proton/memory-raise ("<limit>:<end>" in MiB) and
+    // runs its guard there. The window the client opens after a sign-in climbs past the shipping 870 MiB within seconds and
+    // the guard's kill came before the client had saved the sign-in (2026-10-24). Bounds: limit 870..990, end limit..1010, so
+    // the steep-climb rule stays armed and the kernel's ~1039 MiB limit stays out of reach of a decision's overshoot.
+    if (client_watch) {
+        unsigned raise_limit = 0, raise_end = 0;
+        if (FILE *raise = fopen(PROTON_DATA_ROOT "/memory-raise", "r")) {
+            if (fscanf(raise, "%u:%u", &raise_limit, &raise_end) != 2) raise_limit = raise_end = 0;
+            fclose(raise);
+            if (raise_limit >= 870 && raise_limit <= 990 && raise_end >= raise_limit && raise_end <= 1010 &&
+                raise_end <= raise_limit + PW_MEMORY_GUARD_END_MARGIN_MIB) {
+                say("Wine: memory-raise: the guard runs at %u/%u MiB for this client sign-in session (shipping %u/%u)",
+                    raise_limit, raise_end, memory_limit, memory_end);
+                memory_limit = raise_limit;
+                memory_end = raise_end;
+            } else {
+                say("Wine: memory-raise refused (limit 870..990, end limit..1010, at most +%u): keeping %u/%u MiB",
+                    PW_MEMORY_GUARD_END_MARGIN_MIB, memory_limit, memory_end);
+            }
+        }
+    }
     pw_memory_guard memory_guard{};
     pw_memory_guard_init(&memory_guard, memory_limit, memory_end);
     pw_memory_census census{}, census_peak{};
-    bool census_seen = false, census_missing_said = false, census_stale_said = false;
+    bool census_seen = false, census_missing_said = false, census_stale_said = false, swap_notice_said = false;
     // The hang breaker (src/pw_hang_breaker.h): once a second while the GPU broker shows a game whose processes are all
     // helpers. Its census time is that of the newest census read whole. PROTON_HANG_BREAKER=0 makes it only report.
     // For the console proof of detection, never a game: PROTON_HANG_STALL_MS lowers its 45 s, and
@@ -1948,6 +2853,20 @@ void proton_run_wine()
     uint32_t windows_nonce = 0;
     if (windows_probe) { unlink(windows_request.c_str());unlink(windows_reply.c_str());unlink(windows_temp.c_str()); }
     for (unsigned tick = 0;; ++tick) {
+        // The client has been started (start_root above): the phase it was launched for is now real, not "Starting Wine".
+        static bool aurelia_phase_set;
+        if (aurelia_session() && !aurelia_phase_set) {
+            aurelia_phase_set = true;
+            aurelia_phase_from_arguments(game.arguments);
+        }
+        if (aurelia_session() && tick % 30 == 0) aurelia_poll(); // the client's lines, four times a second
+        if (steamcmd_session() && tick % 30 == 0) steamcmd_poll(); // the runtime's console lines, four times a second
+        // The sign-in overlay's session ends when the login was confirmed (aurelia_line sets the deadline).
+        if (aurelia_session() && aurelia_end_ms && monotonic_ms() >= aurelia_end_ms) {
+            aurelia_end_ms = 0;
+            say("Aurelia: signed in; ending the session");
+            end_game("the Aurelia sign-in finished", false);
+        }
         // Another thread (the flight recorder) ended the game's helpers: the ordered way back, as end_game takes.
         if (ending.load(std::memory_order_acquire)) back_to_launcher();
         // A test run's notice, to see whether a notification shows over a full-screen game: PROTON_TEST_NOTICE=game-mode
@@ -1999,7 +2918,7 @@ void proton_run_wine()
                 catchReturnFromMain(1);
             }
         }
-        if(owner_result && !graphics_claimed.load() && owner_result()>=0) back_to_launcher();
+        if(owner_result && !graphics_claimed.load() && owner_result()>=0 && !programs_remain()) back_to_launcher();
 #ifdef PS5_GPU_BROKER
         if (owner_broker_running) {
             const unsigned long long flips = proton_gpu_broker_flips();
@@ -2015,18 +2934,41 @@ void proton_run_wine()
 #endif
         pad_poll(&pad);
         pad_script.apply(pad);
+        // Over a guide screen the pad drives the screen alone: CROSS is the guide's, and every button pressed while the
+        // screen shows stays away from the client until it is let go (a press must not click what cannot be seen)
+        struct pad shown_pad = pad;
+        if (steam_guide) {
+            const bool covering = guide_screens && guide_session.screen != PW_STEAM_SCREEN_NONE && !guide_ended;
+            if (covering && (pad.pressed & PAD_CROSS)) guide_cross = true;
+            if (covering) guide_buttons |= (pad.held | pad.pressed) & ~PAD_INTERCEPTED;   // the shell's mark stays visible
+            guide_buttons &= pad.held;
+            shown_pad.held &= ~guide_buttons;
+            shown_pad.pressed &= ~guide_buttons;
+            if (covering) {
+                shown_pad.left_x = shown_pad.left_y = shown_pad.right_x = shown_pad.right_y = 0.0f;
+                shown_pad.l2 = shown_pad.r2 = 0.0f;
+                shown_pad.touch_count = 0;
+            }
+        }
+        if (steamcmd_session() && pad.pressed) {
+            const uint32_t pressed = pad.pressed;
+            if (pressed & PAD_UP) steamcmd_key(PW_STEAMCMD_KEY_UP);
+            if (pressed & PAD_DOWN) steamcmd_key(PW_STEAMCMD_KEY_DOWN);
+            if (pressed & PAD_CROSS) steamcmd_key(PW_STEAMCMD_KEY_ENTER);
+            if (pressed & PAD_CIRCLE) steamcmd_key(PW_STEAMCMD_KEY_ESCAPE);
+        }
         struct pad gamepad{};
-        pw_controls_gamepad(&controls, &pad, &gamepad);
+        pw_controls_gamepad(&controls, &shown_pad, &gamepad);
         PwWinePad state{};
         state.connected = gamepad.connected;
         for (size_t i = 0; i < sizeof(ps_buttons)/sizeof(ps_buttons[0]); ++i)
             if (gamepad.held & ps_buttons[i]) state.buttons |= xi_buttons[i];
         state.left_trigger = std::clamp(gamepad.l2, 0.f, 1.f) * 255;
         state.right_trigger = std::clamp(gamepad.r2, 0.f, 1.f) * 255;
-        state.thumb_lx = std::clamp(pad.left_x, -1.f, 1.f) * 32767;
-        state.thumb_ly = -std::clamp(pad.left_y, -1.f, 1.f) * 32767;
-        state.thumb_rx = std::clamp(pad.right_x, -1.f, 1.f) * 32767;
-        state.thumb_ry = -std::clamp(pad.right_y, -1.f, 1.f) * 32767;
+        state.thumb_lx = std::clamp(shown_pad.left_x, -1.f, 1.f) * 32767;
+        state.thumb_ly = -std::clamp(shown_pad.left_y, -1.f, 1.f) * 32767;
+        state.thumb_rx = std::clamp(shown_pad.right_x, -1.f, 1.f) * 32767;
+        state.thumb_ry = -std::clamp(shown_pad.right_y, -1.f, 1.f) * 32767;
         if (set_pad) set_pad(&state);
         uint8_t report[64];
         proton_dualsense_report(&gamepad, tick, report);
@@ -2035,12 +2977,16 @@ void proton_run_wine()
             say("Wine: pad connected=%d buttons=%#x touch=%u", pad.connected, pad.held, pad.touch_count);
         was_connected = pad.connected;
         PwWineInput events[4];
-        const unsigned event_count = pw_controls_update(&controls, &mouse, &pad, events);
+        const unsigned event_count = pw_controls_update(&controls, &mouse, &shown_pad, events);
         for (unsigned i = 0; i < event_count; ++i) deliver(&events[i]);
         PwWineInput usb_events[PW_USB_KEYBOARD_EVENTS + PW_USB_MOUSE_EVENTS];
         const unsigned usb_count = pw_usb_input_ps5_poll(&usb, tick, usb_events,
                                                          sizeof(usb_events) / sizeof(usb_events[0]));
-        for (unsigned i = 0; i < usb_count; ++i) deliver(&usb_events[i]);
+        for (unsigned i = 0; i < usb_count; ++i) {
+            deliver(&usb_events[i]);
+            if (steamcmd_session() && usb_events[i].type == PW_WINE_INPUT_KEY && usb_events[i].down)
+                steamcmd_handle_key(usb_events[i].code, (usb.keys.modifiers & 0x22) != 0);
+        }
         // Diagnostics request a displayed image after their pixels are ready.
         // Reuse numbered capture ownership, independently of timed pad scripts.
         if (tick % 120 == 0) {
@@ -2073,6 +3019,109 @@ void proton_run_wine()
             if (prefix_made_tick && tick - prefix_made_tick >= 600)
                 if (FILE *stop = fopen(PROTON_DATA_ROOT "/stop-game", "w")) fputs("setup-prepared\n", stop), fclose(stop);
         }
+        // A client sign-in session can be left with the pad: hold OPTIONS for two seconds. The window is the program's, so no
+        // screen of ours carries a button for it (the Accounts row's text says so).
+        if (client_watch && !client_signed_at_start && !stop_tick && !client_cancel_said) {
+            if (pad.held & PAD_OPTIONS) {
+                if (!client_options_tick) client_options_tick = tick ? tick : 1;
+                if (tick - client_options_tick >= 240) {
+                    client_cancel_said = true;
+                    say("Client sign-in: cancelled with OPTIONS held for 2 s");
+                    if (steam_guide == 2) guide_ended = true, guide_record(pw_steam_session_ended(&guide_session, PW_STEAM_RESULT_CANCELLED));
+                    if (FILE *stop = fopen(PROTON_DATA_ROOT "/stop-game", "w")) fputs("client-sign-in-cancelled\n", stop), fclose(stop);
+                }
+            } else {
+                client_options_tick = 0;
+            }
+        }
+        if (client_watch && !client_signed_at_start && tick % 120 == 0 && !stop_tick) {
+            // Nobody there: the window costs the memory of the sign-in page and is of no use unattended. 30 minutes covers the
+            // first start's updates (about 5.5 minutes) and a slow scan.
+            if (tick >= 30u * 60u * 120u) {
+                say("Client sign-in: no sign-in after 30 minutes; ending the session");
+                if (steam_guide == 2) guide_ended = true, guide_record(pw_steam_session_ended(&guide_session, PW_STEAM_RESULT_TIMEOUT));
+                if (FILE *stop = fopen(PROTON_DATA_ROOT "/stop-game", "w")) fputs("client-sign-in-timeout\n", stop), fclose(stop);
+            }
+            if (!client_logon_said && client_logged_on()) {
+                client_logon_said = true;
+                say("Client sign-in: the client's connection log shows a logon, %u s into the session", tick / 120);
+            }
+            if (!client_signed_tick && client_signed_in()) {
+                // The session ends at once (the owner, 2026-10-26: Steam kept running 48 s under the guide's last screen).
+                // In the owner's run the token was written 26 s or more after loginusers.vdf, so the stop below waits for it.
+                client_signed_tick = tick ? tick : 1;
+                client_signed_wall = time(nullptr);
+                say("Client sign-in: saved, %u s into the session; closing the client", tick / 120);
+                if (steam_guide != 2)   // a guide session ends from its own tick, which shows its screen first
+                    if (FILE *stop = fopen(PROTON_DATA_ROOT "/stop-game", "w")) fputs("client-signed-in\n", stop), fclose(stop);
+            }
+        }
+        if (!showcase.empty() && tick % 120 == 0 && !stop_tick) {
+            static const PwSteamScreen screens[] = {PW_STEAM_SCREEN_INSTALLING, PW_STEAM_SCREEN_UPDATING, PW_STEAM_SCREEN_SLOW,
+                                                    PW_STEAM_SCREEN_SCAN, PW_STEAM_SCREEN_SIGNED_IN};
+            static const char *const names[] = {"installing", "updating", "slow", "scan", "signed-in"};
+            const unsigned item = tick / 120 / 3, phase = tick / 120 % 3;
+            if (item >= showcase.size() * 5) {
+                // Three seconds after the last capture: each picture asked for is on disk, or the verdict says how many are not
+                if (item == showcase.size() * 5 && phase == 2) {
+                    const char *path = getenv("WINE_PS5_CAPTURE");
+                    const std::string base = path ? std::string(path).substr(0, std::string(path).rfind(".ppm")) : std::string();
+                    unsigned saved = 0;
+                    for (const unsigned index : showcase_captures) {
+                        char suffix[16];
+                        snprintf(suffix, sizeof(suffix), "-%02u.ppm", index);
+                        struct stat info;
+                        saved += path && stat((base + suffix).c_str(), &info) == 0 && info.st_size > 0;
+                    }
+                    say("PS5_PROTON_STEAM_GUIDE_SHOWCASE %s captures=%u of %zu languages=%zu", saved == showcase.size() * 5 ? "PASS" : "FAIL",
+                        saved, showcase.size() * 5, showcase.size());
+                }
+                if (item > showcase.size() * 5 && phase == 0)
+                    if (FILE *stop = fopen(PROTON_DATA_ROOT "/stop-game", "w")) fputs("steam-guide-showcase\n", stop), fclose(stop);
+            } else if (phase == 0) {
+                if (item && item % 5 == 0) {
+                    log_line(proton_guide_stop("the showcase's next language"));
+                    proton_guide_start(showcase[item / 5]->tag, proton_app_root(), proton_gpu_broker_set_cover);
+                }
+                proton_guide_show(screens[item % 5], 134, 212000000ull, "Mihawk");
+            } else if (phase == 2) {
+                pad_script.capture(monotonic_ms(), 0);
+                showcase_captures.push_back(pad_script.capture_index);
+                say("steam guide showcase: capture %02u is %s in %s", pad_script.capture_index, names[item % 5], showcase[item / 5]->tag);
+            }
+        }
+        if (steam_guide && !stop_tick && !guide_ended && (tick % 120 == 0 || guide_cross)) {
+            PwSteamSessionInput input{};
+            input.seconds = tick / 120;
+            if (steam_guide == 2 && tick % 600 == 0) guide_bytes = guide_package_bytes();
+            if (steam_guide == 2 && tick % 600 == 0 && !guide_guard && guide_guard_asked()) {
+                guide_guard = true;
+                say("steam guide: the client's connection log asks for a Steam Guard code");
+                guide_record(PW_STEAM_RESULT_GUARD);   // the launcher explains the code, unless a sign-in comes after
+            }
+            input.package_bytes = guide_bytes;
+            input.processes = guide_processes.load(std::memory_order_relaxed);
+            input.browser = guide_browser.load(std::memory_order_relaxed);
+            input.signed_in = steam_guide == 2 && !client_signed_at_start && client_signed_in();
+            input.guard = guide_guard;
+            input.cross = guide_cross;
+            guide_cross = false;
+            const int result = pw_steam_session_tick(&guide_session, &input);
+            if (input.signed_in && guide_persona.empty()) guide_persona = client_persona();
+            if (int(guide_session.screen) != guide_said) {
+                guide_said = int(guide_session.screen);
+                say("steam guide: screen %d at %u s (%llu package bytes, %u processes, browser %d)", guide_said, input.seconds,
+                    guide_bytes, input.processes, input.browser);
+            }
+            proton_guide_show(guide_session.screen, input.seconds, guide_bytes, guide_persona.c_str());
+            if (result >= 0) {
+                guide_ended = true;
+                if (result == PW_STEAM_RESULT_SIGNED_IN && !client_signed_wall) client_signed_wall = time(nullptr);
+                guide_record((PwSteamResult)result);
+                if (FILE *stop = fopen(PROTON_DATA_ROOT "/stop-game", "w"))
+                    fprintf(stop, "steam-guide-%s\n", pw_steam_guide_result_word((PwSteamResult)result)), fclose(stop);
+            }
+        }
         if (tick % 120 == 0 && !stop_tick && access(PROTON_DATA_ROOT "/stop-game", F_OK) == 0) {
             unlink(PROTON_DATA_ROOT "/stop-game");
             stop_tick = tick;
@@ -2082,7 +3131,12 @@ void proton_run_wine()
             say("Wine: stop requested; asking the game to close%s (%d)",
                 log_off ? ": the desktop session logs off" : "", deliver(&close));
         }
-        if (stop_tick && tick - stop_tick == 1200) {
+        // After a sign-in the client ignores the close and is not hung: no snapshot (16 s of klog on 2026-10-26), and it is
+        // ended once its token is on disk, checked each second from the close, or 25 s after it.
+        const unsigned stop_age = stop_tick ? tick - stop_tick : 0;
+        if (stop_tick && !stop_escalated && stop_age % 120 == 0 &&
+            (client_signed_wall ? stop_age >= 3000 || (stop_age >= 120 && client_token_written()) : stop_age >= 1200)) {
+            stop_escalated = true;
             // The close request reaches only a thread that pumps messages. What every thread waits on is recorded first,
             // then a game in helpers is ended by SIGKILL to them (end_game), which needs nothing of the game's threads or
             // the server. A game in the title is ended by the server only when asked (PROTON_STOP_TERMINATE=1): the
@@ -2095,10 +3149,13 @@ void proton_run_wine()
             if (server_input) snprintf(inputs, sizeof(inputs), "the close went to the server");
             else snprintf(inputs, sizeof(inputs), "inputs delivered %llu of %llu posted",
                           (unsigned long long)stats.inputs_delivered, (unsigned long long)stats.inputs_posted);
-            dump_hang(10);
+            if (client_signed_wall)
+                say("Client sign-in: the client's token %s, %u s after the close", client_token_written() ? "is written" :
+                    "was not written", stop_age / 120);
+            else dump_hang(10);
             if (programs_in_helpers && list_helpers) {
-                say("Wine: the game did not close in 10 s (%s); ending its helpers by SIGKILL, not through the server",
-                    inputs);
+                say("Wine: the game did not close in %u s (%s); ending its helpers by SIGKILL, not through the server",
+                    stop_age / 120, inputs);
                 end_game("stop", true);
             } else if (server_terminate_asked()) {
                 const int asked = terminate_game ? terminate_game() : -1;
@@ -2206,6 +3263,11 @@ void proton_run_wine()
             census_read = memory_census && !memory_census(&fresh);
             if (census_read) {
                 census = fresh;
+                census_raw_peak = std::max<uint64_t>(census_raw_peak, census.system);
+                // Never more than the helpers' own figures: what is left out is a helper's mapping.
+                census_shared = census_shared_once ? std::min<uint64_t>(code_share_duplicates(), census.helpers) : 0;
+                census.system -= census_shared;
+                census.helpers -= census_shared;
                 if (!breaker_freeze_ms || monotonic_ms() - breaker_armed_ms < breaker_freeze_ms) breaker_census_ms = census.taken_ms;
             }
         }
@@ -2228,6 +3290,14 @@ void proton_run_wine()
                         PW_MEMORY_GUARD_END_MS / 1000);
                 }
                 census_seen = true;
+                if (!swap_notice_said && (census.system >> 20) >= swap_notice) {
+                    swap_notice_said = true;
+                    notice_set(NOTICE_MEMORY_SWAP, "The PS5's memory is getting full: games may slow down as it starts to swap.");
+                    say("Wine: the console's system memory reached %u MiB (now %llu MiB; helpers %llu MiB in %u): it starts to swap "
+                        "from here; only a notice, nothing is closed below %u MiB", swap_notice,
+                        (unsigned long long)(census.system >> 20), (unsigned long long)(census.helpers >> 20),
+                        census.helper_count, memory_limit);
+                }
                 if (census.system > census_peak.system) census_peak = census;
                 if (age > 5000 && !census_stale_said)
                     say("Wine: the system memory census is %llu ms old (status %d)", (unsigned long long)age,
@@ -2361,12 +3431,29 @@ void proton_run_wine()
                     (unsigned long long)usb.mouse_sent);
             if (census_seen)
                 say("Wine: system memory %llu MiB (helpers %llu MiB in %u, the largest %llu MiB in process %d), peak %llu MiB; "
-                    "%llu s of the last %u at the %u MiB limit", (unsigned long long)(census.system >> 20),
+                    "%llu s of the last %u at the %u MiB limit; shared code copies beyond the first %llu MiB (what counting "
+                    "them once would take off)", (unsigned long long)(census.system >> 20),
                     (unsigned long long)(census.helpers >> 20), census.helper_count,
                     (unsigned long long)(census.largest >> 20), census.largest_pid,
                     (unsigned long long)(census_peak.system >> 20),
                     (unsigned long long)(pw_memory_guard_pressure_ms(&memory_guard) / 1000),
-                    PW_MEMORY_GUARD_WINDOW_MS / 1000, memory_limit);
+                    PW_MEMORY_GUARD_WINDOW_MS / 1000, memory_limit,
+                    (unsigned long long)((code_share_duplicates ? code_share_duplicates() : 0) >> 20));
+            // A program in the title converts its code in the title's partition under a helper's budget; the same figures
+            // as a helper's line (native/proton_wine_child.c, code_cache_tally).
+            uint64_t cache[10] = {};
+            if (title_client_claimed && code_cache_stats && code_cache_stats(cache, 10) >= 10) {
+                static const char *const policies[] = {"off", "set", "listed", "adaptive"};
+                say("Wine: title code cache budget_mib=%llu policy=%s held_kib=%llu evicted=%llu evicted_kib=%llu stale=%llu "
+                    "refused=%llu lost=%llu raises=%llu reconverted_kib=%llu", (unsigned long long)cache[0],
+                    cache[9] < 4 ? policies[cache[9]] : "?", (unsigned long long)cache[1], (unsigned long long)cache[2],
+                    (unsigned long long)cache[3], (unsigned long long)cache[4], (unsigned long long)cache[5],
+                    (unsigned long long)cache[6], (unsigned long long)cache[7], (unsigned long long)cache[8]);
+            }
+            if (census_seen && census_shared_once)
+                say("Wine: shared code copies beyond the first %llu MiB, left out of the census; peak counting every "
+                    "mapping %llu MiB", (unsigned long long)(census_shared >> 20),
+                    (unsigned long long)(census_raw_peak >> 20));
 #ifdef PS5_GPU_BROKER
             if (shown_last_ms)
                 say("Wine: frames shown %llu in 10 s, longest gap %llu ms, %u gaps of 100 ms or more; foreground process %d",

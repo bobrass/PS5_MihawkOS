@@ -168,6 +168,23 @@ static void named_numbers(void)
         memcpy(&number, value, bytes < sizeof(number) ? bytes : sizeof(number));
         line("named %s = %llu (%zu bytes)", names[i], (unsigned long long)number, bytes);
     }
+    /* FreeBSD's swap devices (struct xswdev: version, dev, flags, blocks, used, in pages), a node read by number only. */
+    int mib[4];
+    size_t levels = 3;
+    if (sysctlnametomib("vm.swap_info", mib, &levels)) {
+        line("named vm.swap_info: errno %d", errno);
+        return;
+    }
+    for (mib[levels] = 0; mib[levels] < 4; mib[levels]++) {
+        int device[8] = {0};
+        size_t bytes = sizeof(device);
+        if (sysctl(mib, (u_int)levels + 1, device, &bytes, NULL, 0)) {
+            line("vm.swap_info.%d: errno %d", mib[levels], errno);
+            break;
+        }
+        line("vm.swap_info.%d (%zu bytes): %d %d %d %d %d %d", mib[levels], bytes, device[0], device[1], device[2],
+             device[3], device[4], device[5]);
+    }
 }
 
 static void *records(int *mib, u_int levels, size_t *bytes)

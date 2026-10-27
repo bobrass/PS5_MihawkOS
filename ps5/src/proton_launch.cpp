@@ -33,6 +33,7 @@
 #endif
 #include "../../src/pw_pe_arch.h"
 #include "../../src/pw_firmware.h"
+#include "../../src/pw_path_nocase.h"
 extern "C" {
 #include "../../src/pw_wine_launch.h"
 }
@@ -103,6 +104,24 @@ std::string proton_game_mode_path()
 	return std::string(PS5_APP_ROOT) + "/game-mode.txt";
 #else
 	return proton_data_grant() ? PROTON_DATA_ROOT "/game-mode.txt" : proton_title_path("/app0/game-mode.txt");
+#endif
+}
+
+std::string proton_high_refresh_path()
+{
+#if defined(PS5_HOST_REFERENCE)
+	return std::string(PS5_APP_ROOT) + "/high-refresh.txt";
+#else
+	return proton_data_grant() ? PROTON_DATA_ROOT "/high-refresh.txt" : proton_title_path("/app0/high-refresh.txt");
+#endif
+}
+
+std::string proton_controller_path()
+{
+#if defined(PS5_HOST_REFERENCE)
+	return std::string(PS5_APP_ROOT) + "/controller.txt";
+#else
+	return proton_data_grant() ? PROTON_DATA_ROOT "/controller.txt" : proton_title_path("/app0/controller.txt");
 #endif
 }
 
@@ -579,6 +598,8 @@ ProtonGame read_game(const std::string &id, const std::string &directory)
 		word("prefix", game.prefix);
 		auto desktop = json.find("desktop");
 		if (desktop != json.end() && desktop->is_boolean()) game.desktop = desktop->get<bool>();
+		auto launcher = json.find("launcher");
+		if (launcher != json.end() && launcher->is_boolean()) game.launcher = launcher->get<bool>();   // listed unless false
 		if (proton_game_prefix(game).empty()) {
 			game.complaint = "prefix must be a folder ID of up to 64 letters, digits, underscores or hyphens";
 		}
@@ -615,8 +636,11 @@ ProtonGame read_game(const std::string &id, const std::string &directory)
 					}
 				}
 				const std::string prefix = proton_game_prefix(game) + "/drive_c";
-				const std::string host = drive == 'z' ? rest : drive == 'c' ? prefix + rest : std::string();
+				std::string host = drive == 'z' ? rest : drive == 'c' ? prefix + rest : std::string();
 				struct stat status;
+				/* Windows finds "client.exe" where an installer wrote "Client.exe"; the file system does not (src/pw_path_nocase.h). */
+				char held[4096];
+				if (!host.empty() && stat(host.c_str(), &status) != 0 && pw_path_nocase(host.c_str(), held, sizeof(held))) host = held;
 				if (!host.empty() && stat(host.c_str(), &status) != 0) {
 					game.complaint = "the executable is not there: " + host;
 					if (drive == 'c' && stat(rest.c_str(), &status) == 0) {
@@ -703,6 +727,8 @@ void proton_set_args(int argc, char **argv)
 		} else if (key == "args") {
 			gLaunch.arguments = value;
 			gLaunch.arguments_override = true;
+		} else if (key == "aurelia") {
+			gLaunch.aurelia = !value.empty() && value != "0";
 		} else if (key == "ended") {
 			gLaunch.ended = value;
 		}
@@ -810,6 +836,11 @@ void proton_queue_restart(const ProtonGame *game, unsigned cycle, const char *re
 		why = std::string(reason)] { proton_restart(hasGame ? &chosen : nullptr, cycle, why.c_str()); };
 }
 
+bool proton_restart_pending()
+{
+	return bool(pendingRestart);
+}
+
 void proton_finish_restart()
 {
 	auto restart = std::move(pendingRestart);
@@ -826,6 +857,13 @@ void proton_restart(const ProtonGame *game, unsigned cycle, const char *reason, 
 		snprintf(storage[count], sizeof(storage[count]), "profile=%s", game->id.c_str());
 		argv[count] = storage[count];
 		count++;
+		/* The launcher's Aurelia page chooses the client's command (sign-in, refresh, install): the session then runs
+		 * it instead of the profile's own arguments. Empty keeps the profile's. */
+		if (!game->arguments.empty()) {
+			snprintf(storage[count], sizeof(storage[count]), "args=%s", game->arguments.c_str());
+			argv[count] = storage[count];
+			count++;
+		}
 	}
 	snprintf(storage[count], sizeof(storage[count]), "cycle=%u", cycle);
 	argv[count] = storage[count];

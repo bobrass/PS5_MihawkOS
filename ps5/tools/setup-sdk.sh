@@ -18,7 +18,7 @@ cache="$root/.deps/native"
 sdk="$cache/ps5-payload-sdk"
 sdk_fork="${PS5_PAYLOAD_SDK_FORK:-$root/../PS5_PayloadSDK}"
 # 611893f: /data through the Lapy daemon (ps5_elevation); e879f15: the open-file budget (ps5_fdv); 3752be7 before it: heap waits, shared memory availability; 6b63a2a: localeconv
-sdk_revision=611893fc25ef3e138f5bc2c90d829d8b58174cd2
+sdk_revision=9d0487845ad50e3a266872cbbaaedc6ffafe3404
 
 if [[ ! -f $sdk/.ps5-sdk-revision || $(<"$sdk/.ps5-sdk-revision") != "$sdk_revision" ]]; then
     git -C "$sdk_fork" cat-file -e "$sdk_revision^{commit}" 2>/dev/null || {

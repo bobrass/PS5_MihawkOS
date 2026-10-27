@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 13:00:00 -0400
+Subject: [PATCH] ntdll: PS5: emulate the descriptor-table instructions the CPU refuses in user mode (UMIP).
+
+The console's kernel runs the CPU with CR4.UMIP and leaves the fault to the program: SGDT, SIDT, SLDT, SMSW and STR
+raise #GP(0) in user mode. On Windows they run, and Linux emulates SGDT, SIDT and SMSW for user programs
+(arch/x86/kernel/umip.c), which is why Proton runs a store game on a PC that died on the console about 40 s in
+(2026-10-27, the base PS5, Alpha 4): its anti-tamper code runs `sgdt [rsp]`, and the fault became an access
+violation reading 0xFFFFFFFFFFFFFFFF. A general protection fault with error code 0 is now first offered to
+src/pw_umip.h, which decodes the instruction with the repository's x86 decoder in the thread's mode (64-bit, or
+32-bit WoW64 code by its code selector) and says what it would have stored: Linux's values for SGDT, SIDT and SMSW,
+and Windows' for SLDT (0) and STR (0x40). The result is written to the register or memory operand and the program
+goes on after the instruction; a destination that cannot be written raises that write's access violation. Anything
+else faults as before. The first emulation in a process is logged ("wine-ps5: sgdt at ... emulated (UMIP)").
+---
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -95,6 +95,7 @@
+ #include "wine/debug.h"
+ #ifdef __PROSPERO__
+ #include "pw_wine_mmu4k.h"
++#include "pw_umip.h"
+ #endif
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(unwind);
+@@ -3066,6 +3067,54 @@
+ #endif
+ 
+ 
++#ifdef __PROSPERO__
++/***********************************************************************
++ *           ps5_umip_emulate
++ *
++ * The console's CPU runs with CR4.UMIP and its kernel leaves the fault to the program: SGDT, SIDT, SLDT, SMSW and
++ * STR raise #GP(0) in user mode, where Linux (arch/x86/kernel/umip.c) and Windows let them run, so a program's
++ * anti-tamper code that stores the GDT ended on an access violation reading 0xFFFFFFFFFFFFFFFF (2026-10-27).
++ * src/pw_umip.h decides what the instruction would have stored; it is written here and the program goes on after
++ * it. Returns 1 when emulated, 0 when the fault is not one of them, -1 when the destination cannot be written
++ * (rec is then that write's access violation, as the instruction would have raised).
++ */
++static int ps5_umip_emulate( ucontext_t *ucontext, EXCEPTION_RECORD *rec )
++{
++    static LONG logged;
++    __typeof__(&RAX_sig(ucontext)) gpr[16] =
++    {
++        &RAX_sig(ucontext), &RCX_sig(ucontext), &RDX_sig(ucontext), &RBX_sig(ucontext),
++        &RSP_sig(ucontext), &RBP_sig(ucontext), &RSI_sig(ucontext), &RDI_sig(ucontext),
++        &R8_sig(ucontext), &R9_sig(ucontext), &R10_sig(ucontext), &R11_sig(ucontext),
++        &R12_sig(ucontext), &R13_sig(ucontext), &R14_sig(ucontext), &R15_sig(ucontext),
++    };
++    PwUmipCpu cpu = { .rip = RIP_sig(ucontext), .mode = CS_sig(ucontext) == cs64_sel ? 64 : 32 };
++    PwUmipEffect effect;
++    BYTE code[15];
++    SIZE_T len;
++    unsigned int i;
++
++    for (i = 0; i < 16; i++) cpu.gpr[i] = *gpr[i];
++    len = virtual_uninterrupted_read_memory( (BYTE *)(ULONG_PTR)cpu.rip, code, sizeof(code) );
++    if (pw_umip_emulate( code, len, &cpu, &effect )) return 0;
++    if (effect.to_register) *gpr[effect.reg] = effect.value;
++    else if (virtual_uninterrupted_write_memory( (void *)(ULONG_PTR)effect.address, effect.data, effect.size ))
++    {
++        rec->ExceptionCode = EXCEPTION_ACCESS_VIOLATION;
++        rec->NumberParameters = 2;
++        rec->ExceptionInformation[0] = EXCEPTION_WRITE_FAULT;
++        rec->ExceptionInformation[1] = effect.address;
++        return -1;
++    }
++    RIP_sig(ucontext) = effect.rip;
++    if (!InterlockedExchange( &logged, 1 ))
++        MESSAGE( "wine-ps5: %s at %p emulated (UMIP, %u-bit code); later ones are not logged\n",
++                 effect.mnemonic, (void *)(ULONG_PTR)cpu.rip, cpu.mode );
++    return 1;
++}
++#endif
++
++
+ /**********************************************************************
+  *		segv_handler
+  *
+@@ -3102,6 +3151,18 @@
+     case TRAP_x86_PROTFLT:   /* General protection fault */
+         {
+             WORD err = ERROR_sig(ucontext);
++#ifdef __PROSPERO__
++            if (!err)
++            {
++                const int umip = ps5_umip_emulate( ucontext, &rec );
++                if (umip > 0)
++                {
++                    leave_handler( ucontext );
++                    return;
++                }
++                if (umip < 0) break;
++            }
++#endif
+             if (!err && (rec.ExceptionCode = is_privileged_instr( &context.c ))) break;
+             if ((err & 7) == 2 && handle_interrupt( ucontext, &rec, &context )) return;
+             rec.ExceptionCode = EXCEPTION_ACCESS_VIOLATION;

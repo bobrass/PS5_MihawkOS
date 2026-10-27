@@ -1,0 +1,167 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 06:00:00 -0400
+Subject: [PATCH] server: PS5: a watched directory's name changes are seen at once.
+
+Patch 0902 polls a watched directory, at best every 25 ms, so a change was reported late or, when two came between
+two lists (a directory made and removed), not at all: ntdll change and kernel32 change, 37 test lines in both
+architectures (2026-10-25), mostly WaitForSingleObject(..., 0) right after a RemoveDirectory, and actions of an
+earlier step read by a later one. The server's own loop runs on kqueue on the console, and the server makes every
+name change itself (create_file, a delete on close, a rename). So the watched directory's descriptor is also put in
+one kqueue (EVFILT_VNODE), and after each request the server lists again each directory it says changed, before the
+reply: the notification is queued, in order, as with inotify. Polling stays for what the kqueue does not see. The
+server logs once whether it got the kqueue; refused, it polls as before.
+---
+diff --git a/server/change.c b/server/change.c
+index 0acde78..26c701d 100644
+--- a/server/change.c
++++ b/server/change.c
+@@ -36,6 +36,11 @@
+ #ifdef HAVE_SYS_INOTIFY_H
+ #include <sys/inotify.h>
+ #endif
++#ifdef __PROSPERO__
++#include <sys/event.h>
++#undef LIST_INIT
++#undef LIST_ENTRY
++#endif
+ 
+ #include "ntstatus.h"
+ #define WIN32_NO_STATUS
+@@ -1079,12 +1084,17 @@ static int init_inotify( void )
+ }
+ 
+ #ifdef __PROSPERO__
+-/* The console has no inotify, no dnotify and no kqueue. A directory that is watched is polled: its entries
++/* The console has no inotify and no dnotify. A directory that is watched is polled: its entries
+  * (and those below it, when the whole subtree is watched) are listed with their identity, size and times,
+  * the list is compared with the last one, and what differs is reported the way inotify would: a name that
+  * appeared or went, a name that went and another with the same file identity that came (a rename), a file
+  * whose size or times changed. Names in a changed file's directory that do not themselves change are not
+- * reported, as on Windows. A watch that takes long to list is polled less often. */
++ * reported, as on Windows. A watch that takes long to list is polled less often.
++ * The watched directory's own descriptor is also in one kqueue (EVFILT_VNODE). The server makes every name change
++ * itself (create_file, a delete on close, a rename), so right after each request ps5_change_drain lists again each
++ * directory the kqueue says changed: the notification is queued before the client hears back, in order, as with
++ * inotify. Polling still finds what the kqueue does not see: a change below a subtree watch's top directory, a
++ * file's new size or times. */
+ 
+ #define POLL_TICKS_PER_SEC  10000000
+ #define POLL_MIN_INTERVAL   (POLL_TICKS_PER_SEC / 40)
+@@ -1110,8 +1120,12 @@ struct poll_watch
+     unsigned int         count;
+     timeout_t            interval;
+     unsigned int         cookie;
++    int                  vnode;    /* descriptor in vnode_queue, or -1 */
+ };
+ 
++static int vnode_queue = -2;       /* -2 not made yet, -1 refused: polling only */
++static unsigned int vnode_watches;
++
+ static void poll_free_items( struct poll_item *items, unsigned int count )
+ {
+     unsigned int i;
+@@ -1312,11 +1326,68 @@ static void poll_timeout( void *private )
+     poll_arm( dir );
+ }
+ 
++static void vnode_add( struct dir *dir )
++{
++    static int refused;
++    struct kevent ev;
++    int unix_fd = dir->fd ? get_unix_fd( dir->fd ) : -1;
++
++    if (vnode_queue == -2)
++    {
++        vnode_queue = kqueue();
++        fprintf( stderr, "wineserver: directory changes by %s\n", vnode_queue >= 0 ? "kqueue and polling" : "polling" );
++    }
++    if (vnode_queue < 0 || unix_fd == -1) return;
++    EV_SET( &ev, unix_fd, EVFILT_VNODE, EV_ADD | EV_CLEAR,
++            NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB | NOTE_RENAME | NOTE_DELETE, 0, dir );
++    if (kevent( vnode_queue, &ev, 1, NULL, 0, NULL ) == -1)
++    {
++        if (!refused++) fprintf( stderr, "wineserver: EVFILT_VNODE refused (errno %d): polling\n", errno );
++        return;
++    }
++    dir->poll->vnode = unix_fd;
++    vnode_watches++;
++}
++
++/* list again, now, every watched directory whose entries the kqueue saw change */
++void ps5_change_drain( void )
++{
++    static const struct timespec now;
++    struct kevent events[32];
++    unsigned int error;
++    int i, n;
++
++    if (!vnode_watches) return;
++    error = get_error();
++    do
++    {
++        if ((n = kevent( vnode_queue, NULL, 0, events, ARRAY_SIZE(events), &now )) <= 0) break;
++        /* a wake-up may close a handle; each dir appears once in a batch (EV_CLEAR) */
++        for (i = 0; i < n; i++) grab_object( events[i].udata );
++        for (i = 0; i < n; i++)
++        {
++            struct dir *dir = events[i].udata;
++            if (!dir->poll) continue;
++            if (dir->poll->timeout) remove_timeout_user( dir->poll->timeout );
++            poll_timeout( dir );
++        }
++        for (i = 0; i < n; i++) release_object( events[i].udata );
++    } while (n == ARRAY_SIZE(events));
++    set_error( error );
++}
++
+ static void poll_watch_free( struct dir *dir )
+ {
+     struct poll_watch *watch = dir->poll;
+ 
+     if (!watch) return;
++    if (watch->vnode != -1)
++    {
++        struct kevent ev;
++        EV_SET( &ev, watch->vnode, EVFILT_VNODE, EV_DELETE, 0, 0, NULL );
++        kevent( vnode_queue, &ev, 1, NULL, 0, NULL );
++        vnode_watches--;
++    }
+     if (watch->timeout) remove_timeout_user( watch->timeout );
+     poll_free_items( watch->items, watch->count );
+     free( watch );
+@@ -1333,6 +1404,8 @@ static int inotify_adjust_changes( struct dir *dir )
+     if (!(base = get_fd_unix_name( dir->fd )) || !(watch = calloc( 1, sizeof(*watch) ))) return 0;
+     dir->poll = watch;
+     watch->interval = POLL_MIN_INTERVAL;
++    watch->vnode = -1;
++    vnode_add( dir );   /* before the first list, so that no change falls between the two */
+     /* the list the next ones are compared with is made now, before the caller can change anything */
+     poll_scan( base, "", dir->subtree, 0, &watch->items, &watch->count, &size );
+     if (watch->items) qsort( watch->items, watch->count, sizeof(*watch->items), poll_compare );
+diff --git a/server/request.c b/server/request.c
+index d6964d4..2b01617 100644
+--- a/server/request.c
++++ b/server/request.c
+@@ -325,6 +325,8 @@ static void call_req_handler( struct thread *thread )
+     {
+         extern void ps5_windows_note_request(unsigned int);
+         extern void ps5_windows_publish(void);
++        extern void ps5_change_drain(void);
++        ps5_change_drain();
+         ps5_windows_note_request(req);
+         ps5_windows_publish();
+     }
+@@ -465,6 +467,12 @@ DECLSPEC_EXPORT int pw_wineserver_call_direct( unsigned int tid, client_ptr_t te
+         if (debug_level) trace_request();
+ 
+         req_handlers[req]( &current->req, &reply );
++#ifdef __PROSPERO__
++        {
++            extern void ps5_change_drain(void);
++            ps5_change_drain();   /* a name change this request made is queued before the reply */
++        }
++#endif
+ 
+         if (current && current->reply_fd)
+         {

@@ -34,7 +34,7 @@ releases, pacbrew) were not downloaded again; their pins are recorded, not re-ve
 - **Proprietary material.** None found in the tree: no Sony or SCE copyright or confidentiality marker (the only
   "CONFIDENTIAL" lines are FreeBSD header boilerplate), no `.sprx` module (`.gitignore` excludes them), no firmware
   file. The `libSce*.so` files are the upstream link stubs, not console modules.
-- **Pinned.** The fork at `611893fc25ef3e138f5bc2c90d829d8b58174cd2` (`ps5/tools/setup-sdk.sh`), which installs upstream's payload SDK v0.42, SHA-256
+- **Pinned.** The fork at `9d0487845ad50e3a266872cbbaaedc6ffafe3404` (`ps5/tools/setup-sdk.sh`), which installs upstream's payload SDK v0.42, SHA-256
   `8cfbc7cd5811e719eb4f0c47eea668d3dc7b40bc8ab11c4a5031d40c23ec02da`, and lays its headers and platform layer over it.
   The Lapy daemon builds with the same upstream v0.42 archive, SHA-256
   `8cfbc7cd5811e719eb4f0c47eea668d3dc7b40bc8ab11c4a5031d40c23ec02da` (`tools/fetch-all.sh`,
@@ -149,7 +149,7 @@ in any release of it; the rule is in `docs/CHILD_PROCESSES.md`.
 
 The PRX converter is built from `mpereiraesaa/ps5-native-app-boilerplate` at
 `30597512539e7edfde079cbcaf4a626bc0a948c5` (`tools/fetch-prx-tools.sh`, GPL-3.0-or-later), and the diagnostic
-title-layout OpenGL runtime links the PS5 OpenGL SDK 1.0.0 (release SHA-256 in `tools/fetch-opengl-sdk.sh`, with its
+title-layout OpenGL runtime links the PS5 OpenGL SDK 1.0.2 (release SHA-256 in `tools/fetch-opengl-sdk.sh`, with its
 own `THIRD_PARTY_NOTICES.md` and provenance). Both are recorded in [`NOTICE.md`](../NOTICE.md); their own provenance
 was not audited for this page.
 

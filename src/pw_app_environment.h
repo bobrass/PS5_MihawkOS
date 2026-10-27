@@ -40,7 +40,10 @@ int pw_app_environment_same_path(const char *a, const char *b);
 PwAppMatch pw_app_environment_find(const PwAppEntry *entries, size_t count, const char *image,
                                    const char *command_line, size_t *index);
 /* The entry's per-application settings packed for the bootstrap (src/pw_environment.h's format). 0, or EINVAL,
- * E2BIG (more than PW_APP_ENVIRONMENT_MAX_WORDS) or what pw_environment_pack refuses; *kept: how many settings. */
+ * E2BIG (more than PW_APP_ENVIRONMENT_MAX_WORDS) or what pw_environment_pack refuses; *kept: how many settings.
+ * An entry that names its controller (WINE_PS5_CONTROLLER, src/pw_controller.h) gets what the session does for the
+ * player's: WINE_PS5_HID=1 for "dualsense" and =0 otherwise, as each program runs its own HID stack (Wine patch 0870),
+ * and no SDL_XINPUT_ENABLED=0 beside an Xbox controller, where XInput is the only controller. */
 int pw_app_environment_block(const PwAppEntry *entry, char *out, size_t capacity, uint32_t *bytes, size_t *kept);
 #ifdef __cplusplus
 }

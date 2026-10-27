@@ -1,0 +1,56 @@
+{
+  "leg": "install",
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.147,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.135,
+    "previous_cleanup_verified": true
+  },
+  "identity_seen": true,
+  "steps": {
+    "pressed": true,
+    "downloaded": true,
+    "install_queued": true,
+    "restart_to_installer": true,
+    "back_to_launcher": true
+  },
+  "installed_after": true,
+  "downloads_folder": [
+    "SteamSetup.exe"
+  ],
+  "pictures": [],
+  "press_flag_left": false,
+  "shell_idle_after_run": true,
+  "seconds": 26.8,
+  "lines": [
+    "[MihawkOS] game 250900 (The Binding of Isaac: Rebirth): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] game steam-client (Steam): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] game steam-setup (Steam setup): the executable is not there: /data/ps5proton/downloads/SteamSetup.exe",
+    "[MihawkOS] game steam (Steam): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] launcher: 15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "[MihawkOS] launcher: the client-press flag pressed CROSS on the option",
+    "[MihawkOS] steam: installer downloaded",
+    "[MihawkOS] game 250900 (The Binding of Isaac: Rebirth): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] game steam-client (Steam): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] game steam (Steam): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] launcher: installing from the downloaded installer",
+    "[MihawkOS] restart: to=steam-setup cycle=0 reason=install eboot=/app0/eboot.bin",
+    "[MihawkOS] launch: mode=game profile=steam-setup path= cycle=0 argc=4 env=0",
+    "[MihawkOS] game 250900 (The Binding of Isaac: Rebirth): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] game steam-client (Steam): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] game steam (Steam): the executable is not there: /data/ps5proton/prefixes/mihawk/drive_c/Program Files (x86)/Steam/steam.exe",
+    "[MihawkOS] loading screen: shown for \"Steam setup\"",
+    "[MihawkOS] Wine: shader cache namespace /data/ps5proton/caches/steam-setup/822028b49339f1fd7a80bcf6bc071b8b640717c3610a3dd5cfd610bb454093c1/gl",
+    "[MihawkOS] wine-ps5: Z:\\data\\ps5proton\\downloads\\SteamSetup.exe is fixed at 0x400000: its helper gives the carrier's image back",
+    "[MihawkOS] Wine: process winemenubuilder.exe command line 1/1: C:\\windows\\system32\\winemenubuilder.exe -w \"C:\\users\\Public\\Desktop\\Steam.lnk\"",
+    "[MihawkOS] Wine: process winemenubuilder.exe command line 1/1: C:\\windows\\system32\\winemenubuilder.exe -w \"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Steam\\Steam.lnk\"",
+    "[MihawkOS] Wine: process steamservice.exe command line 1/1: \"C:\\Program Files (x86)\\Steam\\bin\\steamservice.exe\" /Install",
+    "[MihawkOS] restart: to=launcher cycle=1 reason=wine-ended eboot=/app0/eboot.bin",
+    "[MihawkOS] launcher: 15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "[MihawkOS] ends: status 0"
+  ],
+  "storage_errors": 0,
+  "capture": "klog/steam-option-2026-10-24-04",
+  "passed": true
+}

@@ -16,6 +16,7 @@
 
 extern int sceKernelReserveVirtualRange(void **, size_t, int, size_t);
 extern int __wine_ps5_payload_memory_ready(void);
+extern uint64_t pw_wine_dsection_min_bytes(void);
 extern int __wine_ps5_dmem_file_region(void *, size_t);
 extern int __wine_ps5_dmem_file_released(void *, size_t);
 extern int __wine_ps5_mprotect(void *, size_t, int);
@@ -254,6 +255,11 @@ void __wine_ps5_section_init(uintptr_t host_limit, unsigned (*host_protection_of
     pw_wine_mmap_placed = placed;
     fprintf(stderr, "wine-ps5: shared-section arena=%p bytes=%zu mapped_cache_bytes=%zu cluster=%u flush=%s\n", base, span,
             section.capacity * ops.page, cluster, flush_mode == FLUSH_NONE ? "none" : flush_mode == FLUSH_ASYNC ? "async" : "sync");
+}
+
+uint64_t __wine_ps5_section_min_bytes(void)
+{
+    return __wine_ps5_payload_memory_ready() ? pw_wine_dsection_min_bytes() : (uint64_t)256 << 20;
 }
 
 int __wine_ps5_section_arena_contains(uintptr_t base, size_t bytes)

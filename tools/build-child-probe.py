@@ -12,6 +12,7 @@ import subprocess
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
+TESTER_TITLE = 'PPSA99171'   # the tester probe's title (native/proton_tester_probe.h); MihawkOS is PPSA99170
 OVERLAY = ('ps5/src/main.cpp', 'ps5/CMakeLists.txt')
 
 
@@ -23,6 +24,8 @@ def main():
     parser.add_argument('--draw-gpu-helper',action='store_true',help='draw a shader-based offscreen triangle in each Vulkan client')
     parser.add_argument('--present-gpu-helper',action='store_true',help='present child shader draws through the owning title display')
     parser.add_argument('--wine-gpu-broker',action='store_true',help='owner-only Wine server with child GPU transports')
+    parser.add_argument('--tester', action='store_true', help='with --kind service-native: the tester probe, its own title PPSA99171 '
+                        '(native/proton_tester_probe.h), a complete title folder in dist/PPSA99171 with the helper beside it')
     parser.add_argument('--flexible-memory',help='experiment: the flexible memory the title asks the kernel for (an experimental PS5_Vulkan native tool, --native-tool)')
     parser.add_argument('--parameter-pointers-in-file',help='experiment: also store the process-parameter pointers in the file at this base')
     parser.add_argument('--native-tool',type=Path,help='experiment: the native tool build that links the title')
@@ -30,6 +33,7 @@ def main():
     args = parser.parse_args()
     subprocess.run(['bash',str(ROOT/'tools/setup-graphics-foundation.sh')],check=True,stdout=subprocess.DEVNULL)
     if args.wine_gpu_broker and args.kind!='wine-owner':parser.error('--wine-gpu-broker requires --kind wine-owner')
+    if args.tester and args.kind != 'service-native': parser.error('--tester requires --kind service-native')
     if args.present_gpu_helper:args.draw_gpu_helper=True
     if args.draw_gpu_helper:args.vulkan_gpu_helper=True
     if args.vulkan_gpu_helper:
@@ -44,7 +48,9 @@ def main():
         if args.kind == 'install-probe':   # its tls step: the title's own TLS (src/pw_https.h)
             overlay += ('src/pw_https.c', 'src/pw_https.h', 'platform/tls/pw_mbedtls_config.h', 'tools/setup-mbedtls.sh')
     if args.kind == 'service-native' or args.wine_gpu_broker:
-        overlay += ('native/proton_service_helper.c','native/proton_gpu_broker_probe.h','native/proton_gpu_broker_probe.cpp','native/proton_gpu_memory_probe.cpp','native/proton_fd_budget_probe.cpp','native/proton_channel_probe.cpp','native/proton_gpu_server_probe.cpp','native/proton_gpu_display.cpp','native/proton_gpu_display.h','native/proton_gpu_server.h','src/pw_gpu_broker.h','wine/ps5/pw_wine_process_io.c','wine/ps5/pw_wine_process_io.h')
+        overlay += ('native/proton_service_helper.c','native/proton_gpu_broker_probe.h','native/proton_flex_probe.h','native/proton_gpu_broker_probe.cpp','native/proton_gpu_memory_probe.cpp','native/proton_fd_budget_probe.cpp','native/proton_channel_probe.cpp','native/proton_gpu_server_probe.cpp','native/proton_gpu_display.cpp','native/proton_gpu_display.h','native/proton_gpu_server.h','src/pw_gpu_broker.h','wine/ps5/pw_wine_process_io.c','wine/ps5/pw_wine_process_io.h')
+    if args.tester:
+        overlay += ('native/proton_tester_probe.h', 'native/proton_tester_probe.cpp', 'native/proton_loading.h', 'native/proton_loading.cpp')
     if args.vulkan_gpu_helper:
         overlay+=('native/proton_gpu_client.c','native/proton_gpu_vulkan_probe.c','native/proton_gpu_vulkan_exports.c','wine/ps5/pw_wine_prx.c','wine/ps5/pw_wine_prx.h','tools/link_gpu_client.sh','tools/gen_prx_descriptor.py','wine/ps5/prx_eh_frame.ld','native/proton_gpu_probe_spv.h','native/shaders/gpu-probe.vert','native/shaders/gpu-probe.frag','tools/generate-gpu-probe-shaders.py')
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
@@ -54,8 +60,9 @@ def main():
               (['--parameter-pointers-in-file',args.parameter_pointers_in_file] if args.parameter_pointers_in_file else [])
     overlay+=('ps5/tools/link-title.sh','tools/setup-graphics-foundation.sh','src/pw_frame_page.h')
     sdk = Path(subprocess.check_output(['bash', str(ROOT / 'ps5/tools/setup-sdk.sh')], text=True).strip())
-    vulkan = (ROOT.parent / 'PS5_Vulkan').resolve()
-    manifest = {'graphics_foundation_revision':(ROOT/'.deps/graphics-foundation/.revision').read_text().strip(),'revision': revision, 'kind': args.kind, 'elevate_gpu_helper': args.elevate_gpu_helper, 'vulkan_gpu_helper': args.vulkan_gpu_helper,'gpu_draw_helper':args.draw_gpu_helper,'gpu_present_helper':args.present_gpu_helper,'wine_gpu_broker':args.wine_gpu_broker,
+    # The pinned PS5_Vulkan with its RADV archive, as the production build links (tools/setup-pinned-radv.sh).
+    vulkan = Path(subprocess.check_output(['bash', str(ROOT / 'tools/setup-pinned-radv.sh')], text=True).strip().splitlines()[-1])
+    manifest = {'graphics_foundation_revision':(ROOT/'.deps/graphics-foundation/.revision').read_text().strip(),'revision': revision, 'kind': args.kind, 'elevate_gpu_helper': args.elevate_gpu_helper, 'vulkan_gpu_helper': args.vulkan_gpu_helper,'gpu_draw_helper':args.draw_gpu_helper,'gpu_present_helper':args.present_gpu_helper,'wine_gpu_broker':args.wine_gpu_broker,'tester':args.tester,
                 'sdk_revision': (sdk / '.ps5-sdk-revision').read_text().strip(),
                 'source_sha256': {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in overlay},
                 'radv_recipe_sha256': hashlib.sha256((vulkan / 'tools/radv-link.sh').read_bytes()).hexdigest()}
@@ -94,6 +101,13 @@ def main():
         for name in overlay:
             (source / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, source / name)
+        if args.tester:
+            # Its own title, beside MihawkOS: another title ID and content ID, so it can never replace PPSA99170's folder.
+            param = json.loads((ROOT / 'ps5/sce_sys/param.json').read_text())
+            param['titleId'] = TESTER_TITLE
+            param['contentId'] = 'UP9000-' + TESTER_TITLE + '_00-PS5PROTONPROBE0'
+            param['localizedParameters']['en-US']['titleName'] = 'MihawkOS memory probe'
+            (source / 'ps5/sce_sys/param.json').write_text(json.dumps(param, indent=2) + '\n')
     build = work / 'build'
     environment = dict(os.environ, PS5_VKHOMEBREWUI=str(ROOT.parent / 'PS5_VKHomebrewUI'))
     environment.pop('PS5_NATIVE_TOOL',None);environment.pop('PS5_TITLE_LINK_ARGS',None)
@@ -106,6 +120,7 @@ def main():
                     '-DPS5_SERVICE_PREFLIGHT=' + ('ON' if args.kind == 'service-preflight' else 'OFF'),
                     '-DPS5_SERVICE_NATIVE=' + ('ON' if args.kind == 'service-native' else 'OFF'),
                     '-DPS5_INSTALL_PROBE=' + ('ON' if args.kind == 'install-probe' else 'OFF'),
+                    '-DPS5_TESTER_PROBE=' + ('ON' if args.tester else 'OFF'),
                     # The install probe draws the production launcher under its notifications.
                     '-DPS5_GPU_BROKER='+('ON' if args.wine_gpu_broker or args.kind == 'install-probe' else 'OFF'),
                     '-DCMAKE_VERBOSE_MAKEFILE=OFF'], check=True, env=environment)
@@ -154,8 +169,17 @@ def main():
         if sorted(actual) != sorted(expected):
             raise RuntimeError('Headless helper dependencies differ from the explicit kernel/libc policy')
         manifest['helper_needed'] = actual
-    manifest.update(identity=identity, eboot_sha256=hashlib.sha256(
-        (source / 'dist/PPSA99170/eboot.bin').read_bytes()).hexdigest())
+    title = TESTER_TITLE if args.tester else 'PPSA99170'
+    if args.tester:
+        # The helper the probe spawns from its own folder (/app0/service-native-helper.bin).
+        shutil.copyfile(work / 'helper/helper.bin', source / 'dist' / title / 'service-native-helper.bin')
+        # The two fonts its verdict screen draws with (native/proton_loading.cpp), from the pinned HUI kit, and their licence.
+        fonts = source / 'dist' / title / 'assets/hui/fonts'
+        fonts.mkdir(parents=True, exist_ok=True)
+        for name in ('Inter-Regular.ttf', 'Inter-SemiBold.ttf', 'Inter-LICENSE.txt'):
+            shutil.copyfile(ROOT / '.deps/hui/third_party/fonts' / name, fonts / name)
+    manifest.update(identity=identity, title=title, eboot_sha256=hashlib.sha256(
+        (source / 'dist' / title / 'eboot.bin').read_bytes()).hexdigest())
     (work / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print('Child probe build: ' + str(work), flush=True)
 

@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 03:00:00 -0400
+Subject: [PATCH] ntdll: PS5: one syscall slot target for every process.
+
+The x86_64 syscall thunks call through 0x7ffe1000. With 16 KiB host pages that slot lies in KUSER_SHARED_DATA's host
+page, which every process maps from the one USD section (patch 0530), so each process wrote its own Unix dispatcher
+into memory the others read. The helpers all load ntdll at one address and agree; the title's ntdll is Sony-loaded
+elsewhere. A program in the title (PROTON_LAYOUT=title) that started a child had every thread sent to the helper's
+dispatcher as the child came up: an instruction fetch fault at 0x200330FB4, the helpers' __wine_syscall_dispatcher,
+then nested exceptions (fmem-intitle-p3 and p4, 2026-10-26). The slot now holds ntdll's __wine_syscall_slot, the same
+address in every process, which jumps through that process's own __wine_syscall_dispatcher variable. A process that
+finds another value there says so.
+---
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -1752,6 +1752,7 @@
+ @ stdcall __wine_unix_spawnvp(long ptr)
+ @ stdcall __wine_ctrl_routine(ptr)
+ @ extern -private __wine_syscall_dispatcher
++@ cdecl -private -arch=x86_64 __wine_syscall_slot()
+ @ extern -private __wine_unix_call_dispatcher
+ @ extern -private -arch=arm64ec __wine_unix_call_dispatcher_arm64ec
+ @ extern -private __wine_unixlib_handle
+--- a/dlls/ntdll/signal_x86_64.c
++++ b/dlls/ntdll/signal_x86_64.c
+@@ -55,6 +55,10 @@
+  */
+ __ASM_GLOBAL_FUNC( __chkstk, "ret" );
+ 
++/* What the shared syscall slot (0x7ffe1000) holds where the host page that holds it is KUSER_SHARED_DATA's, one page
++ * for every process (the PS5's 16 KiB): the same address in each, ntdll's, reaching that process's own dispatcher. */
++__ASM_GLOBAL_FUNC( __wine_syscall_slot, "jmp *" __ASM_NAME("__wine_syscall_dispatcher") "(%rip)" );
++
+ 
+ #ifdef __arm64ec_x64__
+ 
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -2090,6 +2090,10 @@
+ /***********************************************************************
+  *           load_ntdll_functions
+  */
++#if defined(__PROSPERO__) && defined(__x86_64__)
++void *__wine_ps5_syscall_slot;   /* ntdll's __wine_syscall_slot (unix/signal_x86_64.c) */
++#endif
++
+ static void load_ntdll_functions( HMODULE module )
+ {
+     void **p__wine_syscall_dispatcher;
+@@ -2117,6 +2121,9 @@
+     GET_FUNC( __wine_syscall_dispatcher );
+     GET_FUNC( __wine_unix_call_dispatcher );
+     GET_FUNC( __wine_unixlib_handle );
++#if defined(__PROSPERO__) && defined(__x86_64__)
++    __wine_ps5_syscall_slot = (void *)find_named_export( module, exports, "__wine_syscall_slot" );
++#endif
+     if (is_arm64ec())
+     {
+         GET_FUNC( __wine_unix_call_dispatcher_arm64ec );
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -3798,9 +3798,21 @@
+          * read-only view of the USD section (the server sizes that section
+          * to a host page). Store the pointer through that view. */
+         const size_t host_page = sysconf( _SC_PAGESIZE );
++        void *target = (void *)__wine_syscall_dispatcher;
++#ifdef __PROSPERO__
++        /* That view is the one section every process maps, so the slot is shared: each process wrote its own
++         * dispatcher, and a helper started after the title (its ntdll at another address) sent every title thread to
++         * the helper's (fmem-intitle-p4-2026-10-26-03). ntdll's __wine_syscall_slot is at the same address in every
++         * process and jumps to that process's own. */
++        extern void *__wine_ps5_syscall_slot;
++        if (__wine_ps5_syscall_slot) target = __wine_ps5_syscall_slot;
++        else ERR( "ntdll has no __wine_syscall_slot: the shared slot holds this process's own dispatcher\n" );
++        if (*(void **)ptr && *(void **)ptr != target)
++            ERR( "the shared syscall slot holds %p, this process's is %p: processes disagree\n", *(void **)ptr, target );
++#endif
+ 
+         mprotect( user_shared_data, host_page, PROT_READ | PROT_WRITE );
+-        *(void **)ptr = __wine_syscall_dispatcher;
++        *(void **)ptr = target;
+         mprotect( user_shared_data, host_page, PROT_READ );
+     }
+     else

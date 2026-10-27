@@ -1,0 +1,196 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 02:00:00 -0400
+Subject: [PATCH] server: PS5: a child caches the files it reads, under a lease.
+
+Patch 0929 made every file and directory a child process receives
+uncached, so the server could park idle files inside the console's file
+budget (about 249 files opened by path, title and children together). It
+made every read in a game a server round trip: a get_handle_fd and a
+descriptor passed over the socket, then closed. A 2D game's
+70 s load made about 10,000 of them a second, 13 for every file it opened
+(isaac-load-sample-2026-10-25-01: get_handle_fd=101360 in 10 s at 22 us,
+its loading thread 80% inside file calls).
+
+A child's regular file is now leased: get_handle_fd answers cacheable,
+the client keeps the descriptor in its fd cache as on any other system,
+and the file's loan (the pin that keeps it from being parked) is held
+until the child closes the handle or ends, instead of only until its
+thread's next request. At most 32 leases a process and 96 in all; past
+them, and for directories, the file is lent uncached as before, so a
+program holding hundreds of files still stays inside the budget.
+---
+diff --git a/server/fd.c b/server/fd.c
+index f641adf..3e24956 100644
+--- a/server/fd.c
++++ b/server/fd.c
+@@ -3304,13 +3304,22 @@ DECL_HANDLER(get_handle_fd)
+             reply->type = fd->fd_ops->get_fd_type( fd );
+ #ifdef __PROSPERO__
+             /* A child's copy of a file or directory would keep it open against the title's budget, where the
+-             * server could not park it: the child closes it after each call (send_client_fd). */
++             * server could not park it, so it was only lent: the child closed it after each call (send_client_fd),
++             * and every read cost a get_handle_fd and a descriptor passed over the socket (a game's load: 10,000 a
++             * second, 13 for every file it opened). A regular file is now leased while leases are free: the child
++             * caches it as a Windows program's process would, and the file stays pinned (never parked) until the
++             * child closes the handle or ends (ps5_lease_*). A directory, and a file past the leases, is lent as
++             * before. */
+             if (ps5_is_child_process( current->process ) && (reply->type == FD_TYPE_FILE || reply->type == FD_TYPE_DIR))
+-                reply->cacheable = 0;
++                reply->cacheable = reply->cacheable && reply->type == FD_TYPE_FILE &&
++                                   ps5_lease_available( current->process, req->handle );
+ #endif
+             reply->options = fd->options;
+             reply->access = get_handle_access( current->process, req->handle );
+             send_client_fd( current->process, unix_fd, req->handle );
++#ifdef __PROSPERO__
++            if (reply->cacheable && ps5_is_child_process( current->process )) ps5_lease_take( current->process, req->handle );
++#endif
+         }
+         release_object( fd );
+     }
+diff --git a/server/handle.c b/server/handle.c
+index a88f94a..fc43d81 100644
+--- a/server/handle.c
++++ b/server/handle.c
+@@ -440,6 +440,9 @@ unsigned int close_handle( struct process *process, obj_handle_t handle )
+     table->entries[index].ptr = NULL;
+     if (index < table->free) table->free = index;
+     if (index == table->last) shrink_handle_table( table );
++#ifdef __PROSPERO__
++    ps5_lease_end( process, handle );
++#endif
+     release_object_from_handle( obj );
+     return STATUS_SUCCESS;
+ }
+diff --git a/server/process.c b/server/process.c
+index fadcb33..bcc664b 100644
+--- a/server/process.c
++++ b/server/process.c
+@@ -702,6 +702,9 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
+     process->sigkill_delay   = TICKS_PER_SEC / 64;
+     process->machine         = native_machine;
+     process->unix_pid        = -1;
++#ifdef __PROSPERO__
++    process->ps5_lease_count = 0;
++#endif
+     process->exit_code       = STILL_ACTIVE;
+     process->running_threads = 0;
+     process->priority        = PROCESS_PRIOCLASS_NORMAL;
+@@ -843,6 +846,9 @@ static void process_destroy( struct object *obj )
+ 
+     assert( !process->sigkill_timeout );  /* timeout should hold a reference to the process */
+ 
++#ifdef __PROSPERO__
++    ps5_lease_end_all( process );
++#endif
+     close_process_handles( process );
+     set_process_startup_state( process, STARTUP_ABORTED );
+ 
+@@ -1089,6 +1095,9 @@ static void process_killed( struct process *process )
+     process->winstation = 0;
+     process->desktop = 0;
+     cancel_terminating_process_asyncs( process );
++#ifdef __PROSPERO__
++    ps5_lease_end_all( process );
++#endif
+     close_process_handles( process );
+     if (process->idle_event) release_object( process->idle_event );
+     process->idle_event = NULL;
+diff --git a/server/process.h b/server/process.h
+index 0b94d43..423e68f 100644
+--- a/server/process.h
++++ b/server/process.h
+@@ -90,6 +90,10 @@ struct process
+     struct pe_image_info image_info;      /* main exe image info */
+     struct cpu_topology_override cpu_override; /* Overridden CPUs to host CPUs mapping. */
+     unsigned char   wine_cpu_id_from_host[64]; /* Host to overridden CPU mapping. */
++#ifdef __PROSPERO__
++    unsigned int         ps5_lease_count; /* files whose descriptor this child caches (request.c, ps5_lease_*) */
++    struct { obj_handle_t handle; unsigned int loan; } ps5_leases[32];
++#endif
+ };
+ 
+ /* process functions */
+@@ -121,6 +125,10 @@ extern void kill_process( struct process *process, int violent_death );
+ extern void terminate_all_processes(void);
+ extern struct process *ps5_process_from_unix_pid( int unix_pid );
+ extern void ps5_terminate_process( struct process *process );
++extern int ps5_lease_available( struct process *process, obj_handle_t handle );
++extern void ps5_lease_take( struct process *process, obj_handle_t handle );
++extern void ps5_lease_end( struct process *process, obj_handle_t handle );
++extern void ps5_lease_end_all( struct process *process );
+ #endif
+ extern void kill_console_processes( struct thread *renderer, int exit_code );
+ extern void detach_debugged_processes( struct debug_obj *debug_obj, int exit_code );
+diff --git a/server/request.c b/server/request.c
+index 6a86fba..d6964d4 100644
+--- a/server/request.c
++++ b/server/request.c
+@@ -647,6 +647,66 @@ int ps5_is_child_process( const struct process *process )
+ {
+     return process->unix_pid != -1 && process->unix_pid != getpid();
+ }
++
++/* Leases (get_handle_fd): a child caches the descriptor of a regular file, and the file's loan, the pin that keeps it
++ * from being parked, is held until the child closes that handle or ends, not only until its thread's next request.
++ * A file a child holds keeps its budget unit (the console counts a file once, whoever holds it), so the server must
++ * not count it as freed by parking it: pinned, it is not parked. At most 32 a process and 96 in all, so a program that
++ * holds hundreds of files (a Java game's jars) still has the rest lent and parked as before; the budget is about 249
++ * files and the server parks above 192. */
++enum { PS5_LEASES_TOTAL = 96 };
++static unsigned int ps5_leases_total;
++
++int ps5_lease_available( struct process *process, obj_handle_t handle )
++{
++    unsigned int i;
++
++    for (i = 0; i < process->ps5_lease_count; i++) if (process->ps5_leases[i].handle == handle) return 1;
++    return process->ps5_lease_count < ARRAY_SIZE(process->ps5_leases) && ps5_leases_total < PS5_LEASES_TOTAL;
++}
++
++void ps5_lease_take( struct process *process, obj_handle_t handle )
++{
++    unsigned int i, loan = current && current->process == process ? current->ps5_fd_loan : 0;
++
++    if (current && current->process == process) current->ps5_fd_loan = 0;   /* held by the lease, not the request */
++    for (i = 0; i < process->ps5_lease_count; i++)
++        if (process->ps5_leases[i].handle == handle)
++        {
++            /* asked again (the child's cache had no room): the newer loan replaces the older */
++            if (process->ps5_leases[i].loan) pw_wine_fdv_loan_end( process->ps5_leases[i].loan );
++            process->ps5_leases[i].loan = loan;
++            return;
++        }
++    if (process->ps5_lease_count >= ARRAY_SIZE(process->ps5_leases) || ps5_leases_total >= PS5_LEASES_TOTAL)
++    {
++        if (loan) pw_wine_fdv_loan_end( loan );   /* cannot happen: ps5_lease_available said yes in this request */
++        return;
++    }
++    process->ps5_leases[process->ps5_lease_count].handle = handle;
++    process->ps5_leases[process->ps5_lease_count].loan = loan;
++    process->ps5_lease_count++;
++    ps5_leases_total++;
++}
++
++void ps5_lease_end( struct process *process, obj_handle_t handle )
++{
++    unsigned int i;
++
++    for (i = 0; i < process->ps5_lease_count; i++)
++        if (process->ps5_leases[i].handle == handle)
++        {
++            if (process->ps5_leases[i].loan) pw_wine_fdv_loan_end( process->ps5_leases[i].loan );
++            process->ps5_leases[i] = process->ps5_leases[--process->ps5_lease_count];
++            ps5_leases_total--;
++            return;
++        }
++}
++
++void ps5_lease_end_all( struct process *process )
++{
++    while (process->ps5_lease_count) ps5_lease_end( process, process->ps5_leases[0].handle );
++}
+ #endif
+ 
+ int send_client_fd( struct process *process, int fd, obj_handle_t handle )

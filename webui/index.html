@@ -1,0 +1,373 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MihawkOS</title>
+<link rel="icon" href="/icon.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/i18n.js" defer></script>
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="sky" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<header class="bar glass">
+  <a class="brand" href="#games"><img src="/icon.png" alt=""><span>MihawkOS</span></a>
+  <nav id="tabs">
+    <a href="#games" data-tab="games">My games</a>
+    <a href="#add" data-tab="add">Add a game</a>
+    <a href="#tiles" data-tab="tiles">Home screen</a>
+    <a href="#saves" data-tab="saves">Saves</a>
+    <a href="#settings" data-tab="settings">Settings</a>
+    <a href="#help" data-tab="help">Help</a>
+  </nav>
+  <div class="language">
+    <button type="button" class="language-button" id="language-button" aria-haspopup="true" aria-expanded="false"
+      aria-label="Language"><img id="language-flag" alt="" width="28" height="21"><span class="chevron" aria-hidden="true"></span></button>
+    <div class="language-list glass" id="language-list" hidden></div>
+  </div>
+</header>
+
+<div id="offline" class="banner glass" hidden>
+  <div class="grow"><strong>Your PS5 is not answering.</strong>
+    <p class="muted">This page works while MihawkOS is open on your PS5, on its game list. If a game is running, close it and go back to MihawkOS.</p></div>
+  <button type="button" class="button primary" id="retry">Try again</button>
+</div>
+
+<main>
+  <!-- My games -->
+  <section id="page-games" class="page" hidden>
+    <div class="head">
+      <div><h1>My games</h1><p class="muted">Choose a game to change its name, its picture or how it plays.</p></div>
+      <a class="button primary" href="#add">Add a game</a>
+    </div>
+    <div id="welcome" class="glass card wide" hidden>
+      <h2>No games yet</h2>
+      <p class="muted">Three steps put a Windows game on your PS5:</p>
+      <ol class="steps">
+        <li>Copy the game's folder from your computer to the PS5, on the Add a game page.</li>
+        <li>Choose the program that starts it, and give it a picture.</li>
+        <li>Play it from MihawkOS's game list or the Mihawk OS desktop, or put it on your PS5's home screen.</li>
+      </ol>
+      <div class="actions"><a class="button primary" href="#add">Add a game</a></div>
+    </div>
+    <div id="game-grid" class="grid"></div>
+    <div id="loose" hidden>
+      <h2 class="section-title">Copied, but not set up yet</h2>
+      <p class="muted">These folders are on your PS5, but no game uses them yet. Set one up to choose the program that starts it.</p>
+      <div id="loose-grid" class="grid"></div>
+    </div>
+  </section>
+
+  <!-- Add a game -->
+  <section id="page-add" class="page" hidden>
+    <div class="head"><div><h1>Add a game</h1>
+      <p class="muted">Copy a Windows game from this computer to your PS5, then set it up. It takes three steps.</p></div></div>
+    <ol class="stepper" id="stepper">
+      <li data-step="1">Choose its folder</li>
+      <li data-step="2">Copy it to the PS5</li>
+      <li data-step="3">Set it up</li>
+    </ol>
+    <div class="glass card wide" id="add-step-1">
+      <h2>1. Choose the game's folder</h2>
+      <p class="muted">Choose the folder that holds the game's files and its .exe program, for example the folder you installed or unzipped it into.</p>
+      <label class="drop" id="drop">
+        <input type="file" id="folder-input" webkitdirectory multiple>
+        <strong>Choose a folder</strong>
+        <span class="muted">or drag it here</span>
+      </label>
+      <p class="hint">Use a computer for this step: phones and tablets cannot send folders.</p>
+    </div>
+    <div class="glass card wide" id="add-step-2" hidden>
+      <h2>2. Copy it to your PS5</h2>
+      <div class="fields one">
+        <label>Name of the folder on the PS5<input id="upload-name" maxlength="120"></label>
+      </div>
+      <p class="muted" id="upload-summary"></p>
+      <div class="tube"><div id="upload-bar"></div></div>
+      <p class="progress-line" id="upload-status"></p>
+      <p class="hint">Keep this page and MihawkOS open until the copy ends. If it stops, choose the same folder again: it carries on where it stopped.</p>
+      <div class="actions"><button class="button primary" id="upload-start">Start copying</button>
+        <button class="button" id="upload-cancel">Cancel</button></div>
+    </div>
+    <div class="glass card wide" id="add-step-3" hidden>
+      <h2 id="added-title">3. Set it up</h2>
+      <p class="muted" id="added-text"></p>
+      <div class="actions">
+        <button class="button primary" id="added-setup">Set it up</button>
+        <a class="button" href="#tiles" id="added-tile" hidden>Put it on the home screen</a>
+        <button class="button" id="added-another">Add another game</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Home screen tiles -->
+  <section id="page-tiles" class="page" hidden>
+    <div class="head"><div><h1>PS5 home screen</h1>
+      <p class="muted">Put a game on your PS5's home screen, as a tile of its own. The tile opens MihawkOS straight into that game.</p></div></div>
+    <div class="glass card wide status-card" id="smp-card">
+      <span class="status-dot" id="smp-dot"></span>
+      <div class="grow"><strong id="smp-title"></strong><p class="muted" id="smp-text"></p></div>
+      <button type="button" class="button small" id="smp-check">Check again</button>
+    </div>
+    <div class="tiles-layout">
+      <div class="glass card">
+        <h2>Add a tile</h2>
+        <div class="fields one">
+          <label>1. The game<select id="tile-game"></select></label>
+          <label>2. The name under the tile<input id="tile-name" maxlength="64"></label>
+        </div>
+        <p class="label-like">3. The tile's picture</p>
+        <p class="hint">The game's picture with the MihawkOS mark. Give the game a picture on My games to change it.</p>
+        <canvas id="tile-icon" width="512" height="512"></canvas>
+        <div class="tile-adjust" id="tile-adjust" hidden>
+          <div class="tile-choice" id="tile-art-choice"><span class="label-like">Picture</span>
+            <div class="segmented" id="tile-art"><button type="button" data-art="cover">Tall cover</button><button type="button" data-art="banner">Wide banner</button></div></div>
+          <div class="tile-choice"><span class="label-like">How it fills the tile</span>
+            <div class="segmented" id="tile-fit"><button type="button" data-fit="fill">Fill</button><button type="button" data-fit="fit">Fit</button><button type="button" data-fit="stretch">Stretch</button><button type="button" data-fit="actual">Actual size</button></div></div>
+          <p class="hint">Fill covers the square and crops the rest. Fit shows the whole picture. Stretch squeezes it into the square. Actual size shows it at its own size.</p>
+          <div class="tile-zoom" id="tile-zoom-row">
+            <label class="inline">Zoom<input type="range" id="tile-zoom" min="0.5" max="3" step="0.01" value="1"></label>
+            <button type="button" class="button small" id="tile-reset">Reset</button>
+          </div>
+          <p class="hint">Drag the picture to choose the part the tile shows.</p>
+        </div>
+        <p class="error" id="tile-error"></p>
+        <div class="actions"><button class="button primary" id="tile-make">Add to the home screen</button></div>
+      </div>
+      <div class="glass card">
+        <h2>Your tiles</h2>
+        <div id="tile-list" class="tile-list"></div>
+        <p class="hint">A tile you add or remove here reaches the home screen a few seconds after you close MihawkOS: tiles change only while no game or app runs, and MihawkOS is one.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Saves -->
+  <section id="page-saves" class="page" hidden>
+    <div class="head"><div><h1>Saves</h1>
+      <p class="muted">Your games keep their saves and settings in the Windows user folder on your PS5. Keep a copy on this computer, or put one back after you reinstall.</p></div></div>
+    <div class="saves-layout">
+      <div class="glass card">
+        <h2>Back up</h2>
+        <p class="muted">Download a folder as a .zip file. Most games save in one of these:</p>
+        <div id="save-places" class="places"></div>
+      </div>
+      <div class="glass card">
+        <h2>Put a backup back</h2>
+        <p class="muted">Choose a .zip backup you downloaded from this page. Each file goes back where it came from, replacing the file of the same name.</p>
+        <div class="actions">
+          <label class="button primary file">Choose a backup (.zip)<input type="file" id="saves-zip-input" accept=".zip,application/zip"></label>
+        </div>
+        <div class="tube" id="saves-tube" hidden><div id="saves-bar"></div></div>
+        <p class="progress-line" id="saves-status"></p>
+      </div>
+    </div>
+    <details class="glass card more" id="saves-browser">
+      <summary>Look through the folder yourself</summary>
+      <div class="browse-head">
+        <label class="inline">Windows installation<select id="saves-prefix"></select></label>
+        <strong id="saves-path"></strong>
+        <span class="actions tight">
+          <button type="button" class="button small" id="saves-up">Folder above</button>
+          <a class="button small" id="saves-zip" download>Download this folder (.zip)</a>
+        </span>
+      </div>
+      <div id="saves-list" class="picker"></div>
+    </details>
+  </section>
+
+  <!-- Settings -->
+  <section id="page-settings" class="page" hidden>
+    <div class="head"><div><h1>Settings</h1>
+      <p class="muted">The same settings as in MihawkOS's Settings on your PS5. A change is saved at once; games use it from the next time they start.</p></div></div>
+    <h2 class="section-title">Playing</h2>
+    <div class="settings">
+      <div class="glass card setting tall">
+        <div><h3>Controller</h3>
+          <p class="muted">The controller your games think you are holding. Your DualSense works as any of them.</p></div>
+        <div class="segmented" id="controller"></div>
+        <ul class="choices">
+          <li><strong>Xbox 360 controller:</strong> almost every game knows it. Choose it if you are not sure.</li>
+          <li><strong>Xbox One controller:</strong> for games that ask for a newer Xbox controller.</li>
+          <li><strong>DualSense:</strong> games that support it show PlayStation buttons. Games that only know Xbox controllers will not see it.</li>
+        </ul>
+        <p class="hint">A game can have its own choice: open it on My games.</p>
+      </div>
+      <div class="glass card setting">
+        <div><h3>Game Mode</h3>
+          <p class="muted">On: a game that fills the screen runs faster, and the Mihawk OS desktop pauses while you play. Off: every game stays inside the desktop. Turn it off only if a game's screen stays black.</p></div>
+        <label class="switch"><input type="checkbox" id="game-mode" aria-label="Game Mode"><span></span></label>
+      </div>
+      <div class="glass card setting">
+        <div><h3>120 Hz output</h3>
+          <p class="muted">On: games can run at up to 120 frames a second on a TV that supports 120 Hz; choose 120 Hz in the game's own display settings too. Turn it off if your TV shows no picture or flickers when a game starts.</p></div>
+        <label class="switch"><input type="checkbox" id="high-refresh" aria-label="120 Hz output"><span></span></label>
+      </div>
+    </div>
+    <h2 class="section-title">The launcher</h2>
+    <div class="settings">
+      <div class="glass card setting tall" id="look-card">
+        <div><h3>Theme and music</h3><p class="muted">How the launcher looks and the music it plays. Your PS5 changes them as you choose.</p></div>
+        <div class="mouse">
+          <label>Theme<select id="theme"></select></label>
+          <label>Music<select id="music"></select></label>
+        </div>
+      </div>
+    </div>
+    <h2 class="section-title">Mouse</h2>
+    <div class="settings">
+      <div class="glass card setting tall">
+        <div><h3>Mouse buttons</h3><p class="muted">On the Mihawk OS desktop, the touchpad moves the pointer. Choose the controller buttons that click.</p></div>
+        <div class="mouse">
+          <label>Left click<select id="mouse-left"></select></label>
+          <label>Right click<select id="mouse-right"></select></label>
+          <label>Middle click<select id="mouse-middle"></select></label>
+        </div>
+      </div>
+    </div>
+    <h2 class="section-title">When something goes wrong</h2>
+    <div class="settings">
+      <div class="glass card setting">
+        <div><h3>Detailed logs</h3>
+          <p class="muted">Each game session keeps a detailed record, for a bug report. Leave it off unless you are reporting a problem: it writes more.</p></div>
+        <label class="switch"><input type="checkbox" id="logging" aria-label="Detailed logs"><span></span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Help -->
+  <section id="page-help" class="page" hidden>
+    <div class="head"><div><h1>Help</h1></div></div>
+    <div class="glass card wide">
+      <h2>Something is not working?</h2>
+      <ol class="steps">
+        <li>Turn on Detailed logs in Settings, then start the game again until the problem happens.</li>
+        <li>Come back here and download a bug report. Your network addresses are taken out of it.</li>
+        <li>Attach the bug report to your message, and say what you did and what you saw.</li>
+      </ol>
+      <div class="actions"><a class="button primary" href="/api/report" download>Download a bug report</a></div>
+    </div>
+    <details class="glass card more" id="logs-box">
+      <summary>Read the logs</summary>
+      <div class="logs">
+        <div class="list" id="log-list"></div>
+        <div class="viewer">
+          <div class="viewer-head"><strong id="log-name">Choose a log</strong>
+            <span class="actions tight"><button class="button small" id="logs-refresh">Refresh</button>
+              <button class="button small" id="log-save" disabled>Save a copy</button></span></div>
+          <pre id="log-text"></pre>
+        </div>
+      </div>
+    </details>
+    <div class="glass card wide about">
+      <img src="/icon.png" alt="">
+      <div>
+        <h2>About MihawkOS</h2>
+        <p class="muted" id="about-version"></p>
+        <p>MihawkOS shows this page while it is open on your PS5, and stops it when a game starts. Only your home network can open it: do not forward port 6767 on your router.</p>
+        <p class="muted">MihawkOS is free software under the GNU General Public License, version 3 or later. Not affiliated with Sony, Microsoft or Valve.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- A game's settings -->
+<dialog id="editor" class="glass">
+  <form id="media-search"></form>
+  <form method="dialog" id="editor-form">
+    <h2 id="editor-title">Set up the game</h2>
+
+    <section class="part">
+      <h3>Name</h3>
+      <div class="fields">
+        <label>Name<input name="name" maxlength="128" required></label>
+        <label>Second line (optional)<input name="detail" maxlength="128"></label>
+      </div>
+      <p class="hint">Shown in MihawkOS and on the Mihawk OS desktop. The second line is a short note, such as the edition.</p>
+    </section>
+
+    <section class="part">
+      <h3>Program</h3>
+      <div class="program">
+        <div class="program-path" id="program-path"></div>
+        <button type="button" class="button primary small" id="browse">Choose the program</button>
+      </div>
+      <p class="hint">The .exe file that starts the game, in the game's folder. It usually has the game's name.</p>
+    </section>
+
+    <section class="part media" id="media">
+      <h3>Picture and details</h3>
+      <div class="media-current">
+        <img id="media-cover" alt="" hidden>
+        <div class="grow">
+          <p class="muted" id="media-meta"></p>
+          <div class="actions tight">
+            <input id="media-name" form="media-search" placeholder="The game's name" maxlength="128">
+            <button type="button" class="button small primary" id="media-find">Look it up</button>
+          </div>
+          <div class="actions tight">
+            <label class="button small file">Use my own picture<input type="file" id="media-own" accept="image/jpeg,image/png"></label>
+            <button type="button" class="button small" id="media-remove">Remove the picture</button>
+          </div>
+        </div>
+      </div>
+      <div class="matches" id="media-matches"></div>
+    </section>
+
+    <section class="part">
+      <h3>How it plays</h3>
+      <div class="fields">
+        <label>Game Mode<select name="game_mode"></select></label>
+        <label>Controller<select name="controller"></select></label>
+      </div>
+      <p class="hint">Leave both on the Settings choice unless this game needs another: Game Mode off if its screen stays black, another controller if it shows the wrong buttons or does not react.</p>
+    </section>
+
+    <section class="part">
+      <h3>Where to find it</h3>
+      <label class="check"><input type="checkbox" name="launcher"> In MihawkOS's game list, the first screen on your PS5</label>
+      <label class="check"><input type="checkbox" name="desktop"> As a shortcut on the Mihawk OS desktop</label>
+      <p class="hint">From the game list it starts on its own, full screen. From the desktop it opens inside Mihawk OS.</p>
+    </section>
+
+    <details class="part advanced">
+      <summary>Advanced settings (you rarely need these)</summary>
+      <div class="fields">
+        <label class="full">Program path<input name="executable" maxlength="260" placeholder="C:\Games\Name\Game.exe"></label>
+        <label class="full">Arguments<input name="arguments" maxlength="1024"></label>
+        <label>Start in<input name="directory" maxlength="260" placeholder="The program's folder"></label>
+        <label>Windows installation (prefix)<input name="prefix" maxlength="64" placeholder="mihawk"></label>
+        <label>Entry id<input name="id" maxlength="64" pattern="[A-Za-z0-9_\-]{1,64}"></label>
+        <label class="check full"><input type="checkbox" name="opengl"> OpenGL game: only for older games that need it</label>
+        <label class="full">More environment<textarea name="env" rows="3" placeholder="NAME=VALUE, one a line"></textarea></label>
+      </div>
+    </details>
+
+    <div class="part remove-row" id="editor-delete-row">
+      <button type="button" class="button danger small" id="editor-delete">Remove from MihawkOS</button>
+      <p class="hint">The game leaves MihawkOS's list and the desktop. Its files stay on your PS5.</p>
+    </div>
+    <p class="error" id="editor-error"></p>
+    <div class="actions">
+      <span class="grow"></span>
+      <button type="button" class="button" id="editor-cancel">Cancel</button>
+      <button type="submit" class="button primary" id="editor-save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- The program picker -->
+<dialog id="picker" class="glass">
+  <h2>Choose the program that starts the game</h2>
+  <p class="hint">Open the game's folder and choose its .exe. The one marked Suggested is our best guess; installers and uninstallers are not it.</p>
+  <p class="path-line" id="picker-path"></p>
+  <div id="picker-list" class="picker"></div>
+  <div class="actions"><button type="button" class="button" id="picker-up">Folder above</button><span class="grow"></span>
+    <button type="button" class="button" id="picker-close">Close</button></div>
+</dialog>
+
+<div id="toast" class="toast glass" hidden></div>
+</body>
+</html>

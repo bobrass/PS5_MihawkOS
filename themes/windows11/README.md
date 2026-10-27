@@ -50,12 +50,13 @@ and bitmap checks, not a native Windows 11 pixel-equivalence claim.
 
 ## Wallpaper and fidelity
 
-The desktop's wallpaper is Aero Meadow, original artwork drawn by
-`tools/make-mihawk-wallpaper.py` (seeded, LGPL-2.1-or-later), staged as a
+The desktop's wallpaper is Bubble Earth, original artwork drawn by
+`tools/make-aero-wallpapers.py` (seeded, LGPL-2.1-or-later; Aero Meadow, `tools/make-mihawk-wallpaper.py`, before
+2026-10-25), staged as a
 1920×1080 `proton.bmp` by `tools/build-wine-theme.py` and redrawn only when the
-script changes. It replaced the owner's local copy of Windows 11's Bloom on
+scripts change. Aero Meadow replaced the owner's local copy of Windows 11's Bloom on
 2026-10-18, which was never vendored or licensed for redistribution, and every
-build ships it. Without the bitmap the desktop keeps a plain background. Patch 0966 supplies
+build ships the project's own wallpaper. Without the bitmap the desktop keeps a plain background. Patch 0966 supplies
 the legacy flattened route's startup background beneath retained windows;
 opaque window pixels remain opaque. It decodes
 once per GDI process, using a bounded row buffer and a desktop-sized cache.

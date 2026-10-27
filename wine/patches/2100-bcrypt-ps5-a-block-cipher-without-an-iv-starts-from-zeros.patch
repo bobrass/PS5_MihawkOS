@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 01:00:00 -0400
+Subject: [PATCH] bcrypt: PS5: a block cipher without an IV starts from zeros.
+
+bcrypt starts a GnuTLS cipher without an IV when the program gives none, and emulates ECB as CBC with an empty IV,
+one block per call. The console's GnuTLS 3.8.9 leaves such a cipher with no IV size, its CBC passes that size to
+Nettle 3.10.1 as the block size, and cbc_decrypt's assert(!(length % block_size)) divides by zero: a SIGFPE in the
+Unix side (libgnutls.so+0x10e9a7, nettle cbc.c:72), which a Windows program cannot catch, and bcrypt's test ended
+(x86_64) or hung (i386) on the console in both runs (2026-10-26, bcrypt-seh). The same pins built on the PC
+reproduce it (an AES-128-CBC cipher started without an IV: SIGFPE on the first decrypt; with a zero IV of one
+block: 0); the PC's GnuTLS 3.8.13 does not. A CBC, ECB or CFB key with no IV now starts from a zero IV of one block,
+which is Windows' state for a fresh key (bcrypt.c:1795 continues the chain from there) and, one block at a time, ECB.
+---
+--- a/dlls/bcrypt/gnutls.c	2026-10-27 00:32:41.512052906 -0400
++++ b/dlls/bcrypt/gnutls.c	2026-10-27 00:32:41.529102967 -0400
+@@ -886,7 +886,21 @@
+     vector.data = key->u.s.vector;
+     vector.size = key->u.s.vector_len;
+ 
++#ifdef __PROSPERO__
++    /* A block mode with no IV starts from zeros, as Windows does (bcrypt.c:1795); ECB, one block per call, is CBC from
++     * zeros. The console's GnuTLS 3.8.9 gives a cipher started without an IV no IV size, and Nettle 3.10.1's
++     * cbc_decrypt divides by it (SIGFPE in the Unix side, and the program ends); the PC's 3.8.13 does not. */
++    if (!vector.data && (key->u.s.mode == CHAIN_MODE_CBC || key->u.s.mode == CHAIN_MODE_ECB ||
++                         key->u.s.mode == CHAIN_MODE_CFB))
++    {
++        static UCHAR zero[16];
++        vector.data = zero;
++        vector.size = key->u.s.block_size;
++    }
++    if ((ret = pgnutls_cipher_init( &key_data(key)->cipher, cipher, &secret, vector.data ? &vector : NULL )))
++#else
+     if ((ret = pgnutls_cipher_init( &key_data(key)->cipher, cipher, &secret, key->u.s.vector ? &vector : NULL )))
++#endif
+     {
+         pgnutls_perror( ret );
+         return STATUS_INTERNAL_ERROR;

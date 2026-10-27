@@ -1,0 +1,22 @@
+{
+ "run": "fmem-gate-2026-10-26-08-shell32",
+ "what": "C:\\windows\\system32\\mihawk.exe",
+ "env": [
+  "PROTON_LAYOUT=launcher",
+  "WINE_PS5_WINDOW_SURFACES=1",
+  "MIHAWK_DESKTOP=1",
+  "MIHAWK_SHELL_CAPTURE=1",
+  "PROTON_WINDOW_SNAPSHOT_PROBE=1",
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "no launch: the console dropped off the network (ps5vkctl was pid 116 this boot and is now pid 100: it was gone and was loaded again, 2026-10-26 11:34:29). It must be restarted by hand, then: tools/console_guard.py new-boot",
+ "loaded": false,
+ "probe_verdict": null,
+ "stop_requested": null,
+ "cleanup_verified": false,
+ "hooks_removed": true,
+ "semantics_passed": false,
+ "shell_pixels": []
+}

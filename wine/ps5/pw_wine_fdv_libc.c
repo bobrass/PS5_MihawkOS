@@ -14,6 +14,7 @@
 #include <poll.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/event.h>
 #include <sys/ioctl.h>
@@ -295,6 +296,28 @@ int __wrap_dup(int fd)
  * in the server. It must not lock or change errno: it runs inside any mmap, the heap's included. */
 void (*pw_wine_mmap_placed)(void *, size_t);
 
+/* WINE_PS5_MAPLOG_MIB=N: every mmap of N MiB or more through this wrap is logged with where it landed and who called
+ * (resolve the caller against the unstripped module), to name the owner of a large anonymous range the kernel's map shows
+ * (docs/PLAN.md, the browser helper's start-up jump). Off when unset. Runs inside any mmap: no allocation, no lock. */
+static long maplog_bytes = -1;
+
+static void maplog(void *result, size_t length, int protection, int flags, int fd, void *caller)
+{
+    char line[200];
+    int saved = errno;
+
+    if (maplog_bytes < 0) {
+        const char *setting = getenv("WINE_PS5_MAPLOG_MIB");
+        maplog_bytes = setting ? atol(setting) << 20 : 0;
+    }
+    if (maplog_bytes && length >= (size_t)maplog_bytes) {
+        int n = snprintf(line, sizeof(line), "wine-ps5: maplog %p +%zu MiB prot %#x flags %#x fd %d caller %p\n", result,
+                         length >> 20, protection, flags, fd, caller);
+        if (n > 0) (void)write(2, line, (size_t)n < sizeof(line) ? (size_t)n : sizeof(line) - 1);
+    }
+    errno = saved;
+}
+
 void *__wrap_mmap(void *address, size_t length, int protection, int flags, int fd, off_t offset)
 {
     uint32_t pin = 0;
@@ -303,6 +326,7 @@ void *__wrap_mmap(void *address, size_t length, int protection, int flags, int f
     if (!(flags & MAP_ANON) && fd >= 0 && enter(fd, &pin)) return MAP_FAILED;
     result = __real_mmap(address, length, protection, flags, fd, offset);
     leave(pin);
+    maplog(result, length, protection, flags, fd, __builtin_return_address(0));
     if (result != MAP_FAILED && !(flags & MAP_FIXED) && pw_wine_mmap_placed) pw_wine_mmap_placed(result, length);
     return result;
 }

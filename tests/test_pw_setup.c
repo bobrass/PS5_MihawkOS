@@ -93,6 +93,31 @@ int main(int argc, char **argv)
     for (size_t i = 0; i + 1 < sizeof(resumed) / sizeof(resumed[0]); ++i)
         assert(pw_setup_next(resumed[i], &facts) == resumed[i + 1]);
     assert(pw_setup_back(PW_SETUP_USB) == PW_SETUP_METHOD && pw_setup_back(PW_SETUP_LANGUAGE) == PW_SETUP_WELCOME);
+    /* The FTP route: the same install after it, and back to How to install; numbered after Done, so the others keep
+     * their numbers (tools/run-launcher.py's walk expects 0 to 5). */
+    facts = (PwSetupFacts){.data = 1};
+    assert(pw_setup_next(PW_SETUP_FTP, &facts) == PW_SETUP_INSTALLING && pw_setup_back(PW_SETUP_FTP) == PW_SETUP_METHOD);
+    assert(PW_SETUP_FTP > PW_SETUP_DONE && PW_SETUP_DONE == 6);
+    /* No text of the install's pages speaks of a drive on the FTP route: "Keep the drive plugged in" was shown there
+     * (the owner, 2026-10-25). Every key those pages can show, routed, has no drive, USB or plugging in it, in English;
+     * and each key whose USB text does has a twin, so every language follows. */
+    static const PwSetupText install_pages[] = {
+        PW_TEXT_USB_TITLE, PW_TEXT_USB_STEP1, PW_TEXT_USB_STEP2, PW_TEXT_USB_STEP3, PW_TEXT_USB_STEP4, PW_TEXT_CHECK_DRIVE,
+        PW_TEXT_FOUND, PW_TEXT_INSTALL, PW_TEXT_RETRY, PW_TEXT_ERR_NO_STICK, PW_TEXT_ERR_NO_FOLDER, PW_TEXT_ERR_PARTIAL,
+        PW_TEXT_ERR_NO_SPACE, PW_TEXT_ERR_READ, PW_TEXT_ERR_DAMAGED, PW_TEXT_ERR_FULL, PW_TEXT_ERR_WRITE,
+        PW_TEXT_ERR_CANCELLED, PW_TEXT_ERR_BUILD, PW_TEXT_INSTALLING_TITLE, PW_TEXT_INSTALLING_BODY,
+        PW_TEXT_INSTALLING_CHECKING, PW_TEXT_INSTALLING_STATS, PW_TEXT_INSTALLED, PW_TEXT_STOP};
+    for (size_t i = 0; i < sizeof(install_pages) / sizeof(install_pages[0]); ++i) {
+        const PwSetupText usb = install_pages[i], ftp = pw_setup_route_text(1, usb);
+        const char *words = pw_setup_text(NULL, ftp);
+        assert(pw_setup_route_text(0, usb) == usb);
+        if (strstr(words, "drive") || strstr(words, "USB") || strstr(words, "plug")) {
+            fprintf(stderr, "the FTP route shows key %d: %s\n", (int)ftp, words);
+            abort();
+        }
+        const char *usb_words = pw_setup_text(NULL, usb);
+        if (strstr(usb_words, "drive") || strstr(usb_words, "USB")) assert(ftp != usb);
+    }
     assert(pw_setup_back(PW_SETUP_PREPARING) == PW_SETUP_METHOD);
     assert(pw_setup_back(PW_SETUP_WELCOME) == PW_SETUP_NONE && pw_setup_back(PW_SETUP_INSTALLING) == PW_SETUP_NONE &&
            pw_setup_back(PW_SETUP_DONE) == PW_SETUP_NONE);
@@ -101,7 +126,8 @@ int main(int argc, char **argv)
     size_t count = 0, shown = 0;
     const PwSetupLanguage *all = pw_setup_languages(&count);
     const PwSetupLanguage *english = pw_setup_default_language();
-    assert(count == 9 && !strcmp(english->tag, "en-US") && english->text);
+    /* The owner's ten, in the owner's order (2026-10-18; Polish added 2026-10-26) */
+    assert(count == 10 && !strcmp(english->tag, "en-US") && english->text && !strcmp(all[9].tag, "pl-PL"));
     for (size_t i = 0; i < count; ++i) {
         assert(all[i].tag && all[i].name && all[i].flag && all[i].locale);
         if (all[i].font) assert(!strcmp(all[i].font, "noto-sans-sc") || !strcmp(all[i].font, "noto-sans-jp"));
@@ -129,7 +155,7 @@ int main(int argc, char **argv)
             assert(placeholders(text) == placeholders(english->text[key]));
         }
     }
-    assert(shown == 9 && pw_setup_language("ja-JP") && !pw_setup_language("en-GB") && !pw_setup_language(NULL));
+    assert(shown == 10 && pw_setup_language("ja-JP") && !pw_setup_language("en-GB") && !pw_setup_language(NULL));
     assert(!strcmp(pw_setup_text(NULL, PW_TEXT_CONTINUE), "Continue"));
     assert(!strcmp(pw_setup_text(pw_setup_language("fr-FR"), PW_TEXT_CONTINUE), "Continuer"));
 

@@ -1,0 +1,112 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 03:10:00 -0400
+Subject: [PATCH] ntdll: PS5: extended attributes live in a store of the prefix.
+
+Wine keeps a file's DOS attributes (hidden, system) in user.DOSATTRIB and a reparse point in user.WINEREPARSE, and
+the console's file system has no extended attributes, so both were lost at once: SetFileAttributes(HIDDEN) read back
+NORMAL, a junction was a plain directory (ntdll file and directory, kernel32 file: 355 test lines, 2026-10-25). On the
+console xattr_fget, xattr_get, xattr_fset and xattr_fremove now keep them in config_dir/.pw-xattr, by the file's device
+and inode (wine/ps5/pw_wine_xattr.h): they follow the file through a reopen and a rename, as on Windows. A file
+NtCreateFile creates starts with none, so an inode a deleted file had brings nothing of it. A file with no attribute,
+the common case, costs no file call while the store is quiet (its names are kept in memory). A reparse point stays
+unsupported: Wine makes one as a symbolic link with its data beside it, a title cannot make the link, and the data
+alone resolved to garbage (kernel32 file.c:6773, ntdll file.c:6405 on a first try).
+---
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -422,8 +422,35 @@
+ }
+ 
+ 
++#ifdef __PROSPERO__
++#include "pw_wine_xattr.h"
++/* The console's file system keeps no extended attributes: Wine's (DOS attributes, reparse points) are kept in a store
++ * of the prefix, by the file's device and inode (pw_wine_xattr.h). */
++static BOOL ps5_xattr_ready( const char *name )
++{
++    /* A reparse point is a symbolic link with its data beside it, and a title cannot make a link: keeping the data
++     * alone made half a reparse point that resolved to garbage (kernel32 file.c:6773, ntdll file.c:6405), so it
++     * stays unsupported, as the file system says. */
++    if (!strcmp( name, XATTR_REPARSE )) return FALSE;
++    static int state;   /* 0 not tried, 1 ready, -1 refused; a race only makes the idempotent init run twice */
++    if (!state)
++    {
++        char path[1024];
++        state = config_dir && snprintf( path, sizeof(path), "%s/.pw-xattr", config_dir ) < (int)sizeof(path) &&
++                !pw_wine_xattr_init( path ) ? 1 : -1;
++    }
++    return state > 0;
++}
++#endif
++
+ static int xattr_fremove( int filedes, const char *name )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (!ps5_xattr_ready( name )) { errno = ENOTSUP; return -1; }
++    if (fstat( filedes, &st )) return -1;
++    return pw_wine_xattr_remove( st.st_dev, st.st_ino, name );
++#endif
+ #ifdef HAVE_SYS_XATTR_H
+ # ifdef XATTR_ADDITIONAL_OPTIONS
+     return fremovexattr( filedes, name, 0 );
+@@ -441,6 +468,12 @@
+ 
+ static int xattr_fset( int filedes, const char *name, const void *value, size_t size )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (!ps5_xattr_ready( name )) { errno = ENOTSUP; return -1; }
++    if (fstat( filedes, &st )) return -1;
++    return pw_wine_xattr_set( st.st_dev, st.st_ino, name, value, size );
++#endif
+ #ifdef HAVE_SYS_XATTR_H
+ # ifdef XATTR_ADDITIONAL_OPTIONS
+     return fsetxattr( filedes, name, value, size, 0, 0 );
+@@ -488,6 +521,12 @@
+ 
+ static int xattr_get( const char *path, const char *name, void *value, size_t size )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (!ps5_xattr_ready( name )) { errno = ENOTSUP; return -1; }
++    if (stat( path, &st )) return -1;
++    return pw_wine_xattr_get( st.st_dev, st.st_ino, name, value, size );
++#endif
+ #ifdef __APPLE__
+     if (!xattr_exists( &path, NULL, name ))
+         return -1;
+@@ -511,6 +550,12 @@
+ 
+ static int xattr_fget( int filedes, const char *name, void *value, size_t size )
+ {
++#ifdef __PROSPERO__
++    struct stat st;
++    if (!ps5_xattr_ready( name )) { errno = ENOTSUP; return -1; }
++    if (fstat( filedes, &st )) return -1;
++    return pw_wine_xattr_get( st.st_dev, st.st_ino, name, value, size );
++#endif
+ #ifdef __APPLE__
+     if (!xattr_exists( NULL, &filedes, name ))
+         return -1;
+@@ -5401,6 +5446,19 @@
+             break;
+         }
+ 
++#ifdef __PROSPERO__
++        if (io->Information == FILE_CREATED && ps5_xattr_ready( SAMBA_XATTR_DOS_ATTRIB ))
++        {
++            /* a new file may have an inode a deleted one had: it starts with no attributes */
++            int fd, needs_close;
++            struct stat st;
++            if (!server_get_unix_fd( *handle, 0, &fd, &needs_close, NULL, NULL ))
++            {
++                if (!fstat( fd, &st )) pw_wine_xattr_forget( st.st_dev, st.st_ino );
++                if (needs_close) close( fd );
++            }
++        }
++#endif
+         if (io->Information == FILE_CREATED &&
+             ((attributes & XATTR_ATTRIBS_MASK) || name_hidden))
+         {

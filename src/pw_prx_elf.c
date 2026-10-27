@@ -231,10 +231,9 @@ int pw_prx_elf_load(const void *bytes, size_t size, uintptr_t preferred_base,
         delta = got - desired;
         if (out->segment_count && delta != bias) return PW_PRX_ELF_ERR_MAP;
         if (!out->segment_count) bias = delta;
+        /* The rest of memsz is already zero (PwPrxElfMap): writing it made every page resident, ntdll's 11.4 MiB of
+         * zero-filled data in every helper (fmem-steam-kinds-2026-10-25-01). */
         memcpy(mapped, elf + (size_t)load->offset, (size_t)load->filesz);
-        if (load->memsz > load->filesz)
-            memset((uint8_t *)mapped + (size_t)load->filesz, 0,
-                   (size_t)(load->memsz - load->filesz));
         if (load->flags & PF_W) prot |= PW_PROT_WRITE;
         if (load->flags & PF_X) prot |= PW_PROT_EXEC;
         out->segments[out->segment_count] = (PwPrxSegment){ mapped, (uint32_t)load->memsz,
@@ -338,4 +337,22 @@ int pw_prx_elf_load(const void *bytes, size_t size, uintptr_t preferred_base,
     out->module_start =
         (int (*)(size_t, const void *))pw_prx_lookup(out->descriptor, "module_start");
     return PW_PRX_ELF_OK;
+}
+
+int pw_prx_elf_wanted(const char *environment, size_t bytes, const char **reason)
+{
+    static const char name[] = "WINE_PS5_PRX_LOADER=";
+    const size_t name_length = sizeof(name) - 1;
+    if (reason) *reason = "default";
+    for (size_t at = 0; environment && at < bytes && environment[at];) {
+        const char *entry = environment + at;
+        const size_t length = strnlen(entry, bytes - at);
+        if (length == bytes - at) break;   /* an unended last entry is not read (reason is printed with %s) */
+        if (length > name_length && !strncmp(entry, name, name_length)) {
+            if (reason) *reason = entry;
+            return !(length == name_length + 1 && entry[name_length] == '0');
+        }
+        at += length + 1;
+    }
+    return 1;
 }

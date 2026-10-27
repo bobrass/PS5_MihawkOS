@@ -1,0 +1,181 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 07:30:00 -0400
+Subject: [PATCH] ntdll: PS5: read ahead for small reads.
+
+The console's kernel reads exactly what is asked: a large file read in
+4 KiB pieces came at 88 MB/s cold, in 1 MiB pieces at 830 MB/s
+(readspeed-cold-2026-10-25-01), and FreeBSD's per-file read-ahead
+(F_READAHEAD) changed nothing (readspeed-ahead-2026-10-25-01). A program
+reads with its C runtime's 4 KiB buffer: a 2D game read its
+1.43 GB of archives at 35 us a read, 13 s of its load.
+
+A synchronous read of 64 KiB or less from a regular file is now served
+from a 512 KiB piece of the file read at once: four pieces a process, by
+device and inode, so a file opened again reads from the same piece. Each
+read checks the file with fstat, and another size or modification time
+reads the piece again; this process's own writes and size changes forget
+every piece. The file pointer is left where read() leaves it.
+---
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index 624e39c..09f74a2 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -5877,6 +5877,10 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE handle, IO_STATUS_BLOCK *io,
+ /******************************************************************************
+  *              NtSetInformationFile   (NTDLL.@)
+  */
++#ifdef __PROSPERO__
++static void read_ahead_forget(void);
++#endif
++
+ NTSTATUS WINAPI NtSetInformationFile( HANDLE handle, IO_STATUS_BLOCK *io,
+                                       void *ptr, ULONG len, FILE_INFORMATION_CLASS class )
+ {
+@@ -5884,6 +5888,9 @@ NTSTATUS WINAPI NtSetInformationFile( HANDLE handle, IO_STATUS_BLOCK *io,
+     unsigned int status = STATUS_SUCCESS;
+ 
+     TRACE( "(%p,%p,%p,0x%08x,0x%08x)\n", handle, io, ptr, len, class );
++#ifdef __PROSPERO__
++    if (class == FileEndOfFileInformation || class == FileAllocationInformation) read_ahead_forget();
++#endif
+ 
+     switch (class)
+     {
+@@ -6971,6 +6978,93 @@ static NTSTATUS cancel_async_file_read( HANDLE handle, IO_STATUS_BLOCK *io )
+ /******************************************************************************
+  *              NtReadFile   (NTDLL.@)
+  */
++#ifdef __PROSPERO__
++/* Reading ahead for small reads. The console's kernel reads exactly what is asked: a large file read 4 KiB at a time came
++ * at 88 MB/s cold, the same file in 1 MiB pieces at 830 MB/s (readspeed-cold-2026-10-25-01), and FreeBSD's per-file
++ * read-ahead (F_READAHEAD) changed nothing (readspeed-ahead-2026-10-25-01). A program reads with its C runtime's 4 KiB
++ * buffer: a 2D game read 1.43 GB of archives at 35 us a 4 KiB read, 13 s of its load.
++ *
++ * A synchronous read of 64 KiB or less of a regular file is served from a 512 KiB piece of the file read at once; four
++ * pieces a process, by device and inode, so a file opened again reads from the same piece. Each read checks the file
++ * with fstat: another size or modification time (another process wrote it) reads the piece again. This process's own
++ * writes and size changes (NtWriteFile, NtWriteFileGather, NtSetInformationFile) forget every piece. */
++enum { READ_AHEAD_PIECES = 4, READ_AHEAD_SIZE = 512 * 1024, READ_AHEAD_SMALL = 64 * 1024 };
++struct read_ahead
++{
++    dev_t            dev;
++    ino_t            ino;
++    off_t            size;
++    struct timespec  mtime;
++    off_t            start;      /* where data starts in the file */
++    size_t           length;     /* bytes in data */
++    unsigned int     used;
++    char            *data;       /* READ_AHEAD_SIZE bytes, kept */
++};
++static struct read_ahead read_aheads[READ_AHEAD_PIECES];
++static unsigned int read_ahead_clock;
++static pthread_mutex_t read_ahead_mutex = PTHREAD_MUTEX_INITIALIZER;
++
++static void read_ahead_forget(void)
++{
++    unsigned int i;
++    mutex_lock( &read_ahead_mutex );
++    for (i = 0; i < READ_AHEAD_PIECES; i++) read_aheads[i].length = 0, read_aheads[i].dev = 0, read_aheads[i].ino = 0;
++    mutex_unlock( &read_ahead_mutex );
++}
++
++/* length bytes at pos of fd into buffer through a piece: the bytes copied (0 at the end of the file), or -1 when the
++ * piece cannot serve it (the caller reads as before). */
++static int read_ahead_read( int fd, void *buffer, ULONG length, off_t pos )
++{
++    struct read_ahead *piece = NULL;
++    struct stat st;
++    unsigned int i;
++    int copied = -1;
++
++    if (fstat( fd, &st ) == -1 || !S_ISREG( st.st_mode ) || pos < 0) return -1;
++    if (pos >= st.st_size) return 0;
++    mutex_lock( &read_ahead_mutex );
++    for (i = 0; i < READ_AHEAD_PIECES; i++)
++        if (read_aheads[i].data && read_aheads[i].dev == st.st_dev && read_aheads[i].ino == st.st_ino)
++        {
++            piece = &read_aheads[i];
++            break;
++        }
++    if (piece && (piece->size != st.st_size || piece->mtime.tv_sec != st.st_mtim.tv_sec ||
++                  piece->mtime.tv_nsec != st.st_mtim.tv_nsec))
++        piece->length = 0;   /* written since: read again */
++    if (!piece)
++    {
++        unsigned int oldest = 0;
++        for (i = 1; i < READ_AHEAD_PIECES; i++)
++            if (!read_aheads[i].data || (read_aheads[oldest].data && read_aheads[i].used < read_aheads[oldest].used))
++                oldest = i;
++        piece = &read_aheads[oldest];
++        if (!piece->data && !(piece->data = malloc( READ_AHEAD_SIZE ))) goto done;
++        piece->length = 0;
++    }
++    if (pos < piece->start || pos + (off_t)length > piece->start + (off_t)piece->length)
++    {
++        ssize_t got;
++        while ((got = pread( fd, piece->data, READ_AHEAD_SIZE, pos )) == -1 && errno == EINTR) ;
++        if (got < 0) { piece->length = 0; goto done; }
++        piece->start = pos;
++        piece->length = got;
++        piece->dev = st.st_dev;
++        piece->ino = st.st_ino;
++        piece->size = st.st_size;
++        piece->mtime = st.st_mtim;
++    }
++    piece->used = ++read_ahead_clock;
++    copied = min( (off_t)length, piece->start + (off_t)piece->length - pos );
++    if (copied < 0) copied = 0;
++    memcpy( buffer, piece->data + (pos - piece->start), copied );
++done:
++    mutex_unlock( &read_ahead_mutex );
++    return copied;
++}
++#endif
++
+ NTSTATUS WINAPI NtReadFile( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc, void *apc_user,
+                             IO_STATUS_BLOCK *io, void *buffer, ULONG length,
+                             LARGE_INTEGER *offset, ULONG *key )
+@@ -7022,6 +7116,22 @@ NTSTATUS WINAPI NtReadFile( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc, vo
+             needs_close = 0;
+             goto err;
+         }
++#ifdef __PROSPERO__
++        if (!async_read && length && length <= READ_AHEAD_SMALL)
++        {
++            const BOOL at_pointer = !offset || offset->QuadPart == FILE_USE_FILE_POINTER_POSITION;
++            const off_t pos = at_pointer ? lseek( unix_handle, 0, SEEK_CUR ) : offset->QuadPart;
++            const int got = pos < 0 ? -1 : read_ahead_read( unix_handle, buffer, length, pos );
++
++            if (got >= 0)
++            {
++                lseek( unix_handle, pos + got, SEEK_SET );   /* the file pointer, as read() leaves it */
++                total = got;
++                status = total ? STATUS_SUCCESS : STATUS_END_OF_FILE;
++                goto done;
++            }
++        }
++#endif
+ 
+         if (offset && offset->QuadPart != FILE_USE_FILE_POINTER_POSITION)
+         {
+@@ -7586,6 +7696,9 @@ NTSTATUS WINAPI NtWriteFile( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc, v
+            handle, event, apc, apc_user, io, buffer, length, offset, key );
+ 
+     if (!io) return STATUS_ACCESS_VIOLATION;
++#ifdef __PROSPERO__
++    read_ahead_forget();   /* what this process writes is read again */
++#endif
+ 
+     status = server_get_unix_fd( handle, FILE_WRITE_DATA, &unix_handle, &needs_close, &type, &options );
+     if (status == STATUS_ACCESS_DENIED)
+@@ -7835,6 +7948,9 @@ NTSTATUS WINAPI NtWriteFileGather( HANDLE file, HANDLE event, PIO_APC_ROUTINE ap
+ 
+     if (length % page_size) return STATUS_INVALID_PARAMETER;
+     if (!io) return STATUS_ACCESS_VIOLATION;
++#ifdef __PROSPERO__
++    read_ahead_forget();
++#endif
+ 
+     status = server_get_unix_fd( file, FILE_WRITE_DATA, &unix_handle, &needs_close, &type, &options );
+     if (status) return status;

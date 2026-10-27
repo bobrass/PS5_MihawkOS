@@ -36,11 +36,19 @@
 
 enum {
     PW_WINE_DSECTION_CHUNK = 2u << 20,
-    PW_WINE_DSECTION_MIN_BYTES = 256u << 20,   /* the sections the demand pager maps (patch 0962) */
+    PW_WINE_DSECTION_MIN_BYTES = 8u << 20,     /* and the views the demand pager maps (patch 0962): Steam's two 25 MiB
+                                                * sections were 50 MiB of flexible memory in each of its processes */
     PW_WINE_DSECTION_SECTIONS = 64,
     PW_WINE_DSECTION_PIDS = 16,
     PW_WINE_DSECTION_WAIT_MS = 8000,           /* under a helper pager's 10 s wait for its answer (pw_wine_process.c) */
 };
+
+/* The smallest section the title keeps in direct memory, and a helper's view the pager maps from it: PW_WINE_DSECTION_MIN_BYTES,
+ * or what WINE_PS5_DSECTION_MIN_MIB asks (8 to 256 MiB; anything else is refused and 8 stays). Helpers inherit the setting. An experiment (2026-10-24): the browser's smaller anonymous sections, the
+ * ones Chromium shares between its processes, count against the 1 GiB flexible pool as physical shared memory. Read once. */
+uint64_t pw_wine_dsection_min_bytes(void);
+/* The setting's parse, for a test: bytes, or 0 when the text is missing or outside 8..256. */
+uint64_t pw_wine_dsection_parse_min_mib(const char *text);
 
 typedef struct PwWineDsectionOps {
     void *context;

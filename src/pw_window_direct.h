@@ -25,6 +25,13 @@ extern "C" {
 /* The player's Game Mode setting (src/pw_game_mode.h), set by the title before the broker starts: with 0 every frame
  * is composed (reason "off"), so the broker never reports game mode and the desktop is never unloaded. On by default. */
 void pw_window_direct_set_enabled(int enabled);
+/* A program's own Game Mode, which wins over the setting for its windows: its library entry's WINE_PS5_GAME_MODE, or the
+ * one it inherited from the program that started it (a game's launcher starts the game). pid is its GPU client's (the
+ * payload pid the broker knows it by); enabled 1 on, 0 off, -1 the player's setting. The title says it for every
+ * helper it starts (Wine's PW_CHILD_NOTICE_GAME_MODE), so a reused pid never keeps an ended program's choice. At most
+ * PW_DIRECT_PROCESSES programs with a choice at once; one more takes the slot of the oldest. */
+enum { PW_DIRECT_PROCESSES = 64 };
+void pw_window_direct_set_process(int32_t pid, int enabled);
 int pw_window_direct_flip(const PwWindowSnapshot *snapshot, int32_t pid, uint32_t hwnd, uint64_t generation,
                           uint32_t frame_width, uint32_t frame_height, uint32_t screen_width, uint32_t screen_height);
 /* A word for a reason, for records: "yes", "incomplete", ... */

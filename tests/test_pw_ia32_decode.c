@@ -142,7 +142,12 @@ static const Case cases[] = {
     { "dbe8", PW_OK, 2, "fucomi", "fucomi\tst, st(0)" },
     { "dd38", PW_OK, 2, "fnstsw_dd_7", "fnstsw\tword ptr [eax]" },
     { "db28", PW_OK, 2, "fld_db_5", "fld\ttbyte ptr [eax]" },
-    { "0f0100", PW_ERR_UNSUPPORTED, 3, NULL, NULL }, /* SGDT: length known, no form */
+    { "0f0110", PW_ERR_UNSUPPORTED, 3, NULL, NULL }, /* LGDT: length known, no form */
+    { "0f0100", PW_OK, 3, "sgdtd_M", "sgdtd\t[eax]" },
+    { "0f010c24", PW_OK, 4, "sidtd_M", "sidtd\t[esp]" },
+    { "0f01e0", PW_OK, 3, "smsw_Evw", "smsw\teax" },
+    { "0f0000", PW_OK, 3, "sldt_Evw", "sldt\tword ptr [eax]" },
+    { "0f00c8", PW_OK, 3, "str_Evw", "str\teax" },
     { "c5f877", PW_ERR_UNSUPPORTED, 3, NULL, NULL }, /* VEX: length only */
     { "c4e27918c1", PW_ERR_UNSUPPORTED, 5, NULL, NULL },
     { "62f17c0828c1", PW_ERR_UNSUPPORTED, 6, NULL, NULL }, /* EVEX */

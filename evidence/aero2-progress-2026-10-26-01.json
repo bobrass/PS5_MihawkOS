@@ -1,0 +1,15 @@
+{
+ "run": "aero2-progress-2026-10-26-01",
+ "what": "C:\\aurelia_windows-fixture.exe",
+ "env": [
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "The console is not idle; run refused",
+ "loaded": false,
+ "probe_verdict": null,
+ "stop_requested": null,
+ "cleanup_verified": false,
+ "hooks_removed": false
+}

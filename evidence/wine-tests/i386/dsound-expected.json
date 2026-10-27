@@ -1,0 +1,21 @@
+{
+ "context": {
+  "arch": "i386",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "592c3a6f4b808842b52f7d93e1d8c04e05e14c894e66119881af80e2dd7dafc1",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "duplex": {
+   "duplex.c:284": "AWAITING OWNER (rests on our own choice): feature not built: the console's audio driver (wine/wineps5) has one render endpoint and no capture endpoint, so a full-duplex device cannot initialise; the DualSense microphone is not offered to Windows programs",
+   "duplex.c:288": "AWAITING OWNER (rests on our own choice): feature not built: the console's audio driver (wine/wineps5) has one render endpoint and no capture endpoint, so a full-duplex device cannot initialise; the DualSense microphone is not offered to Windows programs"
+  }
+ },
+ "unfinished_ok": {
+  "capture": "the same on the PC: with no capture endpoint Wine's dsound answers DirectSoundCaptureCreate with E_INVALIDARG, not DSERR_NODRIVER (capture.c:767), and the test goes on with a NULL object and crashes; upstream Wine's, on both sides alike. AWAITING OWNER (rests on our own choice): feature not built: the console's audio driver (wine/wineps5) has one render endpoint and no capture endpoint, so a full-duplex device cannot initialise; the DualSense microphone is not offered to Windows programs",
+  "duplex": "AWAITING OWNER (rests on our own choice): feature not built: the console's audio driver (wine/wineps5) has one render endpoint and no capture endpoint, so a full-duplex device cannot initialise; the DualSense microphone is not offered to Windows programs"
+ }
+}

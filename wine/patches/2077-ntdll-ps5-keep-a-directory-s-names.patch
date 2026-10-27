@@ -1,0 +1,226 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 03:00:00 -0400
+Subject: [PATCH] ntdll: PS5: keep a directory's names, so a missing name is
+ answered without reading it again.
+
+The console's file system is case-sensitive, so Wine reads the whole
+directory for every name whose case differs from the disk's and for every
+name that is not there. A missing name in system32 cost 340-360 us
+(filecost64-base-2026-10-25-01), and a 2D game's load asked
+47,000 names that way, 23 s at 490 us each (isaac-load-sample-2026-10-25-01).
+
+Each process now keeps the names of the last 32 directories it searched,
+in a hash table by their upper-cased form (the comparison wcsnicmp makes).
+A listing is used while the directory's device, inode and modification
+time are unchanged and that time is more than two seconds old; otherwise
+the directory is read again. A lookup then costs one fstatat of the
+directory. Names that may be 8.3 short names keep the old path.
+---
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index 854e46c..8d6c872 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -3107,6 +3107,184 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTI
+  * The file found is appended to unix_name at pos.
+  * There must be at least MAX_DIR_ENTRY_LEN+2 chars available at pos.
+  */
++#ifdef __PROSPERO__
++/* A directory's names, kept per process, so a name that is not there is answered without reading the directory again.
++ * The console's file system is case-sensitive, so every lookup of a name whose case differs from the disk's, or that is
++ * not there at all, read the whole directory: 340-360 us for a missing name in system32 (filecost64-base-2026-10-25-01),
++ * and a 2D game's load asked 47,000 such names, 23 s at 490 us each (isaac-load-sample-2026-10-25-01).
++ * A listing is used while its directory's device, inode and modification time are unchanged and that time is more than
++ * two seconds old (a change within one tick of a coarse clock could otherwise go unseen); otherwise it is read again.
++ * 32 directories, the least recently used one replaced. Names that may be 8.3 short names keep the old path. */
++enum { DIR_LISTINGS = 32, DIR_LISTING_MAX = 1 << 16 };
++struct dir_listing
++{
++    dev_t            dev;
++    ino_t            ino;
++    struct timespec  mtime;
++    unsigned int     used;      /* the use counter's value when last used, for the replacement */
++    unsigned int     count;     /* names */
++    unsigned int     buckets;   /* a power of two, twice count or more */
++    unsigned int    *table;     /* bucket -> name index + 1, 0 empty (open addressing) */
++    unsigned int    *hashes;    /* per name, its hash */
++    unsigned int    *offsets;   /* per name, its offset in names */
++    char            *names;     /* the Unix names, each NUL-terminated */
++};
++static struct dir_listing dir_listings[DIR_LISTINGS];
++static unsigned int dir_listing_clock;
++static pthread_mutex_t dir_listing_mutex = PTHREAD_MUTEX_INITIALIZER;
++
++static unsigned int dir_listing_hash( const WCHAR *name, int length )
++{
++    unsigned int hash = 2166136261u;
++    int i;
++    for (i = 0; i < length; i++) hash = (hash ^ ntdll_towupper( name[i] )) * 16777619u;
++    return hash;
++}
++
++static void dir_listing_free( struct dir_listing *listing )
++{
++    free( listing->table );
++    free( listing->hashes );
++    free( listing->offsets );
++    free( listing->names );
++    memset( listing, 0, sizeof(*listing) );
++}
++
++/* Reads the directory into listing; FALSE (and listing empty) when it cannot. */
++static BOOL dir_listing_read( struct dir_listing *listing, int root_fd, const char *dir_name, const struct stat *st )
++{
++    WCHAR buffer[MAX_DIR_ENTRY_LEN];
++    size_t size = 0, capacity = 4096;
++    unsigned int capacity_names = 256, i;
++    struct dirent *de;
++    DIR *dir;
++    int fd;
++
++    if ((fd = openat( root_fd, dir_name, O_RDONLY )) == -1) return FALSE;
++    if (!(dir = fdopendir( fd )))
++    {
++        close( fd );
++        return FALSE;
++    }
++    listing->names = malloc( capacity );
++    listing->hashes = malloc( capacity_names * sizeof(*listing->hashes) );
++    listing->offsets = malloc( capacity_names * sizeof(*listing->offsets) );
++    if (!listing->names || !listing->hashes || !listing->offsets) goto failed;
++    while ((de = readdir( dir )))
++    {
++        const size_t length = strlen( de->d_name );
++        int ret;
++
++        if (listing->count >= DIR_LISTING_MAX) goto failed;
++        if (listing->count == capacity_names)
++        {
++            unsigned int *hashes, *offsets;
++            capacity_names *= 2;
++            if (!(hashes = realloc( listing->hashes, capacity_names * sizeof(*hashes) ))) goto failed;
++            listing->hashes = hashes;
++            if (!(offsets = realloc( listing->offsets, capacity_names * sizeof(*offsets) ))) goto failed;
++            listing->offsets = offsets;
++        }
++        while (size + length + 1 > capacity)
++        {
++            char *names;
++            capacity *= 2;
++            if (!(names = realloc( listing->names, capacity ))) goto failed;
++            listing->names = names;
++        }
++        ret = ntdll_umbstowcs( de->d_name, length, buffer, MAX_DIR_ENTRY_LEN );
++        memcpy( listing->names + size, de->d_name, length + 1 );
++        listing->offsets[listing->count] = size;
++        listing->hashes[listing->count] = dir_listing_hash( buffer, ret );
++        listing->count++;
++        size += length + 1;
++    }
++    closedir( dir );
++    dir = NULL;
++    for (listing->buckets = 16; listing->buckets < 2 * listing->count; listing->buckets *= 2) ;
++    if (!(listing->table = calloc( listing->buckets, sizeof(*listing->table) ))) goto failed;
++    for (i = 0; i < listing->count; i++)
++    {
++        unsigned int slot = listing->hashes[i] & (listing->buckets - 1);
++        while (listing->table[slot]) slot = (slot + 1) & (listing->buckets - 1);
++        listing->table[slot] = i + 1;
++    }
++    listing->dev = st->st_dev;
++    listing->ino = st->st_ino;
++    listing->mtime = st->st_mtim;
++    return TRUE;
++
++failed:
++    if (dir) closedir( dir );
++    dir_listing_free( listing );
++    return FALSE;
++}
++
++/* name (length WCHARs) in the directory unix_name names (relative to root_fd, ended at pos - 1), case-insensitively:
++ * TRUE when the listing answered, with *status STATUS_SUCCESS and the disk's name written at unix_name + pos, or
++ * STATUS_OBJECT_NAME_NOT_FOUND; FALSE when it could not (the caller reads the directory as before). */
++static BOOL dir_listing_find( int root_fd, char *unix_name, int pos, const WCHAR *name, int length, NTSTATUS *status )
++{
++    WCHAR buffer[MAX_DIR_ENTRY_LEN];
++    struct dir_listing *listing = NULL;
++    struct timespec now;
++    struct stat st;
++    unsigned int hash, slot, i;
++    BOOL answered = FALSE;
++
++    if (fstatat( root_fd, unix_name, &st, 0 ) == -1 || !S_ISDIR( st.st_mode )) return FALSE;
++    clock_gettime( CLOCK_REALTIME, &now );
++    if (now.tv_sec - st.st_mtim.tv_sec < 2) return FALSE;   /* changed just now: read it as before */
++    hash = dir_listing_hash( name, length );
++    mutex_lock( &dir_listing_mutex );
++    for (i = 0; i < DIR_LISTINGS; i++)
++        if (dir_listings[i].table && dir_listings[i].dev == st.st_dev && dir_listings[i].ino == st.st_ino)
++        {
++            listing = &dir_listings[i];
++            if (listing->mtime.tv_sec != st.st_mtim.tv_sec || listing->mtime.tv_nsec != st.st_mtim.tv_nsec)
++            {
++                dir_listing_free( listing );
++                if (!dir_listing_read( listing, root_fd, unix_name, &st )) listing = NULL;
++            }
++            break;
++        }
++    if (!listing)
++    {
++        unsigned int oldest = 0;
++        for (i = 1; i < DIR_LISTINGS; i++)
++            if (!dir_listings[i].table || (dir_listings[oldest].table && dir_listings[i].used < dir_listings[oldest].used))
++                oldest = i;
++        listing = &dir_listings[oldest];
++        dir_listing_free( listing );
++        if (!dir_listing_read( listing, root_fd, unix_name, &st )) listing = NULL;
++    }
++    if (listing)
++    {
++        listing->used = ++dir_listing_clock;
++        *status = STATUS_OBJECT_NAME_NOT_FOUND;
++        for (slot = hash & (listing->buckets - 1); listing->table[slot]; slot = (slot + 1) & (listing->buckets - 1))
++        {
++            const unsigned int index = listing->table[slot] - 1;
++            const char *disk = listing->names + listing->offsets[index];
++            int ret;
++
++            if (listing->hashes[index] != hash) continue;
++            ret = ntdll_umbstowcs( disk, strlen(disk), buffer, MAX_DIR_ENTRY_LEN );
++            if (ret == length && !wcsnicmp( buffer, name, ret ))
++            {
++                unix_name[pos - 1] = '/';
++                strcpy( unix_name + pos, disk );
++                *status = STATUS_SUCCESS;
++                break;
++            }
++        }
++        answered = TRUE;
++    }
++    mutex_unlock( &dir_listing_mutex );
++    return answered;
++}
++#endif
++
+ static NTSTATUS find_file_in_dir( int root_fd, char *unix_name, int pos, const WCHAR *name, int length,
+                                   BOOLEAN check_case )
+ {
+@@ -3190,6 +3368,17 @@ static NTSTATUS find_file_in_dir( int root_fd, char *unix_name, int pos, const W
+     }
+ #endif /* VFAT_IOCTL_READDIR_BOTH */
+ 
++#ifdef __PROSPERO__
++    if (!is_name_8_dot_3)
++    {
++        NTSTATUS status;
++        if (dir_listing_find( root_fd, unix_name, pos, name, length, &status ))
++        {
++            if (status) unix_name[pos - 1] = 0;
++            return status;
++        }
++    }
++#endif
+     if ((fd = openat( root_fd, unix_name, O_RDONLY )) == -1) return errno_to_status( errno );
+     if (!(dir = fdopendir( fd )))
+     {

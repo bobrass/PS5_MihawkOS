@@ -104,6 +104,25 @@ class ForeignMappings(unittest.TestCase):
         self.assertNotIn('passed and foreign', source)
 
 
+SHARE = ('wine-child: shared code copies shared={} shared_kib={} offered={} mismatched=0 failed={} private_writes=1 '
+         'private_kib=16\n')
+
+
+class CodeShare(unittest.TestCase):
+    def test_source_prints_the_tally(self):
+        printed('native/proton_wine_child.c', '"wine-child: shared code copies shared=%llu shared_kib=%llu offered=%llu mismatched=%llu "',
+                '"failed=%llu private_writes=%llu private_kib=%llu mapped_kib=%llu\\n"', '"__wine_ps5_code_share_stats"')
+        printed('tools/run-console.py', "'code_share': code_share(child_texts)")
+
+    def test_last_tally_of_each_helper_summed(self):
+        first = SHARE.format(0, 0, 4, 0) + SHARE.format(2, 32, 40, 0)
+        second = SHARE.format(30, 480, 1, 1)
+        record = runner.code_share([first, second, 'wine-child: entry'])
+        self.assertEqual(record, {'shared': 32, 'shared_kib': 512, 'offered': 41, 'mismatched': 0, 'failed': 1,
+                                  'private_writes': 2, 'private_kib': 32})
+        self.assertIsNone(runner.code_share(['wine-child: entry']))
+
+
 TITLE_ENDING = [
     '[MihawkOS] Wine: stop: ending 2 helpers by SIGKILL, not through the server',
     '[MihawkOS] Wine: helper 901: SIGKILL sent (errno 0)',
@@ -412,6 +431,23 @@ class Stages(unittest.TestCase):
         self.assertEqual(marks['pids'], {'wineboot': '5304'})
         self.assertNotIn('program_ended', marks['stages'])
         self.assertEqual(marks['stages']['wineboot_ended'], 9.6)
+
+
+class TitleCrash(unittest.TestCase):
+    """A helper's signal is its program's result; only the title's own ends the watch (klog formats of 2026-10-25)."""
+
+    def test_only_the_titles_signal_ends_the_run(self):
+        crash = runner.TitleCrash(runner.runner.CRASH.crash)
+        self.assertTrue(crash.search('mDBG: Sending signal(pid: 5, tid: 1, signo: 0xb)'))   # no title seen yet: as before
+        crash = runner.TitleCrash(crash.crash)
+        self.assertFalse(crash.search('<3956> EXEC /app0/eboot.bin [user], vm#1, dmem#1 abi=native category=native_game'))
+        self.assertFalse(crash.search('mDBG: Sending signal(pid: 4826, tid: 102007, signo: 0xa0020328)'))
+        for line in ('#', '# A user thread receives a fatal signal', '#', '# signal: 11 (SIGSEGV)', '# proc ID: 4826'):
+            self.assertFalse(crash.search(line))
+        self.assertFalse(crash.search('# A user thread receives a fatal signal'))
+        self.assertTrue(crash.search('# proc ID: 3956'))
+        self.assertTrue(crash.search('mDBG: Sending signal(pid: 3956, tid: 1, signo: 0xb)'))
+        self.assertTrue(crash.search('GPU_FAULT in vm 1'))
 
 
 if __name__ == '__main__':

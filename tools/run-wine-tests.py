@@ -43,7 +43,19 @@ OUT = Path(os.environ['PW_EVIDENCE_DIR']) if os.environ.get('PW_EVIDENCE_DIR') e
 ARCH = 'x86_64'
 CONTEXT = {}
 HOST_WINE = RUNTIME / 'build/wine'
+DEFAULT_HOST_WINE = HOST_WINE
 SKIP = ROOT / 'tests/wine-tests-skip-ps5.json'
+
+
+def skips(dll, arch=None):
+    """A DLL's skipped files for one architecture: FILE skips both, FILE@i386 or FILE@x86_64 only that one."""
+    arch = arch or ARCH
+    found = {}
+    for key, reason in load(SKIP).get(dll, {}).items():
+        name, _, only = key.partition('@')
+        if not only or only == arch:
+            found[name] = reason
+    return found
 EXPECTED = ROOT / 'tests/wine-tests-expected-ps5.json'
 
 SUMMARY = re.compile(r'^[0-9a-f]{4}:(\w+):\s*(?:[\d.]+\s)?(\d+) tests executed \((\d+) marked as todo, (\d+) as flaky, '
@@ -53,7 +65,16 @@ TODO = re.compile(r'^(\S+\.c):(\d+): Test marked todo: ')
 SKIPPED = re.compile(r'^(\S+\.c):(\d+): Tests skipped: (.*)$')
 
 
-D3D_DLLS = ('d3d11', 'd3d10core', 'dxgi', 'd3d9', 'd3d12')
+# The graphics DLLs, and every module whose tests create a Direct3D device: the title runs every program with DXVK
+# (native/proton_wine.cpp default_overrides), so their PC oracle runs on DXVK too. Against the PC's wined3d, d3dx9_36's
+# shader test showed 75,097 lines that the PC on DXVK has line for line (2026-10-26). tests/test_dll_overrides.py
+# checks the list against the test sources.
+D3D_DLLS = ('d3d11', 'd3d10core', 'dxgi', 'd3d9', 'd3d12',
+            'd3d8', 'd3d10', 'd3d10_1', 'd2d1', 'dxva2', 'evr', 'mf', 'mfplat', 'mfreadwrite', 'mfmediaengine', 'quartz',
+            'win32u', 'd3dcompiler_42', 'd3dcompiler_43', 'd3dcompiler_46', 'd3dcompiler_47',
+            'd3dx9_35', 'd3dx9_36', 'd3dx9_42', 'd3dx9_43', 'd3dx11_42', 'd3dx11_43',
+            'd3dx10_33', 'd3dx10_34', 'd3dx10_35', 'd3dx10_36', 'd3dx10_37', 'd3dx10_38', 'd3dx10_39', 'd3dx10_40',
+            'd3dx10_41', 'd3dx10_42', 'd3dx10_43')
 DXVK_OVERRIDES = 'd3d11,dxgi,d3d10core,d3d9,d3d12,d3d12core=n'
 # one test thread (the same on both sides, and gentler on the console than one per CPU), and DXVK quiet
 # PW_STUB_CONSOLE=1: tools/stub-console.py stands in for the console (a dry run of this runner)
@@ -91,8 +112,15 @@ def check_staged_test(dll):
         raise SystemExit('staged test differs from the baseline executable: stage and deploy the matching tests first')
 
 
+def test_dir(dll):
+    """dlls/NAME, or programs/NAME for a program's tests (NAME.exe), as tools/build-wine-tests.sh builds them."""
+    if (TESTS / f'build/dlls/{dll}/tests').is_dir() or not dll.endswith('.exe'):
+        return f'dlls/{dll}'
+    return f'programs/{dll[:-4]}'
+
+
 def test_names(dll):
-    source = (TESTS / f'build/dlls/{dll}/tests/testlist.c').read_text()
+    source = (TESTS / f'build/{test_dir(dll)}/tests/testlist.c').read_text()
     return re.findall(r'\{ "([^"]+)", func_\w+ \}', source)
 
 
@@ -110,7 +138,7 @@ def parse(text):
             skipped.append(line[:200])
         else:
             found = SUMMARY.match(line)
-            if found:
+            if found:  # children print summaries of their own first; the file's own is the last
                 summary = {'tests': int(found.group(2)), 'todo': int(found.group(3)), 'flaky': int(found.group(4)),
                            'failures': int(found.group(5)), 'skipped': int(found.group(6))}
     lines = text.splitlines()
@@ -130,15 +158,46 @@ def save(path, record):
     path.write_text(json.dumps(record, indent=1, sort_keys=True) + '\n')
 
 
+def console_fonts(prefix):
+    """The console's prefix brings Proton's fonts (arial, tahoma, times, ...); without them the PC's Wine falls back to
+    the PC's own and skips or answers differently (gdi32 font.c's italic Times New Roman, 2026-10-25), or has none
+    at all in a bare DXVK prefix (d3dx9 core.c:377, D3DXCreateFont 0x88760b59, then a crash, 2026-10-27)."""
+    fonts = ROOT / '.deps/staged/prefixes/probe/drive_c/windows/Fonts'
+    for font in sorted(fonts.glob('*')) if fonts.is_dir() else ():
+        shutil.copy2(font, prefix / 'drive_c/windows/Fonts' / font.name)
+
+
+def display_prefix(prefix, env):
+    """A display-capable host Wine (tools/build-wine-host-display.sh) draws on the user's screen: its prefix keeps
+    every window of every test inside one Wine virtual desktop."""
+    if (prefix / '.pw-virtual-desktop').is_file():
+        return
+    subprocess.run([str(HOST_WINE), 'wineboot', '-u'], env=env, timeout=300, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for key, value, data in (('HKCU\\Software\\Wine\\Explorer', 'Desktop', 'Default'),
+                             ('HKCU\\Software\\Wine\\Explorer\\Desktops', 'Default', '1280x720')):
+        subprocess.run([str(HOST_WINE), 'reg', 'add', key, '/v', value, '/d', data, '/f'], env=env, timeout=120,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    # the loader resolves to <build>/tools/wine/wine; its server is <build>/server/wineserver
+    console_fonts(prefix)
+    subprocess.run([str(HOST_WINE.parents[2] / 'server/wineserver'), '-k'], env=env, timeout=120)
+    (prefix / '.pw-virtual-desktop').write_text('tools/run-wine-tests.py\n')
+
+
 def host_run(dll, name, timeout, noproc=False, dxvk=False):
-    prefix = TESTS / (f'prefix-{ARCH}-dxvk' if dxvk else f'prefix-{ARCH}')
-    env = dict(os.environ, WINEPREFIX=str(prefix), WINEDEBUG='-all', WINETEST_PLATFORM='wine',
+    display = HOST_WINE != DEFAULT_HOST_WINE.resolve()
+    # PW_HOST_WORKER: parallel host baselines, each worker in a prefix of its own
+    prefix = TESTS / ((f'prefix-{ARCH}-dxvk' if dxvk else f'prefix-{ARCH}' + ('-display' if display else '')) +
+                      (f"-w{os.environ['PW_HOST_WORKER']}" if os.environ.get('PW_HOST_WORKER') else ''))
+    # the console's user (patch 1240) and so its profile folder, C:\\users\\Mihawk (lsa.c's case test differed)
+    env = dict(os.environ, WINEPREFIX=str(prefix), WINEDEBUG='-all', WINETEST_PLATFORM='wine', USER='Mihawk', LOGNAME='Mihawk',
                WINETEST_FILE_TIMEOUT=str(max(timeout - 10, 10)))  # the program's own watchdog first, the kill after it
     if noproc:
         env['LD_PRELOAD'] = str(TESTS / 'libnoproc.so')  # tools/noproc.c: fork fails, as on the console
     if dxvk:
         env['WINEDLLOVERRIDES'] = DXVK_OVERRIDES
         env.update(D3D_ENV)
+    elif display:
+        display_prefix(prefix, env)
     started = time.monotonic()
     import signal
     import tempfile
@@ -147,7 +206,15 @@ def host_run(dll, name, timeout, noproc=False, dxvk=False):
         # a Direct3D test on the host goes into a Wine virtual desktop: dxgi's tests switch display modes and go
         # fullscreen, which turned the real screen black; inside a virtual desktop they stay in its window
         # (the program started there does not share this process's output, so cmd redirects it to a file)
-        exe = str(test_exe(dll))
+        # Run as the console does: the program in the prefix's C:\ and started from there (its argv[0], DLL search path
+        # and current directory are C:\; from .deps, kernel32's path, process and module tests differed by location only).
+        if not (prefix / 'drive_c').is_dir():
+            subprocess.run([str(HOST_WINE), 'wineboot', '-u'], env=env, timeout=300, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        source = test_exe(dll)
+        staged = prefix / 'drive_c' / source.name
+        if not staged.is_file() or staged.read_bytes() != source.read_bytes():
+            shutil.copy2(source, staged)
+        exe = 'C:\\' + source.name
         if dxvk:
             fd, filename = tempfile.mkstemp(prefix='wt-d3d-', suffix='.txt')
             os.close(fd)
@@ -157,7 +224,7 @@ def host_run(dll, name, timeout, noproc=False, dxvk=False):
         else:
             command = [str(HOST_WINE), exe, name + ',']
         child = subprocess.Popen(command, stdout=output,
-                                 stderr=subprocess.STDOUT, env=env, cwd=RUNTIME / 'build', start_new_session=True)
+                                 stderr=subprocess.STDOUT, env=env, cwd=prefix / 'drive_c', start_new_session=True)
         timed_out = False
         try:
             child.wait(timeout=timeout)
@@ -180,6 +247,7 @@ def host_run(dll, name, timeout, noproc=False, dxvk=False):
         record['status'] = 'timeout'
     record['seconds'] = round(time.monotonic() - started, 1)
     record['context'] = dict(CONTEXT, host_wine_sha256=hashlib.sha256(HOST_WINE.read_bytes()).hexdigest())
+    record['host_wine'] = str(HOST_WINE.relative_to(ROOT)) if HOST_WINE.is_relative_to(ROOT) else str(HOST_WINE)
     return record
 
 
@@ -231,15 +299,20 @@ BEGIN = re.compile(r'^winetest-batch: begin (\S+)$', re.M)
 def split_batch(text):
     """Per test file: its output, and whether the program said it ended (the 'end' line); the last test that
     began and did not end is the one that crashed or hung."""
-    segments, order = {}, []
+    segments, order, repeated = {}, [], set()
     matches = list(BEGIN.finditer(text))
     for index, match in enumerate(matches):
         stop = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         name = match.group(1)
         body = text[match.end():stop]
+        if name in segments:
+            # a second "begin" of the same file: a child process ran the batch again (its argv[1] was the list,
+            # 2026-10-25); the first segment is kept and the file is not trusted
+            repeated.add(name)
+            continue
         segments[name] = (body, f'winetest-batch: end {name} ' in body)
         order.append(name)
-    return segments, order
+    return segments, order, repeated
 
 
 def console_batches(dll, names, budget, gap, pause_every, pause, per_launch, force, file_timeout=60, run_skipped=False):
@@ -247,7 +320,7 @@ def console_batches(dll, names, budget, gap, pause_every, pause, per_launch, for
     that crashed or hung is recorded as it is and the launch after it starts with the test that follows."""
     path = OUT / f'{dll}-console.json'
     record = load(path)
-    skip = load(SKIP).get(dll, {})
+    skip = skips(dll)
     todo = []
     for name in names:
         if name in skip and run_skipped:
@@ -290,7 +363,7 @@ def console_batches(dll, names, budget, gap, pause_every, pause, per_launch, for
         text = stdout_file.read_text(errors='replace') if stdout_file.is_file() else ''
         seconds = round(time.monotonic() - started, 1)
         action = settle_console(run)
-        segments, order = split_batch(text)
+        segments, order, repeated = split_batch(text)
         execution = load(ROOT / 'evidence' / (run + '.json'))
         done_here = []
         for name in order:
@@ -304,6 +377,8 @@ def console_batches(dll, names, budget, gap, pause_every, pause, per_launch, for
                 entry['status'] = 'fault'
             if not ended and entry['status'] == 'complete':
                 ended = True
+            if re.search(rf'^winetest-batch: timeout {re.escape(name)} (\d+)$', body, re.M):
+                ended = False  # the program's watchdog ended it: a child's summary line is not the file's own
             if name == order[-1] and not ended:
                 ended_itself = re.search(rf'^winetest-batch: timeout {re.escape(name)} (\d+)$', body, re.M)
                 if ended_itself:  # the program's own watchdog ended it: the title closed the normal way
@@ -313,6 +388,9 @@ def console_batches(dll, names, budget, gap, pause_every, pause, per_launch, for
                     entry['status'] = 'timeout' if action else 'incomplete'
                     if action:
                         entry['hung'] = action
+            if name in repeated:
+                entry['status'] = 'duplicated'
+                entry['hung'] = 'the batch began this file more than once: a child process re-ran the list'
             record[name] = entry
             done_here.append(name)
             summary = entry.get('summary') or {}
@@ -337,7 +415,7 @@ def run_many(where, dll, names, runner, force, gap=0, pause_every=0, pause=0):
     path = OUT / f'{dll}-{where}.json'
     record = load(path)
     launches = 0
-    skip = load(SKIP).get(dll, {}) if where == 'console' else {}
+    skip = skips(dll) if where == 'console' else {}
     for name in names:
         if name in skip:
             record[name] = {'status': 'skipped', 'reason': skip[name]}
@@ -388,7 +466,7 @@ def merge_slices(record, dll):
     return out
 
 
-def compare_records(host, console, expected):
+def compare_records(host, console, expected, oracle=None, unfinished_ok=None):
     """Fail closed on missing/stale baselines and unfinished files; known open defects still fail.
     File/line matching follows the existing runner. It is an API regression comparison, not Windows certification.
     """
@@ -404,6 +482,16 @@ def compare_records(host, console, expected):
             keys += ('graphics_sha256',)
         if not all(there.get('context', {}).get(k) and there['context'][k] == here.get('context', {}).get(k) for k in keys):
             missing.append(name + ': missing or mismatched build/architecture provenance')
+            continue
+        if (oracle or {}).get(name) and here['status'] != 'complete':
+            # The PC's own run of this file cannot complete (the reason is recorded): it passes only complete on the
+            # console with no failure line at all; anything less stays unfinished.
+            if there['status'] == 'complete' and not there.get('failures'):
+                known.append(f"{name}: whole file: console complete without failures; the PC's oracle: {oracle[name]}")
+                continue
+        if there['status'] != 'complete' and (unfinished_ok or {}).get(name):
+            # it cannot finish on the console for the cause recorded (a service that is off there, for one)
+            known.append(f"{name}: whole file: console {there['status']}: {unfinished_ok[name]}")
             continue
         if there['status'] != 'complete' or here['status'] != 'complete':
             statuses.append(f"{name}: host={here['status']}, console={there['status']}")
@@ -448,9 +536,14 @@ def compare(dll, names=None):
     # Historical line-number allowances were measured on another runtime. Requalify them per architecture/build.
     qualified = load(OUT / f'{dll}-expected.json')
     expected = qualified.get('tests', {})
-    if expected and any(entry.get('context', {}) != qualified.get('context') for entry in console.values()):
+    # A qualification holds for the build it was made on, and only for the files it names (a gate slice of other files
+    # of the same DLL runs on every new build).
+    # The build fingerprint is left out: an incremental session reruns only the files whose inputs changed, so files of
+    # one DLL come from several builds (tools/run-wine-session.py keys each to the modules it runs on).
+    base = lambda context: {k: v for k, v in (context or {}).items() if k != 'console_build_fingerprint'}
+    if any(base(entry.get('context')) != base(qualified.get('context')) for name, entry in console.items() if expected.get(name)):
         raise SystemExit('expected-failure qualification does not match the console test build')
-    verdict = compare_records(host, console, expected)
+    verdict = compare_records(host, console, expected, qualified.get('oracle'), qualified.get('unfinished_ok'))
     if coverage_mismatch:
         verdict['missing'].append('Direct3D slice ranges differ: run the same ranges on the host and console')
         verdict['passed'] = False
@@ -482,8 +575,8 @@ def main():
     parser.add_argument('--pause-every', type=int, default=3, help='console: launches after which the batch pauses longer')
     parser.add_argument('--pause', type=int, default=120, help='console: that longer pause, in seconds')
     args = parser.parse_args()
-    if not re.fullmatch(r'[a-zA-Z0-9_]+', args.dll):
-        parser.error('DLL name must contain only letters, digits and underscores')
+    if not re.fullmatch(r'[a-zA-Z0-9_.-]+', args.dll):
+        parser.error('test module name: letters, digits, underscores and dots (ndis.sys, cmd.exe)')
     if args.per_launch < 1 or args.slices < 0 or args.file_timeout < 1:
         parser.error('positive per-launch and file-timeout required; slices must be nonnegative')
     ARCH = args.arch
@@ -517,14 +610,16 @@ def main():
         if args.dll == 'dxgi' and not args.allow_dxgi_on_host:
             raise SystemExit('the dxgi tests switch display modes and went fullscreen on the real screen once, turning it black; '
                              'they run on the host only with --allow-dxgi-on-host, which I pass only after I have said so beforehand')
-        prefix = TESTS / f'prefix-{ARCH}-dxvk'
-        env = dict(os.environ, WINEPREFIX=str(prefix), WINEDEBUG='-all')
+        # the prefix host_run uses (a worker's own when PW_HOST_WORKER is set): DXVK's DLLs go into that one
+        prefix = TESTS / (f'prefix-{ARCH}-dxvk' + (f"-w{os.environ['PW_HOST_WORKER']}" if os.environ.get('PW_HOST_WORKER') else ''))
+        env = dict(os.environ, WINEPREFIX=str(prefix), WINEDEBUG='-all', USER='Mihawk', LOGNAME='Mihawk')
         subprocess.run([str(HOST_WINE), 'wineboot', '-u'], env=env, check=True, timeout=180,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         folder = 'syswow64' if ARCH == 'i386' else 'system32'
         for name in DXVK_OVERRIDES.split('=')[0].split(','):
             source = ROOT / f'.deps/staged/prefixes/probe/drive_c/windows/{folder}/{name}.dll'
             shutil.copy2(source, prefix / f'drive_c/windows/{folder}/{name}.dll')
+        console_fonts(prefix)
         run_many('host-dxvk', args.dll, names, lambda name: host_run(args.dll, name, args.timeout, False, True), args.force)
         return 0
     if args.command == 'host':

@@ -80,6 +80,13 @@ int __wine_ps5_exec_convert(void *address, size_t bytes, int unix_prot)
     for (size_t at = 0; at < bytes; at += HOST) kernel[index_of((char *)address + at) / 4] = unix_prot;
     return 0;
 }
+/* An image view's conversion, shared with other helpers (wine/ps5/pw_wine_codeshare.h): the same, counted apart. */
+static unsigned image_converts;
+int __wine_ps5_exec_convert_image(void *address, size_t bytes, int unix_prot)
+{
+    image_converts++;
+    return __wine_ps5_exec_convert(address, bytes, unix_prot);
+}
 static void host_prot_record(const void *addr, size_t len, unsigned char value)
 {
     for (size_t at = 0; at < len; at += HOST) cache[index_of((const char *)addr + at) / 4] = value;
@@ -94,7 +101,7 @@ static void reset(void)
 {
     memset(vprot, 0, sizeof(vprot)); memset(kernel, 0, sizeof(kernel)); memset(views, 0, sizeof(views));
     memset(cache, 0, sizeof(cache)); memset(&thread_data, 0, sizeof(thread_data));
-    force_exec_prot = convert_result = convert_partial = converts = queries = 0;
+    force_exec_prot = convert_result = convert_partial = converts = queries = image_converts = 0;
 }
 static void set(size_t first_page, size_t count, BYTE prot)
 {
@@ -166,7 +173,7 @@ int main(void)
     views[1] = (struct file_view){ arena + 0x40000, 0x40000, SEC_COMMIT };
     set(0, 0x80, VPROT_READ | VPROT_EXEC); set(0x50, 4, VPROT_READ);
     kernel_from_wine();
-    assert(fault(host(1), EXCEPTION_EXECUTE_FAULT) && converts == 1);
+    assert(fault(host(1), EXCEPTION_EXECUTE_FAULT) && converts == 1 && image_converts == 1);
     assert(!fault(host(17), EXCEPTION_EXECUTE_FAULT) && converts == 1);
     assert(!fault(arena + 0x50 * PAGE, EXCEPTION_EXECUTE_FAULT) && converts == 1);
 
@@ -175,7 +182,7 @@ int main(void)
     kernel_from_wine(); force_exec_prot = 1;
     assert(fault(host(2), EXCEPTION_EXECUTE_FAULT) && convert_start == host(window(2)) &&
            convert_bytes == (min(4, window(2) + W) - window(2)) * HOST &&
-           convert_prot == (PROT_READ | PROT_WRITE | PROT_EXEC));
+           convert_prot == (PROT_READ | PROT_WRITE | PROT_EXEC) && !image_converts);   /* private: never shared */
 
     /* A failed conversion is not served, and the next fault there tries again (it is refused, never looped). */
     reset(); views[0] = (struct file_view){ arena, sizeof(arena), 0 }; set(0, 4, VPROT_READ | VPROT_EXEC);

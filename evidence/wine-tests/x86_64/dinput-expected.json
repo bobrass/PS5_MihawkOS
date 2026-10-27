@@ -1,0 +1,45 @@
+{
+ "context": {
+  "arch": "x86_64",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "a645535fa52c7bfe45ebde752e3bbbce74aed0427a7d15e28c743d622e96ee1d",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "device8": {
+   "hid.c:735": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:740": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:771": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out"
+  },
+  "force_feedback": {
+   "hid.c:735": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:740": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:771": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out"
+  },
+  "hid": {
+   "hid.c:3981": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:3983": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:3994": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:3996": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:735": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:740": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:771": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out"
+  },
+  "hotplug": {
+   "hid.c:735": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:740": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:771": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out"
+  },
+  "joystick8": {
+   "hid.c:735": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:740": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out",
+   "hid.c:771": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out"
+  }
+ },
+ "unfinished_ok": {
+  "hid": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): plug-and-play (plugplay.exe, 19 MiB) is off on the console, so the virtual HID devices dinput's tests install through Wine's test driver never appear and their waits time out"
+ }
+}

@@ -11,12 +11,16 @@
  * frees one page before the first region is taken; if any step fails, the
  * regions stay ordinary reservations and every call passes through. A
  * payload's kernel keeps execute only on JIT memory: its executable pages are
- * converted at their first execute (__wine_ps5_exec_convert). */
+ * converted at their first execute (__wine_ps5_exec_convert), an image's from a
+ * copy other helpers share when one has the same bytes (pw_wine_codeshare.h). */
 #include "pw_wine_alias.h"
+#include "pw_wine_codeshare.h"
+#include "pw_wine_code_budget.h"
 #include "pw_wine_dmem.h"
 #include "pw_wine_heap.h"
 #include "pw_wine_pages.h"
 #include "pw_wine_perf.h"
+#include "pw_wine_spin.h"
 #include "pw_wine_vm.h"
 #include <errno.h>
 #include <signal.h>
@@ -27,6 +31,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 extern int sceKernelReserveVirtualRange(void **address, size_t bytes, int flags, size_t alignment);
 extern int sceKernelAllocateMainDirectMemory(size_t bytes, size_t alignment, int type, int64_t *offset);
@@ -150,8 +155,13 @@ static void refused(const char *what, int rc, size_t bytes)
                 (unsigned long long)(memory.largest_bytes >> 20), (unsigned long long)(memory.flexible_bytes >> 20));
 }
 
+/* A page-directory entry covers 2 MiB; a whole aligned window uses it instead of a page table. */
+#define BIG_PAGE ((size_t)0x200000)
+
 /* CPU read-write, unless the kernel wants the GPU bits too. */
 static int map_protection = CPU_READ_WRITE;
+
+static PwWineDmem dmem; /* the one engine instance, defined below; declared here for the placement log */
 
 static int reserve(void *context, uintptr_t address, size_t bytes)
 {
@@ -164,13 +174,20 @@ static int reserve(void *context, uintptr_t address, size_t bytes)
     slow_end(t0, "reserve", bytes);
     return rc;
 }
+/* Whole 2 MiB runs get a 2 MiB-aligned direct-memory offset, so the kernel can map them with page-directory entries
+ * instead of one page table per 2 MiB window (the pool holds ~8k of those). Anything else keeps page alignment. */
+static size_t backing_alignment(size_t bytes)
+{
+    return bytes >= BIG_PAGE && bytes % BIG_PAGE == 0 ? BIG_PAGE : PAGE;
+}
 static int allocate(void *context, size_t bytes, int64_t *offset)
 {
     uint64_t t0 = slow_start();
     int rc;
     (void)context;
-    rc = payload_allocate_direct ? payload_allocate_direct(bytes, PAGE, MEMORY_TYPE, offset)
-                                 : sceKernelAllocateMainDirectMemory(bytes, PAGE, MEMORY_TYPE, offset);
+    const size_t alignment = backing_alignment(bytes);
+    rc = payload_allocate_direct ? payload_allocate_direct(bytes, alignment, MEMORY_TYPE, offset)
+                                 : sceKernelAllocateMainDirectMemory(bytes, alignment, MEMORY_TYPE, offset);
     slow_end(t0, "allocate", bytes);
     if (rc) refused("allocate", rc, bytes);
     return rc != 0;
@@ -181,9 +198,45 @@ static int map(void *context, uintptr_t address, size_t bytes, int64_t offset)
     uint64_t t0 = slow_start();
     int rc;
     (void)context;
-    rc = sceKernelMapDirectMemory(&at, bytes, map_protection, KERNEL_FIXED, offset, PAGE);
+    /* A whole aligned 2 MiB window is mapped with 2 MiB alignment so the kernel can use a page-directory entry and
+     * skip the page table; anything else keeps page alignment. */
+    const int big = address % BIG_PAGE == 0 && bytes % BIG_PAGE == 0 && (uint64_t)offset % BIG_PAGE == 0;
+    const size_t alignment = big ? BIG_PAGE : PAGE;
+    rc = sceKernelMapDirectMemory(&at, bytes, map_protection, KERNEL_FIXED, offset, alignment);
+    if (rc && big) {
+        at = (void *)address;
+        rc = sceKernelMapDirectMemory(&at, bytes, map_protection, KERNEL_FIXED, offset, PAGE);
+    }
     slow_end(t0, "map", bytes);
     if (rc) refused("map", rc, bytes);
+    if (!rc && at == (void *)address) {
+        char line[288];
+        if (big) {
+            snprintf(line, sizeof line, "[wine-ps5] 2M map %p +%#zx\n", (void *)address, bytes);
+            sceKernelDebugOutText(0, line);
+        }
+        {   /* Placement, every 128 maps: the measurement behind consolidation and 2 MiB pages. Called under the
+             * engine's lock (the caller holds it), so the locked form. */
+            static unsigned long long maps_since;
+            if (++maps_since % 128 == 0) {
+                PwWineDmemPlacement pl;
+                pw_wine_dmem_placement_locked(&dmem, &pl);
+                snprintf(line, sizeof line,
+                         "[wine-ps5] placement windows=%llu full=%llu p1=%llu p2=%llu p3=%llu runs=%llu runs2m=%llu "
+                         "regions=%llu backed=%llu c4k=%llu c64k=%llu c1m=%llu c2m=%llu cbig=%llu c2mal=%llu big=%llu small=%llu\n",
+                         (unsigned long long)pl.windows, (unsigned long long)pl.full,
+                         (unsigned long long)pl.part[0], (unsigned long long)pl.part[1],
+                         (unsigned long long)pl.part[2], (unsigned long long)pl.runs,
+                         (unsigned long long)pl.runs_2m, (unsigned long long)pl.regions,
+                         (unsigned long long)pl.backed_bytes, (unsigned long long)pl.commits[0],
+                         (unsigned long long)pl.commits[1], (unsigned long long)pl.commits[2],
+                         (unsigned long long)pl.commits[3], (unsigned long long)pl.commits[4],
+                         (unsigned long long)pl.commits_2m_aligned, (unsigned long long)pl.win_big_region,
+                         (unsigned long long)pl.win_small_region);
+                sceKernelDebugOutText(0, line);
+            }
+        }
+    }
     if (rc && map_protection == CPU_READ_WRITE && !payload_allocate_direct) {
         /* Refused CPU-only in a title: the GPU bits, and keep them if they work. Never in a payload: every later run
          * would be wired GPU memory, which each release, lay and conversion tears down ("unwire timeout"). */
@@ -400,6 +453,9 @@ static PwWineDmem dmem;
 static PwWineDmemRun runs[RUNS];
 /* 0 before the self-check, 1 in use, -1 refused: every call passes. */
 static int state;
+/* A title whose direct memory does not execute (13.60, docs/FLEXIBLE_MEMORY.md): its code becomes JIT memory, charged to the
+ * title's own partition, as a payload's does. */
+static int title_jit;
 /* shortcut: an adopt that failed after the caller's own mapping replaced runs leaves runs naming memory no longer mapped
  * there; no alias after that (stores step). Upgrade: hold the engine lock across can_adopt and adopt. */
 static int backing_stale;
@@ -408,6 +464,32 @@ static uintptr_t page_down(const void *address) { return (uintptr_t)address & ~(
 static size_t page_span(const void *address, size_t bytes)
 {
     return (((uintptr_t)address + bytes + PAGE - 1) & ~(uintptr_t)(PAGE - 1)) - page_down(address);
+}
+
+/* Claim a range for direct-backed commits: the file-view read path in virtual.c registers a view before its
+ * commit, so __wine_ps5_mprotect backs the file bytes from direct memory. 0 on success, -1 when the engine is
+ * unavailable or the range cannot be tracked (the caller then keeps the flexible fallback). */
+static uint64_t claim_attempts, claim_ok, claim_failed, claim_refused_align, claim_refused_region;
+
+/* Align to the engine's page, not the module's: paging the range to 4 KiB when the engine validates against
+ * ops.page made every claim fall into add_region's silent early return (0 engine failures, all refused; the
+ * Steam client's 478/478, 2026-10-23). The two refusals are counted apart so a silent path cannot hide again. */
+int __wine_ps5_dmem_claim(void *addr, size_t len)
+{
+    const size_t page = dmem.ops.page;
+    uintptr_t at, end;
+
+    claim_attempts++;
+    if (state <= 0) { claim_failed++; claim_refused_region++; return -1; }
+    if (!page || (page & (page - 1)) || !len) { claim_failed++; claim_refused_align++; return -1; }
+    at = (uintptr_t)addr & ~(uintptr_t)(page - 1);
+    end = ((uintptr_t)addr + len + page - 1) & ~(uintptr_t)(page - 1);
+    if (end <= at) { claim_failed++; claim_refused_align++; return -1; }
+    /* reserved=1: the view is already Wine's mapping, so the engine must not reserve it again (the kernel refuses
+     * a reserve over a live mapping; the heap area's registration passes 1 for the same reason). */
+    if (pw_wine_dmem_add_region(&dmem, at, end - at, 1)) { claim_failed++; claim_refused_region++; return -1; }
+    claim_ok++;
+    return 0;
 }
 
 /* Whether the kernel holds CPU execute on the page now: a grant it answered with success but did not make would
@@ -531,7 +613,10 @@ static void heap_unmap(void *address, size_t bytes)
  * above every fixed range instead, exactly there and never over anything (a
  * placed one could land in a hole of another range), and not 0x3000000000,
  * the GPU client's high host range (PW_GPU_HOST_HIGH_BASE). */
-static const uintptr_t heap_area_hints[] = { 0x2000000000u, 0x5000000000u };
+/* 0x5000000000 first: the platform heap of the GPU client (PS5_PayloadSDK, ps5platform/heap.h) asks for its range at 0x2000000000, and with Wine's
+ * heap area there every allocation of the client fell back to Sony's libc heap (the browser helper's start-up jump: 5 to 400 MiB of flexible memory, 6.4
+ * million allocations, docs/PLAN.md). */
+static const uintptr_t heap_area_hints[] = { 0x5000000000u, 0x2000000000u };
 
 static void heap_area_init(void)
 {
@@ -765,8 +850,9 @@ static int kernel_allows(uintptr_t at, size_t bytes, int access)
 
 /* [at, +bytes) becomes one JIT object of exactly that size (a larger one does not map, K4), mapped read-write over
  * the live mapping in one call (K3) with the same contents. The range is read-only first: a writer faults and waits
- * on virtual_mutex, which the caller holds, so no write is lost. *step names what failed. */
-static int jit_over(uintptr_t at, size_t bytes, const char **step)
+ * on virtual_mutex, which the caller holds, so no write is lost. *step names what failed. With keep, the object's
+ * descriptor is left open there (for the registry of shared copies) instead of closed. */
+static int jit_over(uintptr_t at, size_t bytes, const char **step, int *keep)
 {
     void *scratch, *over = NULL;
     int fd = -1, rc, error;
@@ -778,7 +864,7 @@ static int jit_over(uintptr_t at, size_t bytes, const char **step)
     /* pwrite on a JIT object fails (ESPIPE, K5): the copy goes through a temporary mapping in the helper's shared-page
      * range, never where the kernel would place it (pw_wine_pages.h), which pw_wine_pages_map does without a range. */
     *step = "scratch";
-    if (!pw_wine_pages_base(NULL)) {
+    if (payload_mmap && !pw_wine_pages_base(NULL)) {   /* a title has no range: the kernel places it (pw_wine_pages.h) */
         errno = ENOMEM;
         goto failed;
     }
@@ -788,7 +874,8 @@ static int jit_over(uintptr_t at, size_t bytes, const char **step)
     *step = "map";
     if ((rc = sceKernelMmap((void *)at, bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0, &over)))
         goto refused;
-    close(fd);   /* the mapping keeps the object (K6) */
+    if (keep) *keep = fd;
+    else close(fd);   /* the mapping keeps the object (K6) */
     return 0;
 refused:
     errno = (int)((unsigned)rc & 0xffff);
@@ -797,6 +884,72 @@ failed:
     if (fd >= 0) close(fd);
     errno = error;
     return -1;
+}
+
+extern int pw_ps5_code_ask_file(const uint64_t file[3], uint64_t bytes, int *fd) __attribute__((weak));
+extern int pw_ps5_code_offer_file(const uint64_t file[3], uint64_t bytes, int fd) __attribute__((weak));
+/* An image's file cluster at `at`: the first helper's read is the only one. The bytes are the file's at offset, laid
+ * out where the view needs them (the image loader passes the section's raw offset and its view start). The registry
+ * answers every later helper with the object, mapped read-only: no read, no private copy. 0 mapped, -1 with errno. */
+static uint64_t image_asks, image_hits, image_offers, image_kept, image_offer_errors;
+
+int __wine_ps5_image_read(int fd, void *at, size_t bytes, off_t offset)
+{
+    /* One object per cluster: an image's whole section (221 MiB of libcef text) does not fit the JIT limits, and the
+     * registry's entry budget is sized for clusters (the converter's own granularity). */
+    enum { IMAGE_CLUSTER = 256 * 1024 };
+    struct stat st;
+    uint64_t file[3];
+    size_t done = 0;
+
+    /* The title's Wine is the owner: the payload's kernel and shared-page calls are not its, and the ordinary read
+     * path is (exec_convert's rule). */
+    if (!payload_mmap) { errno = ENOTSUP; return -1; }
+    if (fstat(fd, &st)) return -1;
+    file[0] = (uint64_t)st.st_dev;
+    file[1] = (uint64_t)st.st_ino;
+    while (done < bytes) {
+        const size_t cl = bytes - done < IMAGE_CLUSTER ? bytes - done : IMAGE_CLUSTER;
+        void *dst = (char *)at + done;
+        int object = -1, rc, error;
+        void *scratch, *mapped = NULL;
+
+        file[2] = (uint64_t)(offset + (off_t)done);
+        if (pw_ps5_code_ask_file) {
+            ++image_asks;
+            if (!pw_ps5_code_ask_file(file, cl, &object)) {
+                rc = sceKernelMmap(dst, cl, PROT_READ, MAP_SHARED | MAP_FIXED, object, 0, &mapped);
+                close(object);
+                if (!rc && mapped == dst) { ++image_hits; done += cl; continue; }
+            }
+        }
+        /* The first reader: this cluster becomes a JIT object, offered under the file key. The copy goes through the
+         * shared-page scratch because pwrite on a JIT object fails (jit_over's reason). */
+        if ((rc = sceKernelMprotect(dst, cl, PROT_READ | PROT_WRITE))) { errno = (int)((unsigned)rc & 0xffff); return -1; }
+        if ((rc = sceKernelJitCreateSharedMemory("pw-image", cl, PROT_READ | PROT_WRITE | PROT_EXEC, &object))) {
+            errno = (int)((unsigned)rc & 0xffff);
+            break;   /* the caller's pread reads the rest */
+        }
+        if (!pw_wine_pages_base(NULL) ||
+            (scratch = pw_wine_pages_map(cl, PROT_READ | PROT_WRITE, object)) == MAP_FAILED)
+            goto failed;
+        if (pread(fd, scratch, cl, offset + (off_t)done) != (ssize_t)cl) { pw_wine_pages_unmap(scratch, cl); goto failed; }
+        pw_wine_pages_unmap(scratch, cl);
+        if ((rc = sceKernelMmap(dst, cl, PROT_READ, MAP_SHARED | MAP_FIXED, object, 0, &mapped)) ||
+            mapped != dst) { errno = rc ? (int)((unsigned)rc & 0xffff) : EINVAL; goto failed; }
+        if (pw_ps5_code_offer_file) {
+            ++image_offers;
+            if (!pw_ps5_code_offer_file(file, cl, object)) ++image_kept; else ++image_offer_errors;
+        } else close(object);
+        done += cl;
+        continue;
+    failed:
+        error = errno;
+        close(object);
+        errno = error;
+        break;   /* the caller's pread reads the rest */
+    }
+    return done == bytes ? 0 : -1;
 }
 
 static int convert_failed(const void *address, size_t bytes, int unix_prot, const char *step)
@@ -811,23 +964,324 @@ static int convert_failed(const void *address, size_t bytes, int unix_prot, cons
     return -1;
 }
 
+/* Shared code copies (pw_wine_codeshare.h): the title's registry, asked over the helper's own channel
+ * (pw_wine_process.c, in ntdll; weak, so a host test may supply its own or none). */
+extern int pw_ps5_code_ask(uint64_t hash, uint64_t bytes, int *fd) __attribute__((weak));
+extern int pw_ps5_code_offer(uint64_t hash, uint64_t bytes, int fd) __attribute__((weak));
+static PwWineDmem *active(void);
+/* Where this helper maps an object the registry holds or may hand out; its own lock, as a protection change may come
+ * from a thread outside the virtual mutex. */
+static PwWineCodeshareRanges shared;
+/* The registry's objects this helper maps now, exactly (pw_wine_codeshare.h, "Counting each shared object once"): the
+ * title's census counts the copies beyond the first once from the helpers' reports. Under shared_lock; the total is
+ * published for the report (__wine_ps5_code_share_mapped_kib). */
+static PwWineCodesharePages shared_pages;
+static uint64_t shared_pages_bytes;
+static int shared_lock;
+static int share_off;   /* the registry could not be asked or refused to be: no more asks or offers */
+static uint64_t share_hits, share_kib, share_offers, share_mismatches, share_failures, private_writes, private_kib;
+
+static int shared_mark(uintptr_t at, uintptr_t end)
+{
+    int status;
+    pw_wine_spin_lock(&shared_lock);
+    status = pw_wine_codeshare_mark(&shared, at, end);
+    __atomic_store_n(&shared_lock, 0, __ATOMIC_RELEASE);
+    return status;
+}
+static void shared_drop(uintptr_t at, uintptr_t end)
+{
+    pw_wine_spin_lock(&shared_lock);
+    pw_wine_codeshare_unmark(&shared, at, end);
+    if (pw_wine_codeshare_pages_drop(&shared_pages, at, end))
+        __atomic_store_n(&shared_pages_bytes, shared_pages.bytes, __ATOMIC_RELAXED);
+    __atomic_store_n(&shared_lock, 0, __ATOMIC_RELEASE);
+}
+/* [at, +bytes) maps an object the registry holds (taken, or made and kept). A full set leaves it uncounted: the census
+ * then counts it per mapping, as without the report. */
+static void shared_count(uintptr_t at, uint64_t bytes)
+{
+    pw_wine_spin_lock(&shared_lock);
+    if (!pw_wine_codeshare_pages_add(&shared_pages, at, bytes))
+        __atomic_store_n(&shared_pages_bytes, shared_pages.bytes, __ATOMIC_RELAXED);
+    __atomic_store_n(&shared_lock, 0, __ATOMIC_RELEASE);
+}
+/* The KiB of registry objects this helper maps, for its report to the title (native/proton_wine_child.c). */
+uint64_t __wine_ps5_code_share_mapped_kib(void)
+{
+    return __atomic_load_n(&shared_pages_bytes, __ATOMIC_RELAXED) >> 10;
+}
+static int shared_next(uintptr_t at, uintptr_t end, uintptr_t *low, uintptr_t *high)
+{
+    int found;
+    pw_wine_spin_lock(&shared_lock);
+    found = pw_wine_codeshare_marked(&shared, at, end, low, high);
+    __atomic_store_n(&shared_lock, 0, __ATOMIC_RELEASE);
+    return found;
+}
+
+/* The registry did not answer as it should (the title's channel, or WINE_PS5_CODE_SHARE=0 there): this helper's later
+ * conversions make private copies only, as before shared copies. Said once. */
+static void share_lost(const char *what, int error)
+{
+    __atomic_add_fetch(&share_failures, 1, __ATOMIC_RELAXED);
+    if (!__atomic_exchange_n(&share_off, 1, __ATOMIC_RELAXED))
+        fprintf(stderr, "wine-ps5: shared code copies off in this helper: %s failed (errno %d)\n", what, error);
+}
+
+/* The registry's copy of [at, +bytes), whose bytes hash to hash, mapped over the range read-only (the protect step
+ * after it gives unix_prot): 1. 0 when there is none, or its bytes are not the range's (a collision, or a page this
+ * helper changed): nothing changed. -1 when the kernel refused the map over the range (*step), as a failed conversion. */
+static int share_map(uintptr_t at, size_t bytes, uint64_t hash, const char **step)
+{
+    void *copy, *over = NULL;
+    int fd = -1, same, rc;
+
+    if (pw_ps5_code_ask(hash, bytes, &fd)) {
+        if (errno != ENOENT && errno != EBUSY) share_lost("asking the registry", errno);   /* none; another ask */
+        return 0;
+    }
+    /* Compared through a mapping in the shared-page range, never where the kernel would place it (pw_wine_pages.h). */
+    if ((copy = pw_wine_pages_map(bytes, PROT_READ, fd)) == MAP_FAILED) {
+        close(fd);
+        __atomic_add_fetch(&share_failures, 1, __ATOMIC_RELAXED);
+        return 0;
+    }
+    same = !memcmp(copy, (const void *)at, bytes);
+    pw_wine_pages_unmap(copy, bytes);
+    if (!same) {
+        close(fd);
+        __atomic_add_fetch(&share_mismatches, 1, __ATOMIC_RELAXED);
+        return 0;
+    }
+    *step = "share-map";
+    rc = sceKernelMmap((void *)at, bytes, PROT_READ, MAP_SHARED | MAP_FIXED, fd, 0, &over);
+    close(fd);   /* the mapping keeps the object (K6) */
+    if (rc) {
+        errno = (int)((unsigned)rc & 0xffff);
+        return -1;
+    }
+    return 1;
+}
+
+/* Before write is granted on [at, end): each piece of a shared copy there becomes a copy of this helper's own (jit_over
+ * copies what is mapped), so the write never reaches the object other helpers map. A piece the engine has backed with
+ * direct memory since holds no copy (a mark left behind) and is only forgotten. 0, or -1 with errno when a piece could
+ * not be copied: write must not be granted then. */
+static int shared_privatize(uintptr_t at, uintptr_t end)
+{
+    PwWineDmem *engine = active();
+    uintptr_t low, high;
+    const char *step = "";
+
+    while (shared_next(at, end, &low, &high)) {
+        if (!engine || !pw_wine_dmem_backed(engine, low, high - low)) {
+            if (jit_over(low, high - low, &step, NULL)) {
+                const int error = errno;
+                fprintf(stderr, "wine-ps5: shared code copy at %#lx, %zu bytes, not made private: %s failed (errno "
+                        "%d); write refused\n", (unsigned long)low, (size_t)(high - low), step, error);
+                errno = error;
+                return -1;
+            }
+            __atomic_add_fetch(&private_writes, 1, __ATOMIC_RELAXED);
+            __atomic_add_fetch(&private_kib, (high - low) >> 10, __ATOMIC_RELAXED);
+        }
+        shared_drop(low, high);
+        at = high;
+    }
+    return 0;
+}
+
+/* Lock-free, as __wine_ps5_exec_stats: clusters mapped from the registry and their KiB, copies given to it, copies
+ * whose bytes were not the range's, registry asks or offers that failed (and marks refused, a full table), and shared
+ * copies made private before a write, and their KiB. Returns how many counters there are. */
+unsigned int __wine_ps5_code_share_stats(uint64_t *out, unsigned int count)
+{
+    const uint64_t values[7] = { __atomic_load_n(&share_hits, __ATOMIC_RELAXED),
+                                 __atomic_load_n(&share_kib, __ATOMIC_RELAXED),
+                                 __atomic_load_n(&share_offers, __ATOMIC_RELAXED),
+                                 __atomic_load_n(&share_mismatches, __ATOMIC_RELAXED),
+                                 __atomic_load_n(&share_failures, __ATOMIC_RELAXED),
+                                 __atomic_load_n(&private_writes, __ATOMIC_RELAXED),
+                                 __atomic_load_n(&private_kib, __ATOMIC_RELAXED) };
+    for (unsigned int i = 0; i < count && i < 7; i++) out[i] = values[i];
+    return 7;
+}
+
+/* The code cache (docs/FLEXIBLE_MEMORY.md): a payload's converted code is flexible memory, the only kind that executes
+ * (flex-sony-base-2026-10-25-02), so it is the one kind a workload grows that cannot move to direct memory. Once this
+ * process's converted clusters pass its budget (pw_wine_code_budget.h: 64 MiB fixed for Steam and the launchers, 64 MiB
+ * and raised on thrash for every other program, WINE_PS5_CODE_BUDGET_MIB first; the owner's rule of 2026-10-25), the
+ * oldest go back to direct memory holding the same bytes, without execute; Wine's view still allows execute, so the next
+ * run of one faults and converts it again as a first execute does. Under virtual_mutex, as exec_convert. An entry is a
+ * conversion's piece; one Wine since unmapped or changed is found by the kernel's answer and only dropped, so the total
+ * can only overcount. */
+enum { CACHE_ENTRIES = 16384 };
+static struct { uintptr_t at; uint32_t bytes; } cache[CACHE_ENTRIES];
+static unsigned cache_head, cache_count;
+static uint64_t cache_bytes, cache_budget, cache_evictions, cache_evicted_kib, cache_skipped, cache_refused, cache_lost;
+static int cache_state;   /* 0 before the first look, 1 on, -1 off, 2 on without the program's name yet */
+static PwCodeBudget cache_policy;
+static char cache_image[128];   /* the program's executable, for the policy and the raise's line */
+/* Wine's command line (dlls/ntdll/unix/env.c): its first word is the image. Weak: a host test has none. */
+extern uint16_t **main_wargv __attribute__((weak));
+
+/* The program's executable, ASCII (anything else as '?'), once Wine has its command line: 1, else 0. */
+static int cache_image_known(void)
+{
+    const uint16_t *name;
+    size_t i = 0;
+    if (!&main_wargv || !main_wargv || !main_wargv[0]) return 0;
+    for (name = main_wargv[0]; name[i] && i + 1 < sizeof(cache_image); ++i)
+        cache_image[i] = name[i] < 0x80 ? (char)name[i] : '?';
+    cache_image[i] = 0;
+    return 1;
+}
+
+/* pw_wine_dmem_restore's fill: the bytes at from, into the fresh direct memory through a scratch mapping in this
+ * helper's own range (never where the kernel would place it, pw_wine_pages.h), unmapped before the range is given back
+ * (a reservation laid over live direct memory came before 15-30 s mprotect stalls: WINE_PS5_ALIAS_GIVE's note). */
+static int cache_fill(void *context, int64_t offset, uintptr_t from, size_t bytes)
+{
+    const uintptr_t scratch = pw_wine_pages_take(bytes);
+    void *at = (void *)scratch;
+    int failed;
+
+    (void)context;
+    /* A title has no such range (pw_wine_sink.c reserves it for helpers): there the kernel places the copy's mapping. */
+    if (!scratch && !payload_mmap) {
+        failed = sceKernelMapDirectMemory(&at, bytes, CPU_READ_WRITE, 0, offset, PAGE) != 0;
+        if (!failed) {
+            memcpy(at, (const void *)from, bytes);
+            (void)sceKernelMunmap(at, bytes);
+        }
+        return failed;
+    }
+    if (!scratch) return -1;
+    failed = sceKernelMapDirectMemory(&at, bytes, CPU_READ_WRITE, KERNEL_FIXED, offset, PAGE) || at != (void *)scratch;
+    if (!failed) {
+        memcpy(at, (const void *)from, bytes);
+        (void)sceKernelMunmap(at, bytes);
+    }
+    pw_wine_pages_give(scratch, bytes);
+    return failed;
+}
+
+/* One entry back to direct memory, if the kernel still holds it as one executable mapping of the caller's. */
+static void cache_evict(uintptr_t at, size_t bytes)
+{
+    void *start = NULL, *end = NULL;
+    uint32_t protection = 0;
+    int status;
+
+    if (sceKernelQueryMemoryProtection((void *)at, &start, &end, &protection) || !(protection & PROT_EXEC) ||
+        (uintptr_t)start > at || (uintptr_t)end < at + bytes) {
+        cache_skipped++;
+        return;
+    }
+    /* Read-only first, as jit_over: a writer or a thread running there faults and waits on virtual_mutex meanwhile. */
+    if (payload_protect((void *)at, bytes, PROT_READ)) {
+        cache_refused++;
+        return;
+    }
+    status = pw_wine_dmem_restore(&dmem, at, bytes, protection & ~(uint32_t)PROT_EXEC, cache_fill, NULL);
+    if (!status) {
+        shared_drop(at, at + bytes);
+        pw_code_budget_evicted(&cache_policy, at);
+        cache_evictions++;
+        cache_evicted_kib += bytes >> 10;
+        return;
+    }
+    if (status == -1) {
+        (void)payload_protect((void *)at, bytes, (int)protection);   /* still JIT memory: as it was */
+        cache_refused++;
+        return;
+    }
+    if (cache_lost++ < 12)
+        fprintf(stderr, "wine-ps5: converted code at %#lx, %zu bytes, lost going back to direct memory\n",
+                (unsigned long)at, bytes);
+}
+
+/* Before a conversion of bytes: the oldest entries out until it fits the budget. */
+static void cache_make_room(size_t bytes)
+{
+    /* Looked at again until Wine has the program's name: the engine's own self-check converts before it does. */
+    if (!cache_state || cache_state == 2) {
+        const int known = cache_image_known();
+        /* Set up again only when the name arrives: setting up forgets the evicted clusters and the window. */
+        if (!cache_state || known) {
+            pw_code_budget_setup(&cache_policy, getenv("WINE_PS5_CODE_BUDGET_MIB"), getenv("WINE_PS5_CODE_BUDGET_START_MIB"),
+                                 known ? cache_image : NULL);
+            cache_budget = cache_policy.bytes;
+            cache_state = !cache_budget ? -1 : known ? 1 : 2;
+        }
+    }
+    if (cache_state < 0) return;
+    while (cache_count && (cache_bytes + bytes > cache_budget || cache_count == CACHE_ENTRIES)) {
+        const uintptr_t at = cache[cache_head].at;
+        const size_t piece = cache[cache_head].bytes;
+        cache_head = (cache_head + 1) % CACHE_ENTRIES;
+        cache_count--;
+        cache_bytes -= piece;
+        cache_evict(at, piece);
+    }
+}
+static void cache_add(uintptr_t at, size_t bytes)
+{
+    struct timespec now;
+    uint64_t window_kib = 0;
+
+    if (cache_state <= 0) return;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if (pw_code_budget_converted(&cache_policy, at, bytes, (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000,
+                                 &window_kib)) {
+        cache_budget = cache_policy.bytes;
+        fprintf(stderr, "wine-ps5: code budget raised to %llu MiB for %s: %llu MiB re-converted in %u s\n",
+                (unsigned long long)(cache_budget >> 20), cache_image[0] ? cache_image : "this program",
+                (unsigned long long)(window_kib >> 10), PW_CODE_BUDGET_WINDOW_MS / 1000);
+    }
+    if (cache_count == CACHE_ENTRIES) return;
+    cache[(cache_head + cache_count++) % CACHE_ENTRIES].at = at;
+    cache[(cache_head + cache_count - 1) % CACHE_ENTRIES].bytes = (uint32_t)bytes;
+    cache_bytes += bytes;
+}
+/* The budget now (0 when off), the KiB the cache holds now, clusters evicted and their KiB, entries found stale, evictions
+ * refused (left as they were), ranges lost, the budget's raises, KiB of evicted code converted again, and the policy
+ * (enum pw_code_budget_mode). For the helper's log (native/proton_wine_child.c). Returns the count. */
+unsigned int __wine_ps5_code_cache_stats(uint64_t *out, unsigned int count)
+{
+    const uint64_t values[10] = { cache_budget >> 20, cache_bytes >> 10, cache_evictions, cache_evicted_kib, cache_skipped,
+                                  cache_refused, cache_lost, cache_policy.raises, cache_policy.reconverted_kib,
+                                  (uint64_t)cache_policy.mode };
+    for (unsigned int i = 0; i < count && i < 10; i++) out[i] = values[i];
+    return 10;
+}
+
 /* Wine's execute fault on [address, +bytes), one view's pages of one host protection, under virtual_mutex: the
  * direct or flexible memory there becomes JIT memory with the same contents, its direct memory is released, and the
  * range takes unix_prot, execute included, checked by query. Pages already JIT memory stay as they are, so running
  * code never goes read-only again: the engine's caller runs inside the regions, the pages the kernel lets run outside
  * them (only JIT memory keeps execute, K8). On failure the kernel holds again what it held before: unix_prot without
  * execute on direct and flexible memory, unix_prot on JIT memory. 0, or -1 with errno; a title has no JIT memory
- * (0x80020001): ENOTSUP. */
-int __wine_ps5_exec_convert(void *address, size_t bytes, int unix_prot)
+ * (0x80020001): ENOTSUP.
+ * An image's code that no one may write (image, unix_prot without write) is shared: each piece maps the registry's
+ * copy when one has its bytes, and otherwise is copied as before and its object given to the registry once the range
+ * holds unix_prot. Both are marked shared first, so a later write grant copies them (shared_privatize). */
+enum { OFFERS = 16 };   /* pieces per conversion: one per 16 KiB page of a 256 KiB window */
+static int exec_convert(void *address, size_t bytes, int unix_prot, int image)
 {
     const uintptr_t at = (uintptr_t)address, end = at + bytes;
-    PwWineDmem *engine = payload_allocate_direct ? &dmem : &flex;
-    const int active = payload_allocate_direct ? state : flex_state;   /* 0 during the self-check */
+    PwWineDmem *engine = payload_allocate_direct || !payload_mmap ? &dmem : &flex;
+    const int active = payload_allocate_direct || !payload_mmap ? state : flex_state;   /* 0 during the self-check */
+    /* shortcut: no code sharing in the title; add it if a second program ever runs there. */
+    const int share = payload_mmap && image && !(unix_prot & PROT_WRITE) && pw_ps5_code_ask && pw_ps5_code_offer;
+    struct { uint64_t hash; size_t bytes; int fd; uintptr_t at; } offers[OFFERS];
+    unsigned offer_count = 0;
     const char *step = "range";
     size_t piece = bytes;
-    int owned = 0, error;
+    int owned = 0, budgeted, error;
 
-    if (!payload_mmap) {
+    if (!payload_mmap && !title_jit) {
         errno = ENOTSUP;
         return -1;
     }
@@ -843,7 +1297,18 @@ int __wine_ps5_exec_convert(void *address, size_t bytes, int unix_prot)
     /* Outside the regions nothing tells Wine's mappings from another's but a GPU bit: refused before any change. */
     step = "gpu";
     if (!owned && refused_gpu(at, bytes)) return convert_failed(address, bytes, unix_prot, step);
+    /* A title converts only its own CPU-only direct memory: wired GPU memory's teardown hung the console (map). */
+    if (!payload_mmap && (!owned || map_protection != CPU_READ_WRITE)) {
+        errno = ENOTSUP;
+        return convert_failed(address, bytes, unix_prot, step);
+    }
+    /* The code budget: a helper's direct-memory engine, or the title's own (its JIT memory is the title's partition). */
+    budgeted = owned && (payload_allocate_direct || !payload_mmap);
+    if (budgeted) cache_make_room(bytes);
     for (uintptr_t from = at, to; from < end; from = to) {
+        int hit = 0, give = 0, kept = -1;
+        uint64_t hash = 0;
+
         for (to = from;
              to < end && (owned ? pw_wine_dmem_backed(engine, to, PAGE) : !kernel_allows(to, PAGE, PROT_EXEC));
              to += PAGE) {}
@@ -856,9 +1321,30 @@ int __wine_ps5_exec_convert(void *address, size_t bytes, int unix_prot)
             errno = ENOMEM;
             goto failed;
         }
-        if (jit_over(from, to - from, &step)) goto failed;
+        if (share && offer_count < OFFERS && !__atomic_load_n(&share_off, __ATOMIC_RELAXED)) {
+            if (shared_mark(from, to)) __atomic_add_fetch(&share_failures, 1, __ATOMIC_RELAXED);
+            else {
+                hash = pw_wine_codeshare_hash((const void *)from, to - from);
+                if ((hit = share_map(from, to - from, hash, &step)) < 0) goto failed;
+                give = !hit;   /* a copy of its own, for the registry */
+            }
+        }
+        if (!hit && jit_over(from, to - from, &step, give ? &kept : NULL)) goto failed;
         if (owned && pw_wine_dmem_adopt(engine, from, to - from))   /* releases the direct memory */
             __atomic_store_n(&backing_stale, 1, __ATOMIC_RELAXED);
+        else if (budgeted) cache_add(from, to - from);
+        if (hit) {
+            shared_count(from, to - from);
+            __atomic_add_fetch(&share_hits, 1, __ATOMIC_RELAXED);
+            __atomic_add_fetch(&share_kib, (to - from) >> 10, __ATOMIC_RELAXED);
+            continue;
+        }
+        if (give) {
+            offers[offer_count].hash = hash;
+            offers[offer_count].bytes = to - from;
+            offers[offer_count].at = from;
+            offers[offer_count++].fd = kept;
+        }
         __atomic_add_fetch(&conversions, 1, __ATOMIC_RELAXED);
         __atomic_add_fetch(&converted_kib, (to - from) >> 10, __ATOMIC_RELAXED);
     }
@@ -867,16 +1353,40 @@ int __wine_ps5_exec_convert(void *address, size_t bytes, int unix_prot)
               : payload_protect(address, bytes, unix_prot))
         goto failed;
     step = "query";
-    if (kernel_allows(at, bytes, unix_prot)) return 0;
+    if (kernel_allows(at, bytes, unix_prot)) {
+        /* Only now, read-only to every thread here, may another helper map them. */
+        for (unsigned i = 0; i < offer_count; i++) {
+            if (!__atomic_load_n(&share_off, __ATOMIC_RELAXED)) {
+                /* Kept: this copy is the registry's object. Another helper's kept first, a full registry or another
+                 * offer under way: this copy stays this helper's own. Anything else: the channel failed. */
+                if (!pw_ps5_code_offer(offers[i].hash, offers[i].bytes, offers[i].fd)) {
+                    shared_count(offers[i].at, offers[i].bytes);
+                    __atomic_add_fetch(&share_offers, 1, __ATOMIC_RELAXED);
+                } else if (errno != EEXIST && errno != ENOSPC && errno != EBUSY) share_lost("an offer", errno);
+            }
+            close(offers[i].fd);
+        }
+        return 0;
+    }
     errno = EACCES;
 failed:
     error = errno;
+    for (unsigned i = 0; i < offer_count; i++) close(offers[i].fd);   /* marked still: a needless copy at most */
     /* Execute stays on JIT memory and is dropped from direct and flexible memory (by the engine inside the regions, by
      * the kernel outside them). */
     (void)(owned ? pw_wine_dmem_protect(engine, at, bytes, (unsigned)unix_prot & 7)
                  : payload_protect(address, bytes, unix_prot));
     errno = error;
     return convert_failed(address, bytes, unix_prot, step);
+}
+int __wine_ps5_exec_convert(void *address, size_t bytes, int unix_prot)
+{
+    return exec_convert(address, bytes, unix_prot, 0);
+}
+/* The same for an image view's code (patch 1127): shared with other helpers where the bytes are the same. */
+int __wine_ps5_exec_convert_image(void *address, size_t bytes, int unix_prot)
+{
+    return exec_convert(address, bytes, unix_prot, 1);
 }
 
 /* Patch 1127's rule under virtual_mutex: 1 when the kernel already allows access (PROT_*) at address, so the
@@ -995,6 +1505,13 @@ int __wine_ps5_dmem_region(void *base, size_t size)
     if (!state) {
         measure_signature(page_down(base));
         state = (payload_mmap ? exec_self_check(&dmem, page_down(base)) : self_check((uintptr_t)base)) ? 1 : -1;
+        if (state < 0 && !payload_mmap) {   /* direct memory did not execute: convert, as a payload does */
+            title_jit = 1;
+            state = 0;   /* the check runs before use, as the first one did */
+            state = exec_self_check(&dmem, page_down(base)) ? 1 : -1;
+            fprintf(stderr, "wine-ps5: the title's code %s JIT memory\n", state > 0 ? "becomes" : "cannot become");
+            if (state < 0) title_jit = 0;
+        }
         fprintf(stderr, "wine-ps5: direct memory %s for anonymous memory (region %p, %zu MiB)\n",
                 state > 0 ? "in use" : "refused", base, size >> 20);
         if (state > 0) heap_area_init();
@@ -1014,7 +1531,7 @@ static int refuse_foreign(PwWineDmem *engine, uintptr_t at, uintptr_t end)
     return 0;
 }
 
-void *__wine_ps5_mmap(void *address, size_t bytes, int protection, int flags, int fd, off_t offset)
+static void *map_any(void *address, size_t bytes, int protection, int flags, int fd, off_t offset)
 {
     uintptr_t at = page_down(address), end = at + page_span(address, bytes);
     size_t piece;
@@ -1099,8 +1616,18 @@ void *__wine_ps5_mmap(void *address, size_t bytes, int protection, int flags, in
     return MAP_FAILED;
 }
 
+/* Whatever a fixed mapping replaced, a shared code copy included, is no longer this helper's mapping of it. */
+void *__wine_ps5_mmap(void *address, size_t bytes, int protection, int flags, int fd, off_t offset)
+{
+    void *mapped = map_any(address, bytes, protection, flags, fd, offset);
+
+    if (mapped != MAP_FAILED && (flags & MAP_FIXED))
+        shared_drop(page_down(mapped), page_down(mapped) + page_span(mapped, bytes));
+    return mapped;
+}
+
 /* Owned pages give their direct memory back, then their address space. */
-int __wine_ps5_munmap(void *address, size_t bytes)
+static int unmap_any(void *address, size_t bytes)
 {
     uintptr_t at = page_down(address), end = at + page_span(address, bytes);
     size_t piece;
@@ -1129,11 +1656,21 @@ int __wine_ps5_munmap(void *address, size_t bytes)
     return status ? -1 : 0;
 }
 
+int __wine_ps5_munmap(void *address, size_t bytes)
+{
+    const int status = unmap_any(address, bytes);
+
+    if (!status) shared_drop(page_down(address), page_down(address) + page_span(address, bytes));
+    return status;
+}
+
 int __wine_ps5_mprotect(void *address, size_t bytes, int protection)
 {
     uintptr_t at = page_down(address), end = at + page_span(address, bytes);
     size_t piece;
     int status = 0;
+
+    if ((protection & PROT_WRITE) && shared_privatize(at, end)) return -1;
 
     /* A range the loader gave back that is about to run: convert it to JIT memory here, before anything executes it,
      * so the first execute fault at the carrier's old address never happens (the kernel answers that fault with
@@ -1185,11 +1722,19 @@ int __wine_ps5_mprotect(void *address, size_t bytes, int protection)
  * heap's live bytes, allocations, frees and contended calls, then the last
  * refused call (PW_WINE_DMEM_FAILED_*), its address and bytes. Returns how
  * many counters there are. */
+/* The file-keyed image read: asks, hits, offers made, kept, refused. Out[0..4]. */
+unsigned int __wine_ps5_image_read_stats(uint64_t *out, unsigned int count)
+{
+    const uint64_t values[5] = { image_asks, image_hits, image_offers, image_kept, image_offer_errors };
+    for (unsigned int i = 0; i < count && i < 5; i++) out[i] = values[i];
+    return 5;
+}
+
 unsigned int __wine_ps5_memory_stats(uint64_t *out, unsigned int count)
 {
     PwWineDmemStats dmem_stats = { 0 };
     PwWineHeapStats heap_stats;
-    uint64_t values[15];
+    uint64_t values[20];
 
     if (state > 0) pw_wine_dmem_stats(&dmem, &dmem_stats);
     pw_wine_heap_stats(&heap_stats);
@@ -1208,8 +1753,13 @@ unsigned int __wine_ps5_memory_stats(uint64_t *out, unsigned int count)
     values[12] = dmem_stats.failed;
     values[13] = dmem_stats.failed_address;
     values[14] = dmem_stats.failed_bytes;
-    for (unsigned int i = 0; i < count && i < 15; i++) out[i] = values[i];
-    return 15;
+    values[15] = claim_attempts;
+    values[16] = claim_ok;
+    values[17] = claim_failed;
+    values[18] = claim_refused_align;
+    values[19] = claim_refused_region;
+    for (unsigned int i = 0; i < count && i < 20; i++) out[i] = values[i];
+    return 20;
 }
 
 /* Who holds an engine's lock and for how long (PwWineDmem.holder): out[0] its kernel thread id, 0 when neither
@@ -1257,6 +1807,7 @@ int __wine_ps5_dmem_file_region(void *address, size_t bytes)
             (pw_wine_dmem_check(engine, at, piece) || pw_wine_dmem_replace(engine, at, piece, 0) ||
              pw_wine_dmem_adopt(engine, at, piece)))
             return -1;
+    shared_drop(page_down(address), end);   /* the replace laid a reservation over any shared copy */
     return 0;
 }
 
@@ -1380,7 +1931,10 @@ int __wine_ps5_vm_gap(const void *address, const void *limit, pw_wine_vm_owned_q
  * not read as a bare one (check_laid): the guard would take every guard laid since for a foreign mapping. */
 int __wine_ps5_lay(void *address, size_t bytes)
 {
-    return lay(NULL, (uintptr_t)address, bytes);
+    const int status = lay(NULL, (uintptr_t)address, bytes);
+
+    if (!status) shared_drop((uintptr_t)address, (uintptr_t)address + bytes);
+    return status;
 }
 
 /* The next foreign entry found inside the regions and not yet given to Wine, which makes it a view of its own (patch

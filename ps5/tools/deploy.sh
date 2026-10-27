@@ -6,7 +6,10 @@
 # PS5_Vulkan's deploy tool uploads what changed, judged by size, over the
 # console's FTP server, with the address from PS5_Vulkan's .env. eboot.bin,
 # runtime-stamp and runtime-pack.txt go always: the stamp is 65 bytes whatever
-# runtime it names (loud-failures-2026-10-18: a new stamp was skipped). The console
+# runtime it names (loud-failures-2026-10-18: a new stamp was skipped). So do the
+# forwarder's programs: a change to a program's code can keep its file's size,
+# as its segments are page-aligned. Generated files are built to be reproducible
+# (tools/build-forwarder.sh, ps5/tools/generate_assets.py's faces). The console
 # guard comes first (no write on storage damage, a dropped console or a running
 # title) and last (ps5vkctl's sync); then tools/verify-title.py reads every
 # file back by sha256, which the next launch requires.
@@ -22,6 +25,7 @@ title_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titl
 # The console's address stays out of anything printed (AGENTS.md rule 5).
 mask() { sed -uE 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/<console>/g'; }
 python3 "$root/tools/console_guard.py" begin-write title 2>&1 | mask
-python3 "$vulkan/tools/deploy-title-folder.py" --always eboot.bin --always runtime-stamp --always runtime-pack.txt "$root/dist/$title_id" "$@" 2>&1 | mask
+python3 "$vulkan/tools/deploy-title-folder.py" --always eboot.bin --always runtime-stamp --always runtime-pack.txt \
+    --always forwarder/launch.elf --always forwarder/worker.elf "$root/dist/$title_id" "$@" 2>&1 | mask
 python3 "$root/tools/console_guard.py" end-write 2>&1 | mask
 python3 "$root/tools/verify-title.py" "$root/dist/$title_id" 2>&1 | mask

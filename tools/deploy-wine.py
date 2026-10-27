@@ -80,6 +80,26 @@ def probe_owned(prefix, relative):
             relative.endswith(('.dll', '.drv', '.sys', '.exe', '.ocx')))
 
 
+RUNTIME = 'runtime/ge11-7/'
+
+
+def runtime_files_gone(previous, manifest):
+    """The only files a deploy removes from the console: runtime files the previous deploy wrote (its manifest, read
+    back from the console) that this build no longer ships. Nothing outside runtime/ge11-7/ (prefixes, drive_c,
+    saves, game folders, /data), no path that is not plain (absolute, empty, '.' or '..' segments, a backslash) and
+    not the manifest itself, whatever the console's manifest says (tests/test_deploy_wine_retire.py)."""
+    gone = []
+    for path in previous:
+        if not isinstance(path, str) or not path.startswith(RUNTIME) or path in manifest:
+            continue
+        if '\\' in path or any(part in ('', '.', '..') for part in path.split('/')):
+            continue
+        if path == RUNTIME + 'deploy-manifest.json':
+            continue
+        gone.append(path)
+    return sorted(gone)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prefix', default='probe', type=lambda text: text if re.fullmatch(r'[A-Za-z0-9_-]+', text)
@@ -116,6 +136,7 @@ def main():
         except ftplib.error_perm:
             pass
         uploaded = changed_on_console = 0
+        sent = []   # what this deploy uploaded: only files whose digest changed since the last deploy, or gone from the console
         last_directory = None
         sizes = {}
 
@@ -176,8 +197,25 @@ def main():
             if check.hexdigest() != digest:
                 raise RuntimeError(f'Readback mismatch: {relative}')
             uploaded += 1
+            sent.append(relative)
             if uploaded % 100 == 0:
                 print(f'Uploaded and verified {uploaded} files', flush=True)
+        print(f'sent {len(sent)} of {len(manifest)} files' + (': ' + ', '.join(p.rsplit('/', 1)[-1] for p in sent[:30]) +
+                                                               (' ...' if len(sent) > 30 else '') if sent else ''), flush=True)
+        # Runtime files the last deploy wrote and this build no longer ships (a font left out: tools/stage-wine.py
+        # LEFT_OUT_FONTS): Wine would still load them from the console.
+        gone = runtime_files_gone(previous, manifest)
+        for relative in gone:
+            try:
+                ftp.delete(f'{base}/{relative}')
+            except ftplib.error_reply:   # the console's FTP answers DELE with 226, which ftplib raises
+                pass
+            except ftplib.error_perm as error:
+                if not str(error).startswith('550'):
+                    raise
+        if gone:
+            print(f'removed {len(gone)} runtime files this build no longer ships: ' +
+                  ', '.join(p.rsplit('/', 1)[-1] for p in gone[:30]), flush=True)
         if not prefix_exists:
             ftp.rename(f'{base}/prefixes/{install_prefix}', f'{base}/prefixes/{args.prefix}')
         users = f'{base}/prefixes/{args.prefix}/drive_c/users'

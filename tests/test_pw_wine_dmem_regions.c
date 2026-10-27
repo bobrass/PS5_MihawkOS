@@ -507,11 +507,153 @@ static void check_lock_waits(void)
     assert(!lock_overlaps && waited > 0.1 && spent < waited / 4);
 }
 
+/* Whole aligned 2 MiB windows are backed as separate pieces, so the console can map each with a page-directory entry
+ * instead of a page table; a range the run table cannot hold falls back to one piece, and a failed piece unmaps and
+ * releases the pieces before it. */
+static unsigned piece_allocs, piece_maps, piece_unmaps, piece_releases, fail_alloc_at;
+static size_t piece_alloc_bytes[16], piece_map_bytes[16];
+static int piece_allocate(void *context, size_t bytes, int64_t *offset)
+{
+    (void)context;
+    piece_allocs++;
+    if (piece_allocs <= 16) piece_alloc_bytes[piece_allocs - 1] = bytes;
+    if (fail_alloc_at && piece_allocs == fail_alloc_at) return -1;
+    *offset = (int64_t)piece_allocs * 0x200000; /* aligned, never continues the previous run */
+    return 0;
+}
+static int piece_map(void *context, uintptr_t address, size_t bytes, int64_t offset)
+{
+    (void)context; (void)address; (void)offset;
+    piece_maps++;
+    if (piece_maps <= 16) piece_map_bytes[piece_maps - 1] = bytes;
+    return 0;
+}
+static int piece_unmap(void *context, uintptr_t address, size_t bytes)
+{
+    (void)context; (void)address; (void)bytes;
+    piece_unmaps++;
+    return 0;
+}
+static int piece_release(void *context, int64_t offset, size_t bytes)
+{
+    (void)context; (void)offset; (void)bytes;
+    piece_releases++;
+    return 0;
+}
+static void check_big_window_split(void)
+{
+    static PwWineDmemRun runs[64];
+    const uintptr_t big = 0x200000;
+    PwWineDmem d;
+    PwWineDmemStats stats;
+    PwWineDmemOps ops = { NULL, 4096, fake_ok, piece_allocate, piece_map, fake_protect, piece_unmap,
+                          piece_release, 0, NULL, NULL };
+
+    piece_allocs = piece_maps = piece_unmaps = piece_releases = 0;
+    fail_alloc_at = 0;
+    assert(!pw_wine_dmem_init(&d, &ops, runs, 64, 0));
+    assert(!pw_wine_dmem_add_region(&d, 0x100000, 0x800000, 1));
+    /* [0x100000, 0x900000): a 1 MiB head, three whole windows, a 1 MiB tail */
+    assert(!pw_wine_dmem_protect(&d, 0x100000, 0x800000, PW_WINE_DMEM_READ | PW_WINE_DMEM_WRITE));
+    assert(piece_allocs == 5 && piece_maps == 5);
+    assert(piece_alloc_bytes[0] == 0x100000 && piece_map_bytes[0] == 0x100000);
+    assert(piece_alloc_bytes[1] == big && piece_alloc_bytes[2] == big && piece_alloc_bytes[3] == big);
+    assert(piece_alloc_bytes[4] == 0x100000);
+    assert(d.run_count == 2); /* contiguous pieces join their run when the direct memory continues */
+
+    /* A run table too small for one entry per piece backs it in one piece. */
+    piece_allocs = piece_maps = 0;
+    assert(!pw_wine_dmem_init(&d, &ops, runs, 3, 0));
+    assert(!pw_wine_dmem_add_region(&d, 0x100000, 0x800000, 1));
+    assert(!pw_wine_dmem_protect(&d, 0x100000, 0x800000, PW_WINE_DMEM_READ | PW_WINE_DMEM_WRITE));
+    assert(piece_allocs == 1 && piece_alloc_bytes[0] == 0x800000);
+
+    /* The third piece fails: the first two are unmapped and their direct memory released. */
+    piece_allocs = piece_maps = piece_unmaps = piece_releases = 0;
+    fail_alloc_at = 3;
+    assert(!pw_wine_dmem_init(&d, &ops, runs, 64, 0));
+    assert(!pw_wine_dmem_add_region(&d, 0x100000, 0x800000, 1));
+    assert(pw_wine_dmem_protect(&d, 0x100000, 0x800000, PW_WINE_DMEM_READ | PW_WINE_DMEM_WRITE) == -1);
+    assert(piece_allocs == 3 && piece_maps == 2 && piece_unmaps == 1 && piece_releases == 2);
+    assert(d.run_count == 0);
+    pw_wine_dmem_stats(&d, &stats);
+    assert(stats.backed_bytes == 0);
+    fail_alloc_at = 0;
+}
+
+/* A payload's converted code back to direct memory (pw_wine_dmem_restore, docs/FLEXIBLE_MEMORY.md): the bytes are filled
+ * before anything is mapped at the address, execute is dropped, and every refusal says whether the bytes are still there. */
+static char restore_log[64];
+static unsigned restore_steps;
+static int restore_fail_fill, restore_fail_map;
+static int64_t restore_released = -1;
+static void restore_note(char step) { if (restore_steps < sizeof(restore_log) - 1) restore_log[restore_steps++] = step; }
+static int restore_lay(void *context, uintptr_t address, size_t bytes) { (void)context; (void)address; (void)bytes; restore_note('L'); return 0; }
+static int restore_allocate(void *context, size_t bytes, int64_t *offset) { (void)context; (void)bytes; restore_note('A'); *offset = 0x7000000; return 0; }
+static int restore_map(void *context, uintptr_t address, size_t bytes, int64_t offset)
+{
+    (void)context; (void)address; (void)bytes; (void)offset;
+    restore_note('M');
+    return restore_fail_map;
+}
+static unsigned restore_protection;
+static int restore_protect(void *context, uintptr_t address, size_t bytes, unsigned protection)
+{
+    (void)context; (void)address; (void)bytes;
+    restore_note('P');
+    restore_protection = protection;
+    return 0;
+}
+static int restore_release(void *context, int64_t offset, size_t bytes) { (void)context; (void)bytes; restore_note('R'); restore_released = offset; return 0; }
+static int restore_fill(void *context, int64_t offset, uintptr_t from, size_t bytes)
+{
+    assert(context == (void *)restore_log && offset == 0x7000000 && from == 0x110000 && bytes == 0x8000);
+    restore_note('F');
+    return restore_fail_fill;
+}
+static void check_restore(void)
+{
+    static PwWineDmemRun runs[8];
+    const PwWineDmemOps ops = { NULL, 16384, fake_ok, restore_allocate, restore_map, restore_protect, fake_ok,
+                                restore_release, 1, restore_lay, NULL };
+    PwWineDmem d;
+    PwWineDmemRun run;
+
+    assert(!pw_wine_dmem_init(&d, &ops, runs, 8, 0));
+    assert(!pw_wine_dmem_add_region(&d, 0x100000, 0x100000, 1));
+    /* Not wholly the caller's (a bare page in it): nothing is asked of the kernel. */
+    assert(!pw_wine_dmem_adopt(&d, 0x110000, 0x4000));
+    restore_steps = 0;
+    assert(pw_wine_dmem_restore(&d, 0x110000, 0x8000, PW_WINE_DMEM_READ | PW_WINE_DMEM_EXEC, restore_fill, restore_log) == -1);
+    assert(!restore_steps);
+    /* Two touching runs of the caller's: allocated, filled, laid, mapped, protected read-only (execute dropped). */
+    assert(!pw_wine_dmem_adopt(&d, 0x114000, 0x4000));
+    restore_steps = 0; memset(restore_log, 0, sizeof(restore_log));
+    assert(!pw_wine_dmem_restore(&d, 0x110000, 0x8000, PW_WINE_DMEM_READ | PW_WINE_DMEM_EXEC, restore_fill, restore_log));
+    assert(!strcmp(restore_log, "AFLMP") && restore_protection == PW_WINE_DMEM_READ);
+    assert(pw_wine_dmem_backed(&d, 0x110000, 0x8000) == 0x8000);
+    assert(pw_wine_dmem_run_at(&d, 0x114000, &run) && run.offset == 0x7000000 && run.address == 0x110000);
+    /* A fill that fails: released, and the caller's mapping stays as it was. */
+    assert(!pw_wine_dmem_adopt(&d, 0x110000, 0x8000));
+    restore_fail_fill = 1; restore_steps = 0; memset(restore_log, 0, sizeof(restore_log));
+    assert(pw_wine_dmem_restore(&d, 0x110000, 0x8000, PW_WINE_DMEM_READ, restore_fill, restore_log) == -1);
+    assert(!strcmp(restore_log, "AFR") && !pw_wine_dmem_backed(&d, 0x110000, 0x8000) && !pw_wine_dmem_run_at(&d, 0x110000, &run));
+    restore_fail_fill = 0;
+    /* A map refused after the lay: -2, released, the range bare. */
+    restore_fail_map = 1; restore_steps = 0; memset(restore_log, 0, sizeof(restore_log));
+    assert(pw_wine_dmem_restore(&d, 0x110000, 0x8000, PW_WINE_DMEM_READ, restore_fill, restore_log) == -2);
+    assert(!strcmp(restore_log, "AFLMR") && !d.run_count);
+    restore_fail_map = 0;
+    /* Nothing of the caller's left there now. */
+    assert(pw_wine_dmem_restore(&d, 0x110000, 0x8000, PW_WINE_DMEM_READ, restore_fill, restore_log) == -1);
+}
+
 int main(void)
 {
     check_lock_waits();
     check_holder();
     check_last_failure();
+    check_big_window_split();
     check_bare_replace();
     check_remove_region();
     check_exec_caller_only();
@@ -519,6 +661,7 @@ int main(void)
     check_foreign_guard();
     check_pager_guards();
     check_hole_window();
+    check_restore();
     PwWineDmem d = {0};
     const uintptr_t page = 16384;
     d.ops.page = page;

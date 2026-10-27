@@ -30,7 +30,10 @@
 #include <sys/types.h>
 
 enum {
-    PW_CWD_PATH_MAX = 1024, PW_CWD_MAX_FDS = 4096,
+    /* PW_CWD_MAX_FDS: descriptor numbers whose path is kept. The title's in-process server held descriptor 8269 with
+     * Steam and a game running, and every name opened relative to a directory above 4096 was refused (a .NET game's
+     * "access denied" on Content\\Dialog\\Fonts, 2026-10-24). The table is pointers in zeroed memory: untouched pages cost nothing. */
+    PW_CWD_PATH_MAX = 1024, PW_CWD_MAX_FDS = 65536,
     PW_CWD_MAX_LINKS = 64, PW_CWD_MAX_HOPS = 16, PW_CWD_MAX_PROBED = 1024
 };
 #define PW_CWD_LINK_TABLE ".pw-symlinks"

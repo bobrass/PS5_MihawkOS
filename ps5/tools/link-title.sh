@@ -104,6 +104,18 @@ python3 "$root/tools/check-title-imports.py" "$work/eboot.elf.new" --stub-dir "$
 title_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titleId"])' "$param")
 app="$root/dist/$title_id"
 mkdir -p "$app/sce_sys" "$app/sce_module" "$app/shaders/glsl"
+# The WebUI's page, served from the title folder (src/pw_webui.hpp: title_root/webui)
+rm -rf "$app/webui"
+cp -r "$root/webui" "$app/webui"
+# Its language picker's flags: the guided setup's own SVGs (src/pw_webui.cpp's asset list names each one)
+mkdir -p "$app/webui/flags"
+cp "$root"/ps5/assets/flags/{us,fr,es,de,it,ru,cn,jp,br,pl}.svg "$root/ps5/assets/flags/LICENSE" "$app/webui/flags/"
+# The game forwarder's tile app and launch payload, which the WebUI copies into each tile it makes, and the tiles'
+# worker it sends to the ELF loader when a tile is made or removed
+forwarder=$(PS5_VULKAN_DIR="$vulkan" bash "$root/tools/build-forwarder.sh")
+rm -rf "$app/forwarder"
+mkdir -p "$app/forwarder"
+cp "$forwarder/eboot.bin" "$forwarder/launch.elf" "$forwarder/worker.elf" "$app/forwarder/"
 "$tool" self --sign --in "$work/eboot.elf.new" --out "$app/eboot.bin" --magic 0x1D3D154F
 "$tool" self --inspect --file "$app/eboot.bin" > /dev/null
 cp "$param" "$app/sce_sys/param.json"

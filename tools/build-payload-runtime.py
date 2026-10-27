@@ -17,7 +17,7 @@ def main():
  a=p.parse_args();base=a.base.resolve();out=a.output.resolve();prx=out/'prx';prx.mkdir(parents=True,exist_ok=True);(prx/'sce_module').mkdir(exist_ok=True)
  sdk=(ROOT/'.deps/native/ps5-payload-sdk').resolve();foundation=(ROOT/'.deps/prx-foundation').resolve();tool=foundation/'build/host/ps5-native-tool';pie=foundation/'tooling/native/ps5-pie.ld'
  if run(['git','-C',foundation,'rev-parse','HEAD']).strip()!='30597512539e7edfde079cbcaf4a626bc0a948c5':raise RuntimeError('PRX converter pin differs')
- if (sdk/'.ps5-sdk-revision').read_text().strip()!='611893fc25ef3e138f5bc2c90d829d8b58174cd2':raise RuntimeError('Payload SDK pin differs')
+ if (sdk/'.ps5-sdk-revision').read_text().strip()!='9d0487845ad50e3a266872cbbaaedc6ffafe3404':raise RuntimeError('Payload SDK pin differs')
  report=json.loads((base/'report.json').read_text())
  if report['wine_commit']!='1c78596625336a73dbfc035dbbcf0dbdd95b06eb':raise RuntimeError('Wine pin differs')
  for name in ('ntdll','wineserver','win32u'):
@@ -30,7 +30,7 @@ def main():
  dmem_obj=prx/'pw_wine_dmem_ps5.o'
  run([sdk/'bin/prospero-clang','-std=gnu11','-O2','-Wall','-Wextra','-Werror','-fPIC','-c',ROOT/'wine/ps5/pw_wine_dmem_ps5.c','-o',dmem_obj])
  exports=re.findall(r'extern char ([a-zA-Z0-9_]+)\[\];',(base/'prx/obj/ntdll_desc.c').read_text())
- for name in ('__wine_ps5_set_payload_memory','__wine_ps5_set_payload_low_image','__wine_ps5_set_payload_module','__wine_ps5_set_payload_sigaction','__wine_ps5_exec_stats','__wine_ps5_foreign_stats','__wine_ps5_exec_convert','__wine_ps5_host_allows','__wine_ps5_exec_refused'):
+ for name in ('__wine_ps5_set_payload_memory','__wine_ps5_set_payload_low_image','__wine_ps5_set_payload_module','__wine_ps5_set_payload_sigaction','__wine_ps5_exec_stats','__wine_ps5_code_share_stats','__wine_ps5_code_share_mapped_kib','__wine_ps5_foreign_stats','__wine_ps5_exec_convert','__wine_ps5_exec_convert_image','__wine_ps5_host_allows','__wine_ps5_exec_refused'):
   if name not in exports:exports.append(name)
  dl_obj=prx/'pw_wine_dl_libc.o'
  run([sdk/'bin/prospero-clang','-std=gnu11','-O2','-Wall','-Wextra','-Werror','-fPIC','-c',ROOT/'wine/ps5/pw_wine_dl_libc.c','-o',dl_obj])
@@ -40,7 +40,7 @@ def main():
  text=(base/'make.log').read_text().replace(chr(92)+chr(10),' ')
  lines=[l for l in text.splitlines() if '-o dlls/ntdll/ntdll.so ' in l]
  objects=[base/'build'/v for v in shlex.split(lines[-1]) if v.endswith('.o') and not v.startswith('/')]
- objects += [dmem_obj if n=='pw_wine_dmem_ps5' else base/'heap'/f'{n}.o' for n in ('pw_wine_heap','pw_wine_heap_libc','pw_wine_dmem','pw_wine_dmem_ps5','pw_wine_section','pw_wine_section_ps5','pw_wine_alias','pw_wine_mmu4k','pw_wine_mmu4k_slot','pw_wine_mmu4k_ps5','pw_ia32_isa','pw_ia32_decode')]
+ objects += [dmem_obj if n=='pw_wine_dmem_ps5' else base/'heap'/f'{n}.o' for n in ('pw_wine_heap','pw_wine_heap_libc','pw_wine_dmem','pw_wine_dmem_ps5','pw_wine_section','pw_wine_section_ps5','pw_wine_alias','pw_wine_codeshare','pw_wine_mmu4k','pw_wine_mmu4k_slot','pw_wine_mmu4k_ps5','pw_ia32_isa','pw_ia32_decode')]
  names=('pw_ntsync','pw_wine_ntsync','pw_wine_process','pw_wine_process_io','pw_wine_threads','pw_wine_prx','pw_wine_dl','pw_wine_dl_libc','pw_wine_compat','pw_wine_compat_libc','pw_wine_sink','pw_audio_ring','pw_memory_helper','pw_memory_service','pw_wine_perf','pw_wine_cwd','pw_wine_cwd_libc','pw_wine_fdv','pw_wine_fdv_libc','ntdll_desc')
  objects += [obj if n=='pw_wine_process' else dl_obj if n=='pw_wine_dl_libc' else desc_obj if n=='ntdll_desc' else base/'prx/obj'/f'{n}.o' for n in names]
  wraps=sorted(set(re.findall('__wrap_([a-z_0-9]+)',(ROOT/'wine/ps5/pw_wine_cwd_libc.c').read_text()+(ROOT/'wine/ps5/pw_wine_fdv_libc.c').read_text())))

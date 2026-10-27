@@ -123,6 +123,9 @@ typedef struct PwWineDmemStats {
     /* Foreign entries recorded, unmaps that went around one, mappings refused (one found, or no answer), and queries
      * the kernel did not answer. */
     uint64_t foreign_found, unmaps_skipped, maps_refused, query_failures;
+    /* Backing calls by size (<4 KiB, <64 KiB, <1 MiB, <2 MiB, >=2 MiB) and how many covered whole aligned 2 MiB
+     * windows: the placement measurement behind the 2 MiB page and consolidation work. */
+    uint64_t commits[5], commits_2m_aligned;
 } PwWineDmemStats;
 
 /* A foreign entry's range inside the regions, on whole pages, clipped to the call that found it. pending until the
@@ -193,6 +196,15 @@ int pw_wine_dmem_split(PwWineDmem *, uintptr_t address, size_t bytes, size_t *pi
  * change. Only the runs are torn down: a bare part is left alone, it is
  * reserved already, so protection 0 over no run asks the kernel nothing. */
 int pw_wine_dmem_replace(PwWineDmem *, uintptr_t address, size_t bytes, unsigned protection);
+/* [address, +bytes), wholly the caller's mapping (a payload's converted code, docs/FLEXIBLE_MEMORY.md), back to fresh
+ * direct memory with protection (execute dropped when exec_caller_only). fill(fill_context, offset, address, bytes)
+ * writes the range's bytes into that memory, through a mapping of its own, before anything is mapped at address: a
+ * thread reading there meanwhile sees the old bytes, or finds a bare reservation, faults and waits on the caller's
+ * lock; it never sees other bytes. The caller holds the range read-only meanwhile, so no write is lost. 0; -1 with
+ * nothing changed (not wholly the caller's, the table full, allocate, fill or the lay refused); -2 when the map or
+ * protect after the lay was refused: the range is a bare reservation and its bytes are gone. */
+int pw_wine_dmem_restore(PwWineDmem *, uintptr_t address, size_t bytes, unsigned protection,
+                         int (*fill)(void *context, int64_t offset, uintptr_t from, size_t bytes), void *fill_context);
 /* Before the caller maps something of its own over [address, +bytes) with a fixed mapping: 0, or -1 with errno EEXIST
  * when a foreign entry lies in its bare parts (or the kernel did not answer), recorded. */
 int pw_wine_dmem_check(PwWineDmem *, uintptr_t address, size_t bytes);
@@ -227,5 +239,19 @@ int pw_wine_dmem_run_at(PwWineDmem *, uintptr_t address, PwWineDmemRun *run);
 /* How many bytes of the range are backed by direct memory. */
 size_t pw_wine_dmem_backed(PwWineDmem *, uintptr_t address, size_t bytes);
 void pw_wine_dmem_stats(PwWineDmem *, PwWineDmemStats *);
+/* Where the backed pages are: 2 MiB windows touched, how full each is, and how many runs are whole aligned windows.
+ * One run per window means the count is exact; a window holding two neighbouring runs counts twice (backing is done
+ * per commit, so this only matters before a window is fully covered). while_locked: the caller holds the engine lock
+ * (the kernel operations are called under it and must not take it again). */
+typedef struct PwWineDmemPlacement {
+    uint64_t regions, runs, windows, full, part[3], runs_2m, backed_bytes;
+    uint64_t commits[5], commits_2m_aligned;
+    /* Windows whose runs lie in a reservation of 4 MiB or more (the application chose the offsets inside it, so
+     * packing cannot move them) and in smaller reservations (the port chose the address). part: windows holding
+     * at most 1/8, at most 1/2, and less than a whole 2 MiB window. */
+    uint64_t win_big_region, win_small_region;
+} PwWineDmemPlacement;
+void pw_wine_dmem_placement(PwWineDmem *, PwWineDmemPlacement *);
+void pw_wine_dmem_placement_locked(PwWineDmem *, PwWineDmemPlacement *);
 
 #endif

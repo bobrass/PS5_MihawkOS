@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 20:10:00 -0400
+Subject: [PATCH] ntdll: say which open was refused on the PS5
+
+An open that ends in STATUS_ACCESS_DENIED logs its name, root handle, Unix
+path, access, sharing, disposition and options at the err level, which is
+always on. A .NET game's directory listing failed with "access denied" only
+inside the game, and tracing every file call slowed its launcher to a stop.
+---
+--- a/dlls/ntdll/unix/file.c	2026-10-24 20:12:29.893732761 -0400
++++ b/dlls/ntdll/unix/file.c	2026-10-24 20:12:29.905675203 -0400
+@@ -5004,6 +5004,14 @@
+         name_hidden = is_hidden_file( unix_name );
+         status = open_unix_file( handle, unix_name, access, &new_attr, attributes,
+                                  sharing, disposition, options, ea_buffer, ea_length );
++#ifdef __PROSPERO__
++        /* A refused open is rare and expensive to find without this line: a .NET game's directory listing failed with
++         * "access denied" only inside the game (a .NET game, 2026-10-24), and tracing every file call slows a launcher to a stop. */
++        if (status == STATUS_ACCESS_DENIED)
++            ERR( "access denied: %s root %p unix %s access %08x sharing %08x disposition %u options %08x\n",
++                 debugstr_us(attr->ObjectName), attr->RootDirectory, debugstr_a(unix_name), (unsigned int)access,
++                 (unsigned int)sharing, (unsigned int)disposition, (unsigned int)options );
++#endif
+     }
+     else WARN( "%s not found (%x)\n", debugstr_us(attr->ObjectName), status );
+ 

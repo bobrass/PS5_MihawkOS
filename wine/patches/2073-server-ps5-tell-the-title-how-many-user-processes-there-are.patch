@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PS5_Proton
+Subject: [PATCH] server: ps5: tell the title how many user processes the server counts.
+
+A program that restarts itself ends its first process after starting its second (a store client does so at the end
+of its first update, twice on a fresh install). The title took the first process's end for the session's end and
+closed the second 15 s later, so the client never reached its window. Wine's own rule is the last user process: the
+server counts them (user_processes) and shuts down when it reaches 0. This exports that count; the title follows it
+for the entries that ask (PROTON_SESSION_FOLLOWS=processes). Nothing else changes.
+
+--- a/server/process.c
++++ b/server/process.c
+@@ -2231,3 +2231,13 @@
+                  used ? name : "-" );
+     }
+ }
++
++#ifdef WINE_INPROCESS_SERVER
++/* PS5: how many user (non-system) processes the server counts, for the title. A program that restarts itself (a client's
++ * first update does: its first process starts the second and ends) leaves its root's result set while the session goes
++ * on; the count Wine's own shutdown waits on, the last user process, is the one the title follows. */
++DECLSPEC_EXPORT int pw_wineserver_user_processes(void)
++{
++    return __atomic_load_n( &user_processes, __ATOMIC_RELAXED );
++}
++#endif

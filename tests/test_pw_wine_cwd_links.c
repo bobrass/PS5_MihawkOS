@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include "pw_wine_cwd.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -65,6 +66,15 @@ int main(void)
     /* The folder's own path and a missing name still answer as before. */
     assert(!strcmp(read_all(at("drive_c/users/steamuser/Documents/save.txt")), "day 12"));
     assert(stat(at("dosdevices/c:/users/nobody/Documents"), &state) == -1 && errno == ENOENT);
+
+    /* A directory descriptor numbered past 4096 keeps its path: the title's server reached 8269 (a .NET game, 2026-10-24). */
+    {
+        char joined[PW_CWD_PATH_MAX];
+        pw_cwd_track(8269, at("drive_c"));
+        assert(pw_cwd_resolve_at(8269, -100, "users", joined, sizeof(joined)) == 0 && !strcmp(joined, at("drive_c/users")));
+        pw_cwd_forget(8269);
+        assert(pw_cwd_resolve_at(8269, -100, "users", joined, sizeof(joined)) == -1);
+    }
 
     char cleanup[600];
     snprintf(cleanup, sizeof(cleanup), "rm -rf '%s'", base);

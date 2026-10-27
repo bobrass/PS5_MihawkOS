@@ -42,6 +42,7 @@ bool proton_gpu_broker_start(bool capture,bool local)
     return ps5_gpu_broker_start(proton_app_root(),capture,local,proton_native_absent);
 }
 int proton_gpu_broker_open(int *cookie,int pid) { return ps5_gpu_broker_open_for_pid(cookie,pid); }
+int proton_gpu_broker_open_in_owner(int *cookie) { return ps5_gpu_broker_open_in_owner(cookie); }
 void proton_gpu_broker_close(int cookie,int token) { ps5_gpu_broker_close(cookie,token); }
 bool proton_gpu_broker_stop() { return ps5_gpu_broker_stop(); }
 bool proton_gpu_broker_warm(FILE *out) { return ps5_gpu_broker_warm(out); }

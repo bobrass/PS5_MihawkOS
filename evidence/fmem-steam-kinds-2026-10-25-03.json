@@ -1,0 +1,18 @@
+{
+ "run": "fmem-steam-kinds-2026-10-25-03",
+ "what": "profile steam",
+ "env": [
+  "WINE_PS5_EARLY=1",
+  "WINE_PS5_VMMAP=1",
+  "WINE_PS5_CENSUS_MS=1000:100:1000",
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "no launch: the console dropped off the network (ps5vkctl was pid 115 this boot and is now pid 252: it was gone and was loaded again, 2026-10-25 17:06:55). It must be restarted by hand, then: tools/console_guard.py new-boot",
+ "loaded": false,
+ "probe_verdict": null,
+ "stop_requested": null,
+ "cleanup_verified": false,
+ "hooks_removed": true
+}

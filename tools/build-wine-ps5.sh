@@ -18,7 +18,9 @@
 # 0900-0999 what testing and diagnosis need (a program's standard output), and the fixes the conformance tests found;
 # 1000-1999 the Mihawk OS shell and desktop (0900-0999 was full on 2026-10-10);
 # 2000-2099 GE-Proton's ffmpeg + winedmo video rework, imported from the pinned fork's patches/ge-video-rework as
-# it is, after the PS5 series it was rebased onto (each patch keeps GE's authorship and notes its rebase).
+# it is, after the PS5 series it was rebased onto (each patch keeps GE's authorship and notes its rebase);
+# 2300-2399 the flexible-memory work (branch fmem-codecache, docs/FLEXIBLE_MEMORY.md), clear of the other branches';
+# 2400-2499 the guided store-client setup and the controller choice (src/pw_steam_guide.h, src/pw_controller.h).
 #
 # Two links follow. The ELF link builds Wine's own targets against the
 # payload SDK and reports, rather than fails on, unresolved symbols. The PRX
@@ -101,12 +103,13 @@ FREETYPE_EXPORTS="FT_Done_Face FT_Get_Char_Index FT_Get_First_Char FT_Get_Next_C
  FT_Outline_Decompose FT_Outline_Done FT_Outline_EmboldenXY FT_Outline_New"
 TARGETS="dlls/ntdll/ntdll.so dlls/win32u/win32u.so server/wineserver dlls/winevulkan/winevulkan.so
  dlls/opengl32/opengl32.so dlls/ws2_32/ws2_32.so dlls/crypt32/crypt32.so dlls/winebus.sys/winebus.so
- dlls/bcrypt/bcrypt.so dlls/secur32/secur32.so dlls/dwrite/dwrite.so dlls/nsiproxy.sys/nsiproxy.so dlls/dnsapi/dnsapi.so"
+ dlls/bcrypt/bcrypt.so dlls/secur32/secur32.so dlls/dwrite/dwrite.so dlls/nsiproxy.sys/nsiproxy.so dlls/dnsapi/dnsapi.so
+ dlls/mountmgr.sys/mountmgr.so"
 # The module directories whose Unix side the PRX link below builds. A patch to
 # any other module's Unix side would reach no console build, so
 # tools/wine-patched-modules.py stops the build on one.
 UNIX_MODULES="dlls/ntdll dlls/win32u dlls/winevulkan dlls/opengl32 dlls/ws2_32 dlls/crypt32 dlls/winebus.sys
- dlls/bcrypt dlls/secur32 dlls/xinput1_3 dlls/dwrite dlls/nsiproxy.sys dlls/dnsapi dlls/winedmo"
+ dlls/bcrypt dlls/secur32 dlls/xinput1_3 dlls/dwrite dlls/nsiproxy.sys dlls/dnsapi dlls/winedmo dlls/mountmgr.sys"
 # Everything optional but FreeType (built below) is off: the console has none
 # of these libraries, and a configure-time probe against the payload SDK must
 # not pick up host headers.
@@ -159,13 +162,13 @@ done
 
 # The pinned OpenGL SDK is linked unless it is declined: a win32u.prx built without it has no OpenGL, and every OpenGL
 # game (a .NET MonoGame game, a Java game) then fails at its first GL call, which looks like a regression elsewhere.
-if [ -z "$ps5opengl_sdk" ] && [ "$no_opengl" = 0 ] && [ -f "$root/.deps/ps5-opengl-sdk-1.0.0/sdk/manifest.sha256" ]; then
-    ps5opengl_sdk=$root/.deps/ps5-opengl-sdk-1.0.0/sdk
+if [ -z "$ps5opengl_sdk" ] && [ "$no_opengl" = 0 ] && [ -f "$root/.deps/ps5-opengl-sdk-1.0.2/sdk/manifest.sha256" ]; then
+    ps5opengl_sdk=$root/.deps/ps5-opengl-sdk-1.0.2/sdk
     echo "linking the pinned OpenGL SDK: $ps5opengl_sdk (--no-opengl to decline)"
 fi
 # Missing, it stops the build: only --no-opengl builds without it (the helper runtime, tools/build-production.sh).
 [ -n "$ps5opengl_sdk" ] || [ "$no_opengl" = 1 ] || [ "$check_only" = 1 ] ||
-    fail "no OpenGL SDK at $root/.deps/ps5-opengl-sdk-1.0.0/sdk: run tools/fetch-opengl-sdk.sh, or pass --no-opengl"
+    fail "no OpenGL SDK at $root/.deps/ps5-opengl-sdk-1.0.2/sdk: run tools/fetch-opengl-sdk.sh, or pass --no-opengl"
 [ -z "$ps5vk_sdk" ] || [ -z "$radv" ] || fail "--ps5vk-sdk and --radv both name libvulkan.prx; give one"
 [ -z "$ps5opengl_sdk" ] || [ -f "$ps5opengl_sdk/lib/libPS5OpenGL.a" ] ||
     [ -f "$ps5opengl_sdk/lib/libPS5OpenGLCore33.a" ] ||
@@ -198,8 +201,8 @@ series() {
             fail "patch name must be NNNN-lower-case-words.patch: $patch"
         number=$(printf '%s' "$patch" | cut -c1-4 | sed 's/^0*//')
         number=${number:-0}
-        [ "$number" -ge 100 ] && [ "$number" -le 2099 ] ||
-            fail "patch number outside 0100-2099: $patch"
+        [ "$number" -ge 100 ] && [ "$number" -le 2499 ] ||
+            fail "patch number outside 0100-2499: $patch"
         [ "$number" -ne "$last" ] || fail "duplicate patch number: $patch"
         last=$number
         grep -q '^Subject: ' "$patches/$patch" || fail "patch has no Subject: $patch"
@@ -437,12 +440,14 @@ done
 # Wine's makedep resolves unlisted headers beside the including source, independently
 # of compiler CFLAGS. Install the repository-owned interface headers as build
 # inputs; implementation stays in wine/ps5, never edited in the vendor tree.
-for header in pw_wine_section.h pw_wine_section_ps5.h pw_wine_alias.h pw_wine_mmu4k.h; do
+for header in pw_wine_section.h pw_wine_section_ps5.h pw_wine_alias.h pw_wine_mmu4k.h pw_wine_xattr.h; do
     cp -p "$root/wine/ps5/$header" "$tree/dlls/ntdll/unix/$header"
 done
 cp -p "$root/wine/ps5/pw_wine_perf.h" "$tree/dlls/winedmo/pw_wine_perf.h"   # patch 2065's media counters
+cp -p "$root/src/pw_umip.h" "$tree/dlls/ntdll/unix/pw_umip.h"   # patch 2102's UMIP emulation
 cp -p "$root/src/pw_window_snapshot.h" "$tree/server/pw_window_snapshot.h"
 cp -p "$root/wine/ps5/pw_wine_cursor.h" "$tree/server/pw_wine_cursor.h"
+cp -p "$root/wine/ps5/pw_wine_xattr.h" "$tree/server/pw_wine_xattr.h"   # a reparse point's data (patch 2092)
 opengl_cflags=${CFLAGS:--g -O2}
 if [ -n "$ps5opengl_sdk" ]; then opengl_cflags="$opengl_cflags -DWINE_PS5_OPENGL"; fi
 
@@ -511,9 +516,10 @@ for unit in pw_wine_heap pw_wine_heap_libc; do
     heap="$heap $work/heap/$unit.o"
 done
 # ntdll's anonymous memory comes from direct memory (patch 0600); every release of it forgets its aliases first
-# (pw_wine_alias, docs/MMU4K.md).
+# (pw_wine_alias, docs/MMU4K.md); an image's code is shared between helpers (pw_wine_codeshare) and held to a budget
+# (pw_wine_code_budget).
 dmem=""
-for unit in pw_wine_dmem pw_wine_dmem_ps5 pw_wine_section pw_wine_section_ps5 pw_wine_alias; do
+for unit in pw_wine_dmem pw_wine_dmem_ps5 pw_wine_section pw_wine_section_ps5 pw_wine_alias pw_wine_codeshare pw_wine_code_budget; do
     "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/$unit.c" -o "$work/heap/$unit.o" || fail "cannot compile $unit.c"
     dmem="$dmem $work/heap/$unit.o"
@@ -538,14 +544,16 @@ mmu4k_outside=$("$sdk/bin/llvm-nm" --undefined-only "$work/heap/pw_wine_mmu4k.o"
 "$sdk/bin/prospero-clang" -c "$root/wine/ps5/pw_wine_mmu4k_slot.S" -o "$work/heap/pw_wine_mmu4k_slot.o" ||
     fail "cannot assemble pw_wine_mmu4k_slot.S"
 dmem="$dmem $work/heap/pw_wine_mmu4k.o $work/heap/pw_wine_mmu4k_slot.o"
-for source in wine/ps5/pw_wine_mmu4k_ps5.c src/pw_ia32_isa.c src/pw_ia32_decode.c; do
+# src/pw_umip.c: what an instruction the CPU refuses under UMIP would have stored (patch 2102); it uses the decoder.
+for source in wine/ps5/pw_wine_mmu4k_ps5.c src/pw_ia32_isa.c src/pw_ia32_decode.c src/pw_umip.c; do
     unit=$(basename "$source" .c)
     "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/$source" -o "$work/heap/$unit.o" || fail "cannot compile $source"
     dmem="$dmem $work/heap/$unit.o"
 done
 process_shims=""
-for unit in pw_wine_process pw_wine_process_io pw_wine_threads pw_wine_prefix pw_wine_vm; do
+# pw_wine_xattr: the extended attributes the console's file system has not (patch 2090)
+for unit in pw_wine_process pw_wine_process_io pw_wine_threads pw_wine_prefix pw_wine_vm pw_wine_xattr; do
     "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/$unit.c" -o "$work/heap/$unit.o" || fail "cannot compile $unit.c"
     process_shims="$process_shims $work/heap/$unit.o"
@@ -565,10 +573,10 @@ status=0
 : > "$work/make.log"
 # LDFLAGS is not a make dependency, so relink the three targets every run.
 (cd "$build" && rm -f $TARGETS)
-for step in "dlls/ntdll/ntdll.so|$heap $dmem $process_shims" "dlls/win32u/win32u.so|$work/heap/pw_wine_wallpaper.o" "server/wineserver|$heap" \
+for step in "dlls/ntdll/ntdll.so|$heap $dmem $process_shims" "dlls/win32u/win32u.so|$work/heap/pw_wine_wallpaper.o" "server/wineserver|$heap $work/heap/pw_wine_xattr.o" \
         "dlls/winevulkan/winevulkan.so|" "dlls/opengl32/opengl32.so|" "dlls/ws2_32/ws2_32.so|" \
         "dlls/crypt32/crypt32.so|" "dlls/winebus.sys/winebus.so|" "dlls/bcrypt/bcrypt.so|" "dlls/secur32/secur32.so|" \
-        "dlls/dwrite/dwrite.so|" "dlls/nsiproxy.sys/nsiproxy.so|" "dlls/dnsapi/dnsapi.so|"; do
+        "dlls/dwrite/dwrite.so|" "dlls/nsiproxy.sys/nsiproxy.so|" "dlls/dnsapi/dnsapi.so|" "dlls/mountmgr.sys/mountmgr.so|"; do
     target=${step%%|*}; objects=${step#*|}
     make -C "$build" -k -j"$jobs" LDFLAGS="$objects $base" "$target" \
         >> "$work/make.log" 2>&1 || status=$?
@@ -648,6 +656,13 @@ link_prx() {
 EOF
         link_options="--gc-sections --version-script=$prx/obj/$name.exports"
     fi
+    # The mount manager reads and makes the prefix's dosdevices links, which a title keeps in ntdll's virtual link
+    # table (symlink() is libkernel_sys, pw_wine_cwd.h): its path and descriptor calls go through ntdll's wraps.
+    # win32u opens every font file by its Unix name, dosdevices/c:/... (freetype.c unix_face_create): without the
+    # wraps the prefix's Fonts and every font a program added (AddFontResourceEx: gdi32 font.c:2118, 6300, 7080,
+    # 2026-10-27) failed to open, and only the runtime's share/wine/fonts copies loaded.
+    # shellcheck disable=SC2154
+    [ "$name" != mountmgr ] && [ "$name" != win32u ] || link_options="$cwd_wraps"
     for module in ${4:-}; do stubs="$stubs --stub $module"; done
     [ "$2" = - ] || objects=$(link_objects "$2")
     log=$prx/$name.link.log
@@ -676,7 +691,8 @@ EOF
         (cd "$build" && "$sdk/bin/prospero-clang++" -shared -nodefaultlibs -Wl,--build-id=none \
             -Wl,-Bsymbolic -Wl,-T,"$pie" -Wl,-T,"$root/wine/ps5/prx_eh_frame.ld" \
             -Wl,--eh-frame-hdr -Wl,-soname,"$name.prx" -Wl,-z,defs \
-            -Wl,--warn-unresolved-symbols -L"$work/ps5lib" -L"$ps5opengl_sdk/lib" \
+            -Wl,--warn-unresolved-symbols $(for option in $link_options; do printf -- '-Wl,%s ' "$option"; done) \
+            -L"$work/ps5lib" -L"$ps5opengl_sdk/lib" \
             -Wl,-u,ps5_agc_gate2_run -o "$prx/$name.shared.elf" $objects $3 ${4:-} \
             -Wl,--start-group -l"$ps5opengl_lib" -Wl,--end-group \
             -Wl,--start-group "$sdk/target/lib/libunwind.a" \
@@ -701,7 +717,8 @@ EOF
 if [ "$prx_status" = 0 ]; then
     for unit in pw_wine_prx pw_wine_dl pw_wine_dl_libc pw_wine_compat pw_wine_compat_libc pw_wine_net_libc \
             pw_wine_threads pw_wine_threads_libc pw_wine_sink pw_wine_window pw_wine_pages pw_wine_pages_ps5 pw_wine_blocks pw_wine_dsection pw_wine_dmap pw_wine_perf pw_wine_cwd pw_wine_cwd_libc \
-            pw_wine_fdv pw_wine_fdv_libc pw_dmem_trace pw_wine_process pw_wine_process_io pw_wine_prefix pw_wine_vm pw_wine_wallpaper; do
+            pw_wine_fdv pw_wine_fdv_libc pw_dmem_trace pw_wine_process pw_wine_process_io pw_wine_prefix pw_wine_vm pw_wine_wallpaper \
+            pw_wine_xattr; do
         "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
             -c "$root/wine/ps5/$unit.c" -o "$prx/obj/$unit.o" || fail "cannot compile $unit.c"
     done
@@ -735,7 +752,7 @@ if [ "$prx_status" = 0 ]; then
     # threads while each headless child keeps its own native thread registry.
     shims="$prx/obj/pw_elfldr.o $prx/obj/pw_environment.o $prx/obj/pw_wine_vm.o $prx/obj/pw_wine_prefix.o $prx/obj/pw_wine_launch.o $prx/obj/pw_ntsync.o $prx/obj/pw_wine_ntsync.o $prx/obj/pw_wine_process.o $prx/obj/pw_wine_process_io.o $prx/obj/pw_wine_threads.o $prx/obj/pw_audio_ring.o $prx/obj/pw_memory_helper.o $prx/obj/pw_memory_service.o"
     for unit in pw_wine_prx pw_wine_dl pw_wine_dl_libc pw_wine_compat pw_wine_compat_libc pw_wine_net_libc \
-            pw_wine_sink pw_wine_window pw_wine_pages pw_wine_pages_ps5 pw_wine_blocks pw_wine_dsection pw_wine_dmap pw_window_page pw_wine_perf pw_wine_cwd pw_wine_cwd_libc pw_wine_fdv pw_wine_fdv_libc; do
+            pw_wine_sink pw_wine_window pw_wine_pages pw_wine_pages_ps5 pw_wine_blocks pw_wine_dsection pw_wine_dmap pw_window_page pw_wine_perf pw_wine_cwd pw_wine_cwd_libc pw_wine_fdv pw_wine_fdv_libc pw_wine_xattr; do
         shims="$shims $prx/obj/$unit.o"
     done
     # A title cannot chdir: ntdll and wineserver each keep their own working
@@ -752,18 +769,18 @@ if [ "$prx_status" = 0 ]; then
         pw_wine_present pw_wine_next_input pw_wine_input_fd \
         pw_wine_set_dualsense pw_wine_dualsense pw_wine_input_note pw_wine_input_stats pw_wine_set_pad pw_wine_rumble pw_wine_pad pw_wine_set_rumble \
         pw_wine_set_audio_sink pw_wine_audio_available pw_wine_audio_output \
-        __wine_virtual_stats __wine_file_write_stats __wine_file_call_stats __wine_ps5_section_stats __wine_ps5_mmu4k_stats __wine_virtual_image_stats __wine_virtual_fault_top __wine_ps5_set_output_sink __wine_ps5_memory_stats __wine_ps5_dmem_holder __wine_ps5_exec_stats __wine_ps5_foreign_stats __wine_ps5_exec_convert __wine_ps5_host_allows __wine_ps5_exec_refused __wine_ps5_set_payload_memory __wine_ps5_set_payload_low_image __wine_ps5_set_payload_direct_memory __wine_ps5_set_payload_module __wine_ps5_set_payload_sigaction __wine_ps5_set_payload_thread_start pw_cwd_set \
+        __wine_virtual_stats __wine_file_write_stats __wine_file_call_stats __wine_ps5_section_stats __wine_ps5_mmu4k_stats __wine_virtual_image_stats __wine_virtual_fault_top __wine_ps5_set_output_sink __wine_ps5_memory_stats __wine_ps5_image_read_stats __wine_ps5_dmem_holder __wine_ps5_exec_stats __wine_ps5_code_share_stats __wine_ps5_code_share_mapped_kib __wine_ps5_code_cache_stats __wine_ps5_foreign_stats __wine_ps5_exec_convert __wine_ps5_exec_convert_image __wine_ps5_host_allows __wine_ps5_exec_refused __wine_ps5_set_payload_memory __wine_ps5_set_payload_low_image __wine_ps5_set_payload_direct_memory __wine_ps5_set_payload_module __wine_ps5_set_payload_sigaction __wine_ps5_set_payload_thread_start pw_cwd_set \
         pw_wine_set_display_release pw_wine_release_display \
         pw_wine_perf_set_tsc_hz pw_wine_perf_snapshot pw_wine_perf_frame_percentile pw_wine_perf_vlock_read \
         pw_wine_threads_sample pw_wine_describe_thread pw_wine_perf_ticks pw_wine_perf_frame pw_wine_perf_media pw_wine_server_flush pw_wine_server_terminate ps5_thread_is_terminating \
         pw_wine_add_exit_hook pw_wine_stop_audio pw_wine_fdv_stats pw_wine_add_thread_exit_hook \
         pw_wine_server_snapshot pw_ntsync_dump pw_ntsync_counters pw_ntsync_region_bytes pw_ntsync_process_gone pw_wine_ntsync_start pw_ps5_child_start pw_ps5_child_exit pw_ps5_child_doomed pw_ps5_child_doom \
-        pw_ps5_set_initial_environment pw_ps5_initial_environment pw_ps5_start_root pw_ps5_start_memory_helper pw_ps5_memory_lock_busy pw_ps5_helpers pw_ps5_shared_alloc pw_ps5_transport_alloc pw_ps5_shared_touch pw_ps5_dmem_alloc pw_ps5_dmem_free pw_ps5_dmem_grant pw_ps5_dsection_register pw_ps5_dsection_release pw_ps5_dsection_collect_now pw_ps5_end_spawns pw_ps5_dsection_page pw_ps5_memory_census pw_ps5_child_memory pw_ps5_child_protocol pw_ps5_root_result pw_ps5_root_present pw_ps5_unload_root pw_ps5_wait_children pw_ps5_remote_signal pw_ps5_remote_close pw_ps5_set_graphics_start pw_ps5_set_application_lookup pw_ps5_set_fixed_base_lookup pw_ps5_set_child_notice pw_ps5_set_gpu_broker
+        pw_ps5_set_initial_environment pw_ps5_initial_environment pw_ps5_start_root pw_ps5_start_memory_helper pw_ps5_memory_lock_busy pw_ps5_helpers pw_ps5_shared_alloc pw_ps5_transport_alloc pw_ps5_shared_touch pw_ps5_dmem_alloc pw_ps5_dmem_free pw_ps5_dmem_grant pw_ps5_dsection_register pw_ps5_dsection_release pw_ps5_dsection_collect_now pw_ps5_end_spawns pw_ps5_dsection_page pw_ps5_memory_census pw_ps5_code_share_duplicate_bytes pw_ps5_child_memory pw_ps5_child_protocol pw_ps5_root_result pw_ps5_root_present pw_ps5_unload_root pw_ps5_wait_children pw_ps5_remote_signal pw_ps5_remote_close pw_ps5_set_graphics_start pw_ps5_set_title_client_start pw_ps5_set_application_lookup pw_ps5_set_fixed_base_lookup pw_ps5_set_child_notice pw_ps5_set_gpu_broker
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/win32u_desc.c" __wine_unix_call_funcs
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/wineserver_desc.c" \
         pw_wineserver_connect pw_wine_thread_register pw_wine_thread_unregister pw_wineserver_set_ntsync pw_wineserver_set_ntsync_region pw_wineserver_flush pw_wineserver_terminate \
         pw_wineserver_call_direct pw_wineserver_snapshot pw_wine_threads_set_remote_signal pw_wineserver_input pw_wineserver_cursor pw_wineserver_foreground pw_wineserver_windows pw_wineserver_set_shared_memory pw_wineserver_set_dsection_fd pw_wineserver_set_remote_memory \
-        pw_module_share
+        pw_module_share pw_wineserver_user_processes
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/wineps5_desc.c" \
         __wine_unix_call_funcs __wine_unix_call_wow64_funcs
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/xinput_desc.c" \
@@ -785,6 +802,7 @@ if [ "$prx_status" = 0 ]; then
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/dnsapi_desc.c" \
         __wine_unix_call_funcs __wine_unix_call_wow64_funcs
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/nsiproxy_desc.c" __wine_unix_call_funcs
+    python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/mountmgr_desc.c" __wine_unix_call_funcs
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/winedmo_desc.c" \
         __wine_unix_call_funcs __wine_unix_call_wow64_funcs
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/dwrite_desc.c" \
@@ -798,7 +816,7 @@ if [ "$prx_status" = 0 ]; then
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/libfreetype_desc.c" $FREETYPE_EXPORTS
     for unit in ntdll_desc win32u_desc wineserver_desc wineps5_desc \
             libfreetype_desc xinput_desc winevulkan_desc opengl32_desc ws2_32_desc crypt32_desc winebus_desc \
-            libvulkan_desc bcrypt_desc secur32_desc dwrite_desc nsiproxy_desc dnsapi_desc libgnutls_desc winedmo_desc; do
+            libvulkan_desc bcrypt_desc secur32_desc dwrite_desc nsiproxy_desc mountmgr_desc dnsapi_desc libgnutls_desc winedmo_desc; do
         "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -I"$root/wine/ps5" \
             -c "$prx/obj/$unit.c" -o "$prx/obj/$unit.o" || fail "cannot compile $unit.c"
     done
@@ -825,7 +843,7 @@ if [ "$prx_status" = 0 ]; then
     link_prx wineserver server/wineserver "$heap $prx/obj/pw_wine_compat.o \
         $prx/obj/pw_wine_compat_libc.o $prx/obj/pw_wine_net_libc.o $prx/obj/pw_wine_threads.o \
         $prx/obj/pw_wine_threads_libc.o $prx/obj/wineserver_desc.o \
-        $prx/obj/pw_wine_cwd.o $prx/obj/pw_wine_cwd_libc.o $prx/obj/pw_wine_fdv_libc.o $cwd_wraps"
+        $prx/obj/pw_wine_cwd.o $prx/obj/pw_wine_cwd_libc.o $prx/obj/pw_wine_fdv_libc.o $prx/obj/pw_wine_xattr.o $cwd_wraps"
     # ws2_32 uses emulated TLS; no i386 CPU backend is built.
     (cd "$prx/obj" && "$sdk/bin/llvm-ar" x "$sdk/target/lib/libc.a" emutls.o) ||
         fail "no emutls.o in the payload SDK libc.a"
@@ -862,6 +880,9 @@ if [ "$prx_status" = 0 ]; then
     cp "$ff/licenses/"* "$prx/licenses/ffmpeg/"
     link_prx nsiproxy dlls/nsiproxy.sys/nsiproxy.so \
         "$prx/obj/nsiproxy_desc.o" "$prx/ntdll.shared.elf"
+    # The mount manager (winedevice.exe's mountmgr.sys) gives drive letters their \??\C: devices and volumes:
+    # without its Unix side it does not start, and QueryDosDevice, NT and GUID paths fail (ntdll file, 2026-10-25).
+    link_prx mountmgr dlls/mountmgr.sys/mountmgr.so "$prx/obj/mountmgr_desc.o" "$prx/ntdll.shared.elf"
     # DirectWrite parses fonts in its PE DLL but rasterizes them in its Unix
     # FreeType backend. Stage both native/WoW64 call tables, like other Unix DLLs.
     link_prx dwrite dlls/dwrite/dwrite.so "$prx/obj/dwrite_desc.o" "$prx/ntdll.shared.elf"
@@ -964,7 +985,8 @@ owners = {"dlls/ntdll/": "dlls/ntdll/ntdll.so", "dlls/win32u/": "dlls/win32u/win
           "dlls/opengl32/": "dlls/opengl32/opengl32.so", "dlls/ws2_32/": "dlls/ws2_32/ws2_32.so",
           "dlls/crypt32/": "dlls/crypt32/crypt32.so", "dlls/winebus.sys/": "dlls/winebus.sys/winebus.so",
           "dlls/bcrypt/": "dlls/bcrypt/bcrypt.so", "dlls/secur32/": "dlls/secur32/secur32.so",
-          "dlls/dnsapi/": "dlls/dnsapi/dnsapi.so", "dlls/nsiproxy.sys/": "dlls/nsiproxy.sys/nsiproxy.so", "dlls/dwrite/": "dlls/dwrite/dwrite.so"}
+          "dlls/dnsapi/": "dlls/dnsapi/dnsapi.so", "dlls/nsiproxy.sys/": "dlls/nsiproxy.sys/nsiproxy.so", "dlls/dwrite/": "dlls/dwrite/dwrite.so",
+          "dlls/mountmgr.sys/": "dlls/mountmgr.sys/mountmgr.so"}
 unresolved = {target: set() for target in owners.values()}
 # lld prints each unresolved symbol, then ">>> referenced by" lines whose
 # continuation names the object ("dir/file.o:(function)"); the object's
@@ -1011,7 +1033,7 @@ SYSCALL_ALLOWED = {"__wine_syscall_dispatcher", "__wine_unix_call_dispatcher"}
 ntdll_exports = exports("ntdll.shared.elf", prx) if (Path(prx) / "ntdll.shared.elf").is_file() else set()
 for name in ("ntdll", "win32u", "wineserver", "wineps5", "libfreetype", "xinput1_3",
              "winevulkan", "opengl32", "ws2_32", "crypt32", "winebus", "libvulkan", "bcrypt", "secur32",
-             "libgnutls", "dwrite", "nsiproxy", "dnsapi", "winedmo") if not prx_status.startswith("skipped") else ():
+             "libgnutls", "dwrite", "nsiproxy", "mountmgr", "dnsapi", "winedmo") if not prx_status.startswith("skipped") else ():
     module = Path(prx) / "sce_module" / f"{name}.prx"
     link_log = Path(prx) / f"{name}.link.log"
     if name == "libvulkan" and not link_log.is_file():
@@ -1034,7 +1056,7 @@ for name in ("ntdll", "win32u", "wineserver", "wineps5", "libfreetype", "xinput1
                    if len(fields) >= 8 and fields[6] == "UND"}
         provided = title_exports | (ntdll_exports if name in ("win32u", "wowprospero", "wineps5",
                                                               "xinput1_3", "winevulkan", "opengl32", "ws2_32",
-                                                              "crypt32", "winebus", "bcrypt", "secur32", "dwrite", "nsiproxy", "dnsapi",
+                                                              "crypt32", "winebus", "bcrypt", "secur32", "dwrite", "nsiproxy", "mountmgr", "dnsapi",
                                                               "winedmo") else set())
         entry["title_unbound"] = sorted((imports & exports("libkernel_sys.so")) - provided)
         # The kernel kills a title that executes a syscall instruction outside

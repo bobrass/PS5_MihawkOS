@@ -164,8 +164,22 @@ static int lay(PwWineDmem *d, uintptr_t address, size_t bytes)
     return d->ops.reserve(d->ops.context, address, bytes) ? 1 : 0;
 }
 
+/* A page-directory entry covers 2 MiB: a commit that spans whole aligned 2 MiB windows is backed window by window, so
+ * the kernel can map each with one page-directory entry instead of a page table (the pool holds ~8k of those). The
+ * unaligned head and tail keep page-sized backing. */
+#define BIG_PAGE ((size_t)0x200000)
+
+static size_t back_piece_bytes(uintptr_t at, uintptr_t high)
+{
+    if (at % BIG_PAGE) {
+        const size_t to_edge = BIG_PAGE - at % BIG_PAGE;
+        return (size_t)(high - at) < to_edge ? (size_t)(high - at) : to_edge;
+    }
+    return (size_t)(high - at) >= BIG_PAGE ? BIG_PAGE : (size_t)(high - at);
+}
+
 /* Back a reserved range that no run touches, with one table entry free. */
-static int back(PwWineDmem *d, uintptr_t address, size_t bytes, unsigned protection)
+static int back_piece(PwWineDmem *d, uintptr_t address, size_t bytes, unsigned protection, int64_t *offset_out)
 {
     const PwWineDmemOps *ops = &d->ops;
     uint32_t what = PW_WINE_DMEM_FAILED_ALLOCATE;
@@ -190,8 +204,11 @@ static int back(PwWineDmem *d, uintptr_t address, size_t bytes, unsigned protect
         d->stats.protects++;
     }
     note_backed(d, address, bytes, 1);
+    d->stats.commits[bytes < 0x1000 ? 0 : bytes < 0x10000 ? 1 : bytes < 0x100000 ? 2 : bytes < BIG_PAGE ? 3 : 4]++;
+    if (address % BIG_PAGE == 0 && bytes % BIG_PAGE == 0) d->stats.commits_2m_aligned++;
     /* Direct memory handed out in order often continues the run before. */
     add_run(d, (PwWineDmemRun){ address, bytes, offset });
+    if (offset_out) *offset_out = offset;
     return 0;
 release:
     doing(d, PW_WINE_DMEM_DOING_RELEASE, address, bytes, 0, offset);
@@ -199,6 +216,35 @@ release:
 failed:
     failed_at(d, what, address, bytes);
     return -1;
+}
+
+/* Back [address, +bytes) in 2 MiB windows where the range allows it. All or nothing: a piece that fails unmaps and
+ * releases the pieces before it, so the caller's range stays as it was. */
+static int back(PwWineDmem *d, uintptr_t address, size_t bytes, unsigned protection)
+{
+    const uintptr_t high = address + bytes;
+    uint32_t pieces = 0;
+    uintptr_t at;
+
+    for (at = address; at < high; at += back_piece_bytes(at, high)) pieces++;
+    if (pieces == 1 || d->run_count + pieces > d->run_capacity) {
+        int64_t offset;
+        return back_piece(d, address, bytes, protection, &offset);
+    }
+    for (at = address; at < high;) {
+        const size_t piece = back_piece_bytes(at, high);
+        if (back_piece(d, at, piece, protection, NULL)) {
+            if (at > address) {
+                doing(d, PW_WINE_DMEM_DOING_UNMAP, address, at - address, 0, -1);
+                if (d->ops.unmap(d->ops.context, address, at - address))
+                    failed_at(d, PW_WINE_DMEM_FAILED_UNMAP, address, at - address);
+                forget(d, address, at);
+            }
+            return -1;
+        }
+        at += piece;
+    }
+    return 0;
 }
 
 /* A foreign entry's [at, to), found by a skip, a refusal or a scan (both 0): a new one is counted, and pending. */
@@ -490,6 +536,70 @@ int pw_wine_dmem_replace(PwWineDmem *d, uintptr_t address, size_t bytes, unsigne
     return status;
 }
 
+int pw_wine_dmem_restore(PwWineDmem *d, uintptr_t address, size_t bytes, unsigned protection,
+                         int (*fill)(void *context, int64_t offset, uintptr_t from, size_t bytes), void *fill_context)
+{
+    const uintptr_t high = address + bytes;
+    const PwWineDmemOps *ops = &d->ops;
+    uintptr_t at = address;
+    int64_t offset;
+    int hole = 0, status = -1;
+    uint32_t i;
+
+    protection &= 7;
+    if (ops->exec_caller_only) protection &= ~(unsigned)PW_WINE_DMEM_EXEC;
+    lock(d);
+    if (!protection || !valid(d, address, bytes) || d->run_count + 2 > d->run_capacity) {
+        failed_at(d, PW_WINE_DMEM_FAILED_OUTSIDE, address, bytes);
+        goto done;
+    }
+    /* Wholly the caller's: touching runs of its own and nothing bare, so no foreign entry can lie under it. */
+    for (i = first_after(d, address); at < high; at = end_of(&d->runs[i++]))
+        if (i == d->run_count || d->runs[i].address > at || d->runs[i].offset != PW_WINE_DMEM_CALLER) {
+            failed_at(d, PW_WINE_DMEM_FAILED_OUTSIDE, address, bytes);
+            goto done;
+        }
+    doing(d, PW_WINE_DMEM_DOING_ALLOCATE, address, bytes, protection, -1);
+    if (ops->allocate(ops->context, bytes, &offset)) {
+        failed_at(d, PW_WINE_DMEM_FAILED_ALLOCATE, address, bytes);
+        goto done;
+    }
+    d->stats.allocations++;
+    /* The bytes go in before anything is mapped at address: a reader there sees them or faults, never others. */
+    if (fill(fill_context, offset, address, bytes)) {
+        failed_at(d, PW_WINE_DMEM_FAILED_MAP, address, bytes);
+        goto release;
+    }
+    if (clear_runs(d, address, high, &hole)) goto release;   /* the caller's mapping is still there: nothing changed */
+    /* From here the range is bare. A failure loses it, and says so with -2: the caller must not count on the bytes. */
+    status = -2;
+    doing(d, PW_WINE_DMEM_DOING_MAP, address, bytes, protection, offset);
+    if (ops->map(ops->context, address, bytes, offset)) {
+        failed_at(d, PW_WINE_DMEM_FAILED_MAP, address, bytes);
+        goto release;
+    }
+    d->stats.maps++;
+    if (protection != READ_WRITE) {
+        doing(d, PW_WINE_DMEM_DOING_PROTECT, address, bytes, protection, offset);
+        if (ops->protect(ops->context, address, bytes, protection)) {
+            failed_at(d, PW_WINE_DMEM_FAILED_PROTECT, address, bytes);
+            (void)lay(d, address, bytes);
+            goto release;
+        }
+        d->stats.protects++;
+    }
+    note_backed(d, address, bytes, 1);
+    add_run(d, (PwWineDmemRun){ address, bytes, offset });
+    unlock(d);
+    return 0;
+release:
+    doing(d, PW_WINE_DMEM_DOING_RELEASE, address, bytes, 0, offset);
+    (void)ops->release(ops->context, offset, bytes);
+done:
+    unlock(d);
+    return status;
+}
+
 int pw_wine_dmem_check(PwWineDmem *d, uintptr_t address, size_t bytes)
 {
     int status;
@@ -654,5 +764,58 @@ void pw_wine_dmem_stats(PwWineDmem *d, PwWineDmemStats *stats)
     lock(d);
     *stats = d->stats;
     stats->runs = d->run_count;
+    unlock(d);
+}
+
+static void placement_fill(PwWineDmem *d, PwWineDmemPlacement *p)
+{
+    const uint64_t big = BIG_PAGE, mask = BIG_PAGE - 1;
+    const uint64_t four = (uint64_t)4 << 20; /* a reservation this large implies the application chose the offsets */
+    uint32_t i;
+
+    memset(p, 0, sizeof *p);
+    p->regions = d->regions;
+    p->runs = d->run_count;
+    p->backed_bytes = d->stats.backed_bytes;
+    memcpy(p->commits, d->stats.commits, sizeof p->commits);
+    p->commits_2m_aligned = d->stats.commits_2m_aligned;
+    for (i = 0; i < d->run_count; i++) {
+        const PwWineDmemRun *r = &d->runs[i];
+        uintptr_t at, high;
+        unsigned k;
+        int big_region = 0;
+
+        if (r->offset == PW_WINE_DMEM_CALLER) continue;
+        if (r->address % big == 0 && r->bytes % big == 0 && r->bytes >= big) p->runs_2m++;
+        for (k = 0; k < d->regions; k++)
+            if (d->region_low[k] <= r->address && r->address < d->region_high[k]) {
+                big_region = d->region_high[k] - d->region_low[k] >= four;
+                break;
+            }
+        at = r->address & ~mask;
+        high = (r->address + r->bytes + mask) & ~mask;
+        for (; at < high; at += big) {
+            const uintptr_t from = r->address > at ? r->address : at;
+            const uintptr_t to = r->address + r->bytes < at + big ? r->address + r->bytes : at + big;
+            const uint64_t bytes = to - from;
+
+            p->windows++;
+            if (big_region) p->win_big_region++; else p->win_small_region++;
+            if (bytes >= big) p->full++;
+            else if (bytes <= big / 8) p->part[0]++;
+            else if (bytes <= big / 2) p->part[1]++;
+            else p->part[2]++;
+        }
+    }
+}
+void pw_wine_dmem_placement_locked(PwWineDmem *d, PwWineDmemPlacement *p)
+{
+    if (d && p) placement_fill(d, p);
+}
+void pw_wine_dmem_placement(PwWineDmem *d, PwWineDmemPlacement *p)
+{
+    if (!d || !p) return;
+    lock(d);
+    placement_fill(d, p);
     unlock(d);
 }

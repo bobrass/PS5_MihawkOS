@@ -1,17 +1,1607 @@
 {
- "thread": {
+ "atom": {
   "context": {
    "arch": "i386",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "test_sha256": "fe723960a05daacbea5cc67a4f235fd27175918ea955ebcd97028e6221889f51",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
+  "exit_code": 0,
   "failure_count": 0,
   "failures": [],
   "guarded": null,
-  "last_line": "winetest-batch: done",
-  "run": "wt-i386-ntdll-batch-1791425088681545556",
-  "seconds": 6.8,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 051c",
+  "run": "sweepm1-143441",
+  "seconds": 0.5,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 164064,
+   "todo": 1
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 1
+ },
+ "change": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 1,
+  "failure_count": 1,
+  "failures": [
+   {
+    "file": "change.c",
+    "line": 241,
+    "text": "should be ready"
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0728",
+  "run": "sweepm1-143441",
+  "seconds": 0.7,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 1,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 82,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "directory": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 4,
+  "failure_count": 4,
+  "failures": [
+   {
+    "file": "directory.c",
+    "line": 1350,
+    "text": "7: got 0 / c0000034 for L\"\\\\??\\\\C:\\\\windows\\\\system32\" + L\"drivers\\\\ndis.sys\""
+   },
+   {
+    "file": "directory.c",
+    "line": 1356,
+    "text": "7: was redirected for L\"\\\\??\\\\C:\\\\windows\\\\system32\" + L\"drivers\\\\ndis.sys\""
+   },
+   {
+    "file": "directory.c",
+    "line": 1350,
+    "text": "16: got 0 / c0000034 for L\"\\\\DosDevices\\\\C:\\\\windows\\\\system32\" + L\"drivers\\\\ndis.sys\""
+   },
+   {
+    "file": "directory.c",
+    "line": 1356,
+    "text": "16: was redirected for L\"\\\\DosDevices\\\\C:\\\\windows\\\\system32\" + L\"drivers\\\\ndis.sys\""
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0744",
+  "run": "sweepm1-143441",
+  "seconds": 1.6,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 4,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 8076,
+   "todo": 34
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 34
+ },
+ "env": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 074c",
+  "run": "sweepm1-143441",
+  "seconds": 1.3,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 605,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "error": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0768",
+  "run": "sweepm1-143441",
+  "seconds": 1.0,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1448,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "exception": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 124,
+  "failure_count": 31,
+  "failures": [
+   {
+    "file": "exception.c",
+    "line": 1222,
+    "text": "got 0 exceptions, expected 1"
+   },
+   {
+    "file": "exception.c",
+    "line": 1234,
+    "text": "expected 4 exceptions, got 0"
+   },
+   {
+    "file": "exception.c",
+    "line": 1175,
+    "text": "expected 4 exceptions, got 0"
+   },
+   {
+    "file": "exception.c",
+    "line": 1721,
+    "text": "Got exception code 0xc000008c, expected EXCEPTION_FLT_STACK_CHECK"
+   },
+   {
+    "file": "exception.c",
+    "line": 1811,
+    "text": "Execution of disabled memory succeeded"
+   },
+   {
+    "file": "exception.c",
+    "line": 1812,
+    "text": "Access violation type: 00000019"
+   },
+   {
+    "file": "exception.c",
+    "line": 1853,
+    "text": "Execution of disabled memory succeeded"
+   },
+   {
+    "file": "exception.c",
+    "line": 1854,
+    "text": "Access violation type: 00000019"
+   },
+   {
+    "file": "exception.c",
+    "line": 11560,
+    "text": "Got unexpected data 0, i 4."
+   },
+   {
+    "file": "exception.c",
+    "line": 11560,
+    "text": "Got unexpected data 0, i 5."
+   },
+   {
+    "file": "exception.c",
+    "line": 11560,
+    "text": "Got unexpected data 0, i 6."
+   },
+   {
+    "file": "exception.c",
+    "line": 11560,
+    "text": "Got unexpected data 0, i 7."
+   },
+   {
+    "file": "exception.c",
+    "line": 11614,
+    "text": "Got unexpected data 0, i 4."
+   },
+   {
+    "file": "exception.c",
+    "line": 11614,
+    "text": "Got unexpected data 0, i 5."
+   },
+   {
+    "file": "exception.c",
+    "line": 11614,
+    "text": "Got unexpected data 0, i 6."
+   },
+   {
+    "file": "exception.c",
+    "line": 11614,
+    "text": "Got unexpected data 0, i 7."
+   },
+   {
+    "file": "exception.c",
+    "line": 11617,
+    "text": "Got unexpected data 0, i 0."
+   },
+   {
+    "file": "exception.c",
+    "line": 11617,
+    "text": "Got unexpected data 0, i 1."
+   },
+   {
+    "file": "exception.c",
+    "line": 11617,
+    "text": "Got unexpected data 0, i 2."
+   },
+   {
+    "file": "exception.c",
+    "line": 11617,
+    "text": "Got unexpected data 0, i 3."
+   },
+   {
+    "file": "exception.c",
+    "line": 10592,
+    "text": "Got unexpected Mask 0x4."
+   },
+   {
+    "file": "exception.c",
+    "line": 10744,
+    "text": "Got unexpected data 0, i 4."
+   },
+   {
+    "file": "exception.c",
+    "line": 10744,
+    "text": "Got unexpected data 0, i 5."
+   },
+   {
+    "file": "exception.c",
+    "line": 10744,
+    "text": "Got unexpected data 0, i 6."
+   },
+   {
+    "file": "exception.c",
+    "line": 10744,
+    "text": "Got unexpected data 0, i 7."
+   },
+   {
+    "file": "exception.c",
+    "line": 318,
+    "text": "expected trap."
+   },
+   {
+    "file": "exception.c",
+    "line": 1295,
+    "text": "could not create child process error: 2"
+   },
+   {
+    "file": "exception.c",
+    "line": 1295,
+    "text": "could not create child process error: 2"
+   },
+   {
+    "file": "exception.c",
+    "line": 1295,
+    "text": "could not create child process error: 2"
+   },
+   {
+    "file": "exception.c",
+    "line": 1295,
+    "text": "could not create child process error: 2"
+   },
+   {
+    "file": "exception.c",
+    "line": 2014,
+    "text": "wrong SegGs 0000003b/cccc001b"
+   }
+  ],
+  "guarded": null,
+  "hung": "still running after 300 s; it ended itself",
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 00cc",
+  "run": "sweepm1-143627",
+  "seconds": 300.3,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [
+   "exception.c:11694: Tests skipped: avx512 is not available, skipping test.",
+   "exception.c:11852: Tests skipped: avx512 is not available, skipping test."
+  ],
+  "status": "timeout",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 7,
+   "todo": 0
+  },
+  "timeout_seconds": 300,
+  "todo_lines": 1
+ },
+ "file": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 48,
+  "failure_count": 44,
+  "failures": [
+   {
+    "file": "file.c",
+    "line": 1520,
+    "text": "access time mismatch, set: 200deadcafebeef get: 1dd6578fa409400"
+   },
+   {
+    "file": "file.c",
+    "line": 2489,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2490,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2494,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2557,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2558,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2562,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2588,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2589,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2593,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2597,
+    "text": "FindFirstFileW: failed, error 2"
+   },
+   {
+    "file": "file.c",
+    "line": 3111,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 3112,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 3116,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2489,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2490,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2494,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2557,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2558,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2562,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2588,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2589,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 2593,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 2597,
+    "text": "FindFirstFileW: failed, error 2"
+   },
+   {
+    "file": "file.c",
+    "line": 3111,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 3112,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 3116,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 3282,
+    "text": "io.Status expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 3283,
+    "text": "res expected STATUS_SUCCESS, got c0000022"
+   },
+   {
+    "file": "file.c",
+    "line": 3287,
+    "text": "file should exist"
+   },
+   {
+    "file": "file.c",
+    "line": 6694,
+    "text": "got 0xc0000101"
+   },
+   {
+    "file": "file.c",
+    "line": 6913,
+    "text": "got error 5"
+   },
+   {
+    "file": "file.c",
+    "line": 6917,
+    "text": "got error 2"
+   },
+   {
+    "file": "file.c",
+    "line": 6919,
+    "text": "got 0xc0000024"
+   },
+   {
+    "file": "file.c",
+    "line": 6920,
+    "text": "got attributes 0x410"
+   },
+   {
+    "file": "file.c",
+    "line": 6922,
+    "text": "got tag 0xa0000003"
+   },
+   {
+    "file": "file.c",
+    "line": 6924,
+    "text": "got 0xc0000024"
+   },
+   {
+    "file": "file.c",
+    "line": 6927,
+    "text": "got 1 links"
+   },
+   {
+    "file": "file.c",
+    "line": 6928,
+    "text": "got directory 1"
+   },
+   {
+    "file": "file.c",
+    "line": 6932,
+    "text": "got 0xc0000024"
+   },
+   {
+    "file": "file.c",
+    "line": 6933,
+    "text": "got ids 0x3a2c9 vs 0"
+   },
+   {
+    "file": "file.c",
+    "line": 6939,
+    "text": "got error 2"
+   },
+   {
+    "file": "file.c",
+    "line": 6941,
+    "text": "got 0xc0000024"
+   },
+   {
+    "file": "file.c",
+    "line": 6949,
+    "text": "got error 2"
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 00d4",
+  "run": "sweepm1-143627",
+  "seconds": 10.5,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 48,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2932,
+   "todo": 109
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 109
+ },
+ "generated": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 07b4",
+  "run": "sweepm1-143441",
+  "seconds": 1.4,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 0,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "info": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 29,
+  "failure_count": 22,
+  "failures": [
+   {
+    "file": "info.c",
+    "line": 211,
+    "text": "wrong limit FFFEFFFF"
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 7 (L\"ntdll_test32.exe\"): Got unexpected TebBase 7FFC0000, expected FF812080."
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 7 (L\"ntdll_test32.exe\"): Got unexpected TebBase 7FFB0000, expected FF81E080."
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 7 (L\"ntdll_test32.exe\"): Got unexpected TebBase 7FFA0000, expected FF822080."
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 7 (L\"ntdll_test32.exe\"): Got unexpected TebBase 7FF90000, expected FF826080."
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 7 (L\"ntdll_test32.exe\"): Got unexpected TebBase 7FF80000, expected FF82A080."
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 7 (L\"ntdll_test32.exe\"): Got unexpected TebBase 7FF70000, expected FF832080."
+   },
+   {
+    "file": "info.c",
+    "line": 688,
+    "text": "extended 1: i 9 (L\"\"): Got unexpected TebBase 00000000, expected FFFFE000."
+   },
+   {
+    "file": "info.c",
+    "line": 4726,
+    "text": "got 0x2."
+   },
+   {
+    "file": "info.c",
+    "line": 4727,
+    "text": "got 00248640."
+   },
+   {
+    "file": "info.c",
+    "line": 4733,
+    "text": "got 0xc000000d."
+   },
+   {
+    "file": "info.c",
+    "line": 4735,
+    "text": "wrong vector."
+   },
+   {
+    "file": "info.c",
+    "line": 4736,
+    "text": "got 0x140."
+   },
+   {
+    "file": "info.c",
+    "line": 4737,
+    "text": "got 00248640."
+   },
+   {
+    "file": "info.c",
+    "line": 4770,
+    "text": "got 0xc0000005."
+   },
+   {
+    "file": "info.c",
+    "line": 4773,
+    "text": "got 0."
+   },
+   {
+    "file": "info.c",
+    "line": 4776,
+    "text": "got 0021C468."
+   },
+   {
+    "file": "info.c",
+    "line": 4777,
+    "text": "got 0."
+   },
+   {
+    "file": "info.c",
+    "line": 4779,
+    "text": "got 0."
+   },
+   {
+    "file": "info.c",
+    "line": 4780,
+    "text": "got 0021C43C."
+   },
+   {
+    "file": "info.c",
+    "line": 4847,
+    "text": "got 0x2."
+   },
+   {
+    "file": "info.c",
+    "line": 4849,
+    "text": "got 00000000."
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0100",
+  "run": "sweepm1-143627",
+  "seconds": 13.0,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [
+   "info.c:443: Tests skipped: SystemProcessorFeaturesBitMapInformation is not supported"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 29,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 4753,
+   "todo": 22
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 22
+ },
+ "large_int": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0028",
+  "run": "sweepm1-143441",
+  "seconds": 0.6,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 740,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "om": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 6,
+  "failure_count": 6,
+  "failures": [
+   {
+    "file": "om.c",
+    "line": 2597,
+    "text": "expected STATUS_SUCCESS, got c0000033"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "NtQueryObject failed c0000008"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "unexpected len 0"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "unexpected len 0"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "wrong name (null)"
+   },
+   {
+    "file": "om.c",
+    "line": 3663,
+    "text": "got 0."
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 00cc",
+  "run": "sweepm1-143441",
+  "seconds": 2.2,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [
+   "om.c:3328: Tests skipped: no privileges, tests may be limited"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 6,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 5045,
+   "todo": 30
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 30
+ },
+ "path": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 00ec",
+  "run": "sweepm1-143441",
+  "seconds": 2.0,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1011,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "pipe": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 2,
+  "failure_count": 2,
+  "failures": [
+   {
+    "file": "pipe.c",
+    "line": 820,
+    "text": "wait returned 102"
+   },
+   {
+    "file": "pipe.c",
+    "line": 1363,
+    "text": "cancelled by closed handle?"
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0138",
+  "run": "sweepm1-143627",
+  "seconds": 5.2,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 2,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2428,
+   "todo": 36
+  },
+  "timeout_seconds": 192,
+  "todo_lines": 36
+ },
+ "port": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0170",
+  "run": "sweepm1-143441",
+  "seconds": 0.8,
+  "session": "C:\\wt\\sweepm1-143441",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1,
+   "todo": 1
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 1
+ },
+ "reg": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0380",
+  "run": "sweepm1-143627",
+  "seconds": 0.5,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 6088,
+   "todo": 16
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 16
+ },
+ "rtl": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 039c",
+  "run": "sweepm1-143627",
+  "seconds": 1.6,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 600073,
+   "todo": 54
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 54
+ },
+ "rtlbitmap": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 03a4",
+  "run": "sweepm1-143627",
+  "seconds": 1.3,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 378,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "rtlstr": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 03c0",
+  "run": "sweepm1-143627",
+  "seconds": 1.0,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2178627,
+   "todo": 3
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 3
+ },
+ "string": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 03e0",
+  "run": "sweepm1-143627",
+  "seconds": 0.7,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1974183,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "sync": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 03e8",
+  "run": "sweepm1-143627",
+  "seconds": 3.6,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 429,
+   "todo": 1
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 1
+ },
+ "thread": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0418",
+  "run": "sweepm1-143627",
+  "seconds": 1.8,
+  "session": "C:\\wt\\sweepm1-143627",
   "skipped_lines": [],
   "status": "complete",
   "summary": {
@@ -21,57 +1611,124 @@
    "tests": 49,
    "todo": 0
   },
+  "timeout_seconds": 120,
+  "todo_lines": 0
+ },
+ "threadpool": {
+  "reason": "freezes the whole title (no klog heartbeat, its stop request ignored) and has to be killed; to be reduced to a reproducer before it runs again",
+  "status": "skipped"
+ },
+ "time": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0434",
+  "run": "sweepm1-143627",
+  "seconds": 1.4,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 10657,
+   "todo": 2
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 2
+ },
+ "unwind": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 0464",
+  "run": "sweepm1-143627",
+  "seconds": 1.0,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 0,
+   "todo": 0
+  },
+  "timeout_seconds": 120,
   "todo_lines": 0
  },
  "virtual": {
   "context": {
    "arch": "i386",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "test_sha256": "fe723960a05daacbea5cc67a4f235fd27175918ea955ebcd97028e6221889f51",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
-  "failure_count": 23,
+  "exit_code": 69,
+  "failure_count": 69,
   "failures": [
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 8 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 9 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 10 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 11 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 12 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 13 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 14 zero_bits returned c0000005"
-   },
-   {
-    "file": "virtual.c",
-    "line": 159,
-    "text": "NtAllocateVirtualMemory with 15 zero_bits returned c0000005"
-   },
    {
     "file": "virtual.c",
     "line": 445,
@@ -80,7 +1737,7 @@
    {
     "file": "virtual.c",
     "line": 446,
-    "text": "Unexpected address 014C0000."
+    "text": "Unexpected address 01610000."
    },
    {
     "file": "virtual.c",
@@ -95,7 +1752,7 @@
    {
     "file": "virtual.c",
     "line": 2551,
-    "text": "Got addr 014E1001, addr1 014E0000."
+    "text": "Got addr 01631001, addr1 01630000."
    },
    {
     "file": "virtual.c",
@@ -110,7 +1767,7 @@
    {
     "file": "virtual.c",
     "line": 2559,
-    "text": "Got addr 014E0001, addr1 014E0000."
+    "text": "Got addr 01630001, addr1 01630000."
    },
    {
     "file": "virtual.c",
@@ -146,16 +1803,370 @@
     "file": "virtual.c",
     "line": 2653,
     "text": "Unexpected old_prot 0."
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size 3ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize 3e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1078,
+    "text": "unexpected guard_size ec000, expected 1000, 2000 or 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1088,
+    "text": "unexpected RegionSize e8000, expected 3000"
+   },
+   {
+    "file": "virtual.c",
+    "line": 1090,
+    "text": "unexpected Protect 0x4, expected 0x104"
    }
   ],
   "guarded": null,
-  "hung": "still running after 120 s; the program ended itself",
-  "last_line": "winetest-batch: timeout virtual 120",
-  "run": "wt-i386-ntdll-batch-1791424857323003685",
-  "seconds": 141.4,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 049c",
+  "run": "sweepm1-143627",
+  "seconds": 3.5,
+  "session": "C:\\wt\\sweepm1-143627",
   "skipped_lines": [],
-  "status": "timeout",
+  "status": "complete",
+  "summary": {
+   "failures": 69,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2118,
+   "todo": 58
+  },
+  "timeout_seconds": 120,
+  "todo_lines": 58
+ },
+ "wow64": {
+  "context": {
+   "arch": "i386",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "console_build_fingerprint": "c5475520950ef2af870d87fef1462c6269906ed164ca43912b5071b8a177a636",
+   "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 1,
+  "failure_count": 2,
+  "failures": [
+   {
+    "file": "wow64.c",
+    "line": 292,
+    "text": "current: wrong entry 005B83B0 / 007483B0"
+   },
+   {
+    "file": "wow64.c",
+    "line": 292,
+    "text": "syswow64: wrong entry 0041A870 / 0012A870"
+   }
+  ],
+  "guarded": null,
+  "inputs": {
+   "advapi32.dll": "40a2819ddc188aa0",
+   "eboot.bin": "a312772a5ea0eb86",
+   "gdi32.dll": "5556446ca6d615d9",
+   "kernel32.dll": "a95d2d526374ac58",
+   "kernelbase.dll": "e4e4412295cd8576",
+   "msvcrt.dll": "4559c41f4316b101",
+   "ntdll.dll": "48dcdc8c59309c43",
+   "ntdll.prx": "33da1de035a951d4",
+   "proton-payload-child.elf": "7ef1cd3cf4479181",
+   "sechost.dll": "b17e8b9bdba93de9",
+   "ucrtbase.dll": "639e51cc1d307750",
+   "user32.dll": "c2889f4c84f2a2d0",
+   "win32u-helper.prx": "6d5a9dd6dab35c56",
+   "win32u.dll": "d8797022321ce137",
+   "win32u.prx": "54db665d38cb26ba",
+   "x86_64-windows/ntdll.dll": "75968eb8dd106785",
+   "x86_64-windows/wow64.dll": "4ca9f504419b9580",
+   "x86_64-windows/wow64cpu.dll": "93ce316a8eb0a3ec",
+   "x86_64-windows/wow64win.dll": "bcf279590428bf25"
+  },
+  "inputs_key": "09343ab92bad77df",
+  "last_line": "wt-session: process 04d8",
+  "run": "sweepm1-143627",
+  "seconds": 4.3,
+  "session": "C:\\wt\\sweepm1-143627",
+  "skipped_lines": [],
+  "status": "incomplete",
   "summary": null,
-  "todo_lines": 18
+  "timeout_seconds": 300,
+  "todo_lines": 0
  }
 }

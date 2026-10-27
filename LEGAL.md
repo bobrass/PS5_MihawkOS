@@ -65,7 +65,8 @@ Some things Microsoft itself published under open-source licences are used, each
 [`NOTICE.md`](NOTICE.md): Fluent System Icons (MIT), the Selawik font that Proton UI is derived from (OFL-1.1),
 Cascadia Mono (OFL-1.1), colour and size values from WinUI (MIT, values only), and the open-source .NET libraries
 inside Wine Mono (MIT), which Wine installs into each prefix. The browser prototype also shows Fluent Emoji (MIT).
-The desktop's wallpaper, Aero Meadow, is original artwork drawn by `tools/make-mihawk-wallpaper.py`; no Windows
+The desktop's wallpaper, Bubble Earth, is original artwork drawn by `tools/make-aero-wallpapers.py` (with Glass City
+and Aqua World, and the soap bubble of the earlier Aero Meadow, `tools/make-mihawk-wallpaper.py`); no Windows
 wallpaper is included (the browser prototype can link a user's own local copy of one, which is never part of the
 repository).
 

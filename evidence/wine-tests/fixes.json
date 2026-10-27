@@ -1,0 +1,7 @@
+{
+ "kernel32:thread:i386": "patch 2084: a new WoW64 thread gets its 32-bit TEB address (thread.c:318, 2198, 2209 failed on B2; 0 on B3c, 982 tests)",
+ "mmdevapi:spatialaudio:x86_64": "src/pw_audio_mix.h: the mixer takes 18 channels, so the 12-channel 7.1.4 bed activates (spatialaudio.c:184 0x88890008 on B2; 0 failures on B3c)",
+ "mmdevapi:spatialaudio:i386": "src/pw_audio_mix.h: the mixer takes 18 channels (as x86_64)",
+ "dbghelp:minidump:x86_64": "patch 2101: a live process with no Unix loader address is still live, so MiniDumpWriteDump writes the dump (crashed in sweepm1b; 0 failures, 1101 tests, clean-minidump 2026-10-27)",
+ "dbghelp:minidump:i386": "patch 2101 (as x86_64; 0 failures, 1101 tests, clean-minidump 2026-10-27)"
+}

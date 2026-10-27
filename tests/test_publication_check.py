@@ -18,7 +18,7 @@ TOOL = ROOT / 'tools/publication-check.py'
 _spec = importlib.util.spec_from_file_location('stage_licences', ROOT / 'tools/stage-licences.py')
 TOOL_LICENCES = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(TOOL_LICENCES)
-_spec = importlib.util.spec_from_file_location('mihawk_wallpaper', ROOT / 'tools/make-mihawk-wallpaper.py')
+_spec = importlib.util.spec_from_file_location('aero_wallpapers', ROOT / 'tools/make-aero-wallpapers.py')
 WALLPAPER = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(WALLPAPER)
 CONSOLE = '.'.join(['192', '168', '77', '41'])
@@ -82,11 +82,52 @@ class PublicationCheck(unittest.TestCase):
         self.assertIn('named game or launcher: 2 in 1 places: notes2.md', output)
 
     def test_names_that_are_not_games_and_the_trademark_notice_pass(self):
-        (self.repo / 'prefix.txt').write_text('C:\\users\\Mihawk\\Documents, C:\\users\\steamuser\\Documents, a steaming bowl, PPSA99170\n')
+        (self.repo / 'prefix.txt').write_text('C:\\users\\Mihawk\\Documents, C:\\users\\steamuser\\Documents, a steaming bowl, PPSA99170, a tile PPSA99301, the memory probe PPSA99171,\n'
+                                              'a documentation MAC 00:00:5e:00:53:01\n')
         (self.repo / 'LEGAL.md').write_text('| St' + 'eam, Proton | Valve Corporation |\n')
+        (self.repo / 'evidence').mkdir()
+        (self.repo / 'evidence/gate-x.json').write_text('{"case": "st' + 'eam-guide-pages"}\n')
         code, output = self.run_tool('tree')
         self.assertEqual(code, 0, output)
         self.assertIn('allowed  named game or launcher: 1 in LEGAL.md (the trademark table)', output)
+
+    def test_the_store_client_only_in_listed_files_and_records_only_by_name(self):
+        # tools/publication-names.txt (2026-10-26): a file of the store client's group names it and nothing else; a [records]
+        # file keeps every name, and its run name may be cited anywhere; a name anywhere else is still refused.
+        client, game, other = 'St' + 'eam', 'Isa' + 'ac', 'Cel' + 'este'   # split, so this file names none of them
+        record = f'evidence/{game.lower()}-load-2026-10-25-01.json'
+        (self.repo / 'tools').mkdir()
+        (self.repo / 'evidence').mkdir()
+        (self.repo / 'tools/publication-names.txt').write_text(
+            f'# exact paths\n[{client.lower()}] the guide\nguide.c\n\n[records] runs kept as measured\n{record}\n')
+        spdx = '/* SPDX-License-Identifier: GPL-3.0-or-later */\n'
+        (self.repo / 'guide.c').write_text(f'{spdx}/* {client} updates itself */\n')
+        (self.repo / record).write_text(f'{{"game": "{game}"}}\n')
+        (self.repo / 'notes.md').write_text(f'see `{Path(record).stem}` for the load\n')
+        code, output = self.run_tool('tree')
+        self.assertEqual(code, 0, output)
+        self.assertIn('allowed  named game or launcher: 1 in guide.c (the guide)', output)
+        self.assertIn(f'allowed  named game or launcher: 1 in {record} (runs kept as measured)', output)
+        self.assertIn('allowed  named game or launcher: 1 in notes.md (a kept record cited by its run name)', output)
+        # The store client in a file not listed, another game in a listed one, a game beside a record's name: refused
+        (self.repo / 'other.c').write_text(f'{spdx}/* {client} */\n')
+        (self.repo / 'guide.c').write_text(f'{spdx}/* {client} and {other} */\n')
+        (self.repo / 'notes.md').write_text(f'see `{Path(record).stem}`, where {game} loads\n')
+        code, output = self.run_tool('tree')
+        self.assertEqual(code, 1, output)
+        self.assertEqual(self.failed(output), {'named game or launcher'})
+        line = next(line for line in output.splitlines() if 'FAIL' in line and 'named game' in line)
+        self.assertIn('3 in 3 places', line)
+        for path in ('other.c', 'guide.c', 'notes.md'):
+            self.assertIn(path, line)
+
+    def test_every_listed_name_path_exists(self):
+        # A path renamed or removed leaves its entry behind: the list names files that are there, exactly
+        listed = [line.strip() for line in (ROOT / 'tools/publication-names.txt').read_text().splitlines()
+                  if line.strip() and not line.startswith(('#', '['))]
+        self.assertTrue(listed)
+        self.assertEqual([path for path in listed if not (ROOT / path).is_file()], [])
+        self.assertEqual(len(listed), len(set(listed)))
 
     def test_a_build_must_not_carry_what_never_ships(self):
         (self.repo / '.gitignore').write_text('.deps/\ndist/\n')  # build output is ignored, as in this repository
@@ -111,15 +152,16 @@ class PublicationCheck(unittest.TestCase):
         never = next(line for line in output.splitlines() if line.strip().startswith('FAIL') and 'never ship' in line)
         self.assertIn('never ship in a build: 4 in 4 places', never)  # wallpaper, native DLL, probe, ShadowMountPlus
         self.assertIn('dist/release/mount.elf (ShadowMountPlus)', output)
-        self.assertIn('a wallpaper that is not Aero Meadow', output)
+        self.assertIn('a wallpaper that is not Bubble Earth', output)
         self.assertIn('title: no licenses/ folder', output)
         self.assertNotIn('d3d9.dll', output)
 
-    def test_a_build_with_aero_meadow_passes(self):
+    def test_a_build_with_bubble_earth_passes(self):
         (self.repo / '.gitignore').write_text('.deps/\ndist/\n')
         wallpaper = self.repo / '.deps/staged/runtime/ge11-7/lib/wine/prefix/drive_c/windows/web/wallpaper'
         wallpaper.mkdir(parents=True)
-        WALLPAPER.wallpaper(480, 270).resize((1920, 1080), Image.Resampling.LANCZOS).save(wallpaper / 'proton.bmp')
+        WALLPAPER.render('bubble-earth', 480, 270).resize((1920, 1080), Image.Resampling.LANCZOS).save(
+            wallpaper / 'proton.bmp')
         licences = self.repo / '.deps/staged/runtime/ge11-7/share/licenses'
         for name in TOOL_LICENCES.STAGE_WINE + list(TOOL_LICENCES.RUNTIME):
             (licences / name).parent.mkdir(parents=True, exist_ok=True)

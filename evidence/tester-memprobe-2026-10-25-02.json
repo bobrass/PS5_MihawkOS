@@ -1,0 +1,88 @@
+{
+  "run": "tester-memprobe-2026-10-25-02",
+  "source": "a Pro owner's result files (.json and .txt from the probe's /app0 folder), sent to the owner; whether testers 1 and 2 are two consoles or one console run twice is not known (different app ids, pids and spawn statuses)",
+  "model_note": "the model call is unavailable on 13.60; the 12928 MiB direct pool (Pro memory mode on) says a Pro",
+  "probe_version": 1,
+  "model": "unknown-model",
+  "model_source": "unavailable",
+  "firmware_installed": "13.60",
+  "firmware_reported": "13.59",
+  "pro_mode_bit22_shipped": 1,
+  "pro_memory_mode": "Pro memory mode on",
+  "elevation_status": "ok",
+  "elevated": 1,
+  "direct_pool_mib": 12928,
+  "title_flexible_free_mib": 985,
+  "execute": {
+    "direct0": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "direct12": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "main12": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "mapx": {
+      "title": "map refused",
+      "title_prot": -1,
+      "helper": "map refused",
+      "helper_prot": -1
+    },
+    "anon": {
+      "title": "no execute",
+      "title_prot": 1,
+      "helper": "no execute",
+      "helper_prot": 1
+    },
+    "jit": {
+      "title": "refused",
+      "title_prot": -1,
+      "helper": "refused",
+      "helper_prot": -1
+    }
+  },
+  "sony_helper": {
+    "spawned": 1,
+    "spawn_status": "0x18018341",
+    "answered": 1,
+    "faulted": 0,
+    "jit_create": "0x80020001",
+    "title_flexible_before_mib": 985,
+    "title_flexible_held_mib": 918,
+    "title_flexible_after_mib": 985
+  },
+  "save_errno": "/app0=0 /mnt/usb0=2 /mnt/usb1=2 /download0=0 ",
+  "verdict": [
+    "unknown-model, firmware 13.60 (the system says 13.59); Pro memory mode on",
+    "MihawkOS's /data grant: granted",
+    "This probe's title: code runs from nothing (JIT refused)",
+    "Sony helper: code runs from nothing; JIT refused",
+    "Sony helper's 64 MiB came from the title's memory: yes (67 MiB)"
+  ],
+  "console_log": [
+    "flex title app=32792 list_count=1 parent_service_id=402752304 title_flexible_before=1032847360",
+    "flex spawn returned=402752321 status=0x18018341",
+    "flex helper answered=1 pid=219 direct_alloc=0 direct_map=0 anon_map=0 jit_made=0x80020001 title_flexible_held=962592768",
+    "flex point=start resident=1191 mapped=1191 available=1029701632",
+    "flex point=direct resident=1191 mapped=1191 available=1029701632",
+    "flex point=anon resident=1191 mapped=1191 available=962592768",
+    "flex point=jit resident=1191 mapped=1191 available=962592768",
+    "flex exec process=helper way=direct0 made=0 mapped=0 protect=0 query=0 prot=1 value=-1",
+    "flex exec process=helper way=direct12 made=0 mapped=0 protect=0 query=0 prot=1 value=-1",
+    "flex exec process=helper way=main12 made=0 mapped=0 protect=0 query=0 prot=1 value=-1",
+    "flex exec process=helper way=mapx made=0 mapped=0x80020016 protect=0 query=0 prot=-1 value=-1",
+    "flex exec process=helper way=anon made=0 mapped=0 protect=0 query=0 prot=1 value=-1",
+    "flex exec process=helper way=jit made=0x80020001 mapped=0 protect=0 query=0 prot=-1 value=-1",
+    "flex close completion=1 closed=0 present=0 list_after=1 title_flexible_after=1032847360"
+  ]
+}

@@ -217,6 +217,9 @@ static int run_tests_in_turn( const char *list )
         batch_watchdog_name = full_name;
         batch_watchdog_done = CreateEventA( NULL, TRUE, FALSE, NULL );
         watchdog = CreateThread( NULL, 0, batch_watchdog, NULL, 0, NULL );
+        /* A test starts its child processes as "argv[0] argv[1] child-args": argv[1] has to be this file's name, or every
+         * child (a debuggee, a dummy) is a whole new batch of the list instead (ntdll info's children, 2026-10-25). */
+        if (winetest_argc > 1) winetest_argv[1] = name;
         result = run_test( name );
         SetEvent( batch_watchdog_done );
         if (watchdog) { WaitForSingleObject( watchdog, INFINITE ); CloseHandle( watchdog ); }
@@ -296,15 +299,20 @@ chmod +x "$work/guard-cc"
 dlls=("$@")
 [[ ${#dlls[@]} -gt 0 ]] || dlls=(ntdll kernel32 kernelbase)
 for dll in "${dlls[@]}"; do
-    [[ $dll =~ ^[A-Za-z0-9_]+$ ]] || { echo 'DLL name must be an identifier' >&2; exit 2; }
-    mkdir -p "$work/build/dlls/$dll/tests/wine"
-    cp "$override" "$work/build/dlls/$dll/tests/wine/test.h"
+    # a DLL's tests are dlls/NAME/tests (NAME may be ndis.sys, ntoskrnl.exe); a program's are programs/NAME/tests,
+    # named NAME.exe (cmd.exe_test.exe), as Wine names them
+    [[ $dll =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "test module name: letters, digits, _, . and -" >&2; exit 2; }
+    if [[ -d $source/dlls/$dll/tests ]]; then dir=dlls/$dll
+    elif [[ $dll == *.exe && -d $source/programs/${dll%.exe}/tests ]]; then dir=programs/${dll%.exe}
+    else echo "no tests for $dll" >&2; exit 2; fi
+    mkdir -p "$work/build/$dir/tests/wine"
+    cp "$override" "$work/build/$dir/tests/wine/test.h"
     for arch in x86_64 i386; do
         suffix=; [[ $arch != i386 ]] || suffix=32
         make -C "$work/build" -j"${JOBS:-14}" x86_64_CC="$work/guard-cc" i386_CC="$work/guard-cc" \
-            "dlls/$dll/tests/$arch-windows/${dll}_test.exe" > "$work/make-$dll-$arch.log" 2>&1 ||
+            "$dir/tests/$arch-windows/${dll}_test.exe" > "$work/make-$dll-$arch.log" 2>&1 ||
             { echo "cannot build the $dll $arch tests; see $work/make-$dll-$arch.log" >&2; exit 1; }
-        cp "$work/build/dlls/$dll/tests/$arch-windows/${dll}_test.exe" "$work/exe/${dll}_test$suffix.exe"
+        cp "$work/build/$dir/tests/$arch-windows/${dll}_test.exe" "$work/exe/${dll}_test$suffix.exe"
         llvm-strip --strip-debug "$work/exe/${dll}_test$suffix.exe"
     done
 done

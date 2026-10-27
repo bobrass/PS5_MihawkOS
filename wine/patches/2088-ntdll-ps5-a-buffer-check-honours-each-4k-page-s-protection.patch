@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 00:30:00 -0400
+Subject: [PATCH] ntdll: PS5: a buffer check honours each 4 KiB page's protection.
+
+virtual_check_buffer_for_read and _for_write probe a buffer by touching it, which the console's kernel judges by its
+16 KiB host page: a no-access, guard or read-only 4 KiB page beside an accessible one passed, so ReadFile into it,
+WriteFile from it and Read/WriteProcessMemory across it succeeded where Windows and Linux Wine fail them (kernel32
+file.c:3530-3595, virtual.c:153-169, both builds, 2026-10-25). After the probe, a host page whose four pages'
+protection bytes differ is checked page by page under the virtual mutex; where they agree the kernel's protection is
+exact, and nothing more is done (the lock costs about as much as a small read on the console).
+---
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -6639,6 +6639,42 @@
+ }
+ 
+ 
++#ifdef __PROSPERO__
++/* The console's kernel protects 16 KiB host pages; a 4 KiB page's own protection is only in pages_vprot, so a probe
++ * that touches a no-access 4 KiB page beside an accessible one succeeds (ReadFile into it, WriteProcessMemory across
++ * it: kernel32 file.c:3530-3595, virtual.c:153-169, 2026-10-25). Where the four pages of each host page agree the
++ * kernel's protection is exact and the probe decides; a host page whose pages differ is checked page by page under
++ * the virtual mutex. want: VPROT_READ, or VPROT_WRITE for a buffer to write. */
++static BOOL pages_allow( const void *ptr, SIZE_T size, BYTE want )
++{
++    const char *start = ROUND_ADDR( ptr, host_page_mask ), *end = (const char *)ptr + size, *page;
++    BOOL mixed = FALSE, allowed = TRUE;
++    sigset_t sigset;
++
++    if (host_page_size == page_mask + 1 || end < (const char *)ptr) return TRUE;
++    for (page = start; page < end && !mixed; page += host_page_size)
++    {
++        BYTE first = get_page_vprot( page );
++        size_t i;
++        for (i = 1; i < host_page_size / (page_mask + 1); i++)
++            if (get_page_vprot( page + i * (page_mask + 1) ) != first) mixed = TRUE;
++    }
++    if (!mixed) return TRUE;
++
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    for (page = ROUND_ADDR( ptr, page_mask ); page < end && allowed; page += page_mask + 1)
++    {
++        BYTE vprot = get_page_vprot( page );
++        if (!find_view( page, 0 )) continue;   /* not Wine's memory: the probe decided */
++        if (!(vprot & VPROT_COMMITTED) || (vprot & VPROT_GUARD)) allowed = FALSE;
++        else if (want == VPROT_WRITE ? !(vprot & (VPROT_WRITE | VPROT_WRITECOPY)) : !(vprot & VPROT_READ)) allowed = FALSE;
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return allowed;
++}
++#endif
++
++
+ /***********************************************************************
+  *           virtual_check_buffer_for_read
+  *
+@@ -6669,6 +6705,9 @@
+         return FALSE;
+     }
+     __ENDTRY
++#ifdef __PROSPERO__
++    if (!pages_allow( ptr, size, VPROT_READ )) return FALSE;
++#endif
+     return TRUE;
+ }
+ 
+@@ -6702,6 +6741,9 @@
+         return FALSE;
+     }
+     __ENDTRY
++#ifdef __PROSPERO__
++    if (!pages_allow( ptr, size, VPROT_WRITE )) return FALSE;
++#endif
+     return TRUE;
+ }
+ 

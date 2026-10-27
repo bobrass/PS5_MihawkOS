@@ -310,6 +310,7 @@ void mainCRTStartup(void)
         static const struct { const char *firmware; uint64_t floor_gib; } floors[] = {
             {"10.01", 900},   /* measured 917 GiB, 16 spans; PS5 Pro, the kernel's module loader */
             {"13.40", 900},   /* measured 917 GiB, 16 spans; standard PS5, the user-space module loader */
+            {"13.60", 900},   /* measured 917 GiB, 17 spans; the same standard PS5 updated (fmem-gate-2026-10-25-01) */
         };
         char firmware[16] = "";
         uint64_t floor_gib = 0;

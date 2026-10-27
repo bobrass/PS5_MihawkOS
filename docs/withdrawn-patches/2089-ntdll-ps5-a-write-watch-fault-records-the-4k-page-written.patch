@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 01:40:00 -0400
+Subject: [PATCH] ntdll: PS5: a write-watch fault records the 4 KiB page written.
+
+A first write to a write-watched page cleared the watch on its whole 16 KiB host page, so GetWriteWatch reported four
+pages for one store, and eight for two (kernel32 virtual.c:1750-2350, both builds, 2026-10-25). The fault now clears
+only the 4 KiB page written. Its host page stays read-only while the other pages are watched (patch 1122's rule), and
+the store runs through the 4 KiB path that follows (patch 1134's MMU, or a single step); each other page is recorded
+at its own first write. A superset is safe for a garbage collector, which then scans more; the exact count costs up
+to four faults per host page and MMU runs for writes beside watched pages.
+---
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -6273,7 +6273,15 @@
+             }
+             else
+             {
++#ifdef __PROSPERO__
++                /* Only the 4 KiB page written is: GetWriteWatch reported all four pages of a 16 KiB host page after one
++                 * store (kernel32 virtual.c:1750-2350, both builds, 2026-10-25). Its host page stays read-only while
++                 * its other pages are still watched, and the write runs through the 4 KiB path below (the MMU or a
++                 * step); each other page is recorded at its own first write. */
++                set_page_vprot_bits( ROUND_ADDR( addr, page_mask ), page_mask + 1, 0, VPROT_WRITEWATCH );
++#else
+                 set_page_vprot_bits( page, host_page_size, 0, VPROT_WRITEWATCH );
++#endif
+                 mprotect_range( page, host_page_size, 0, 0 );
+             }
+         }

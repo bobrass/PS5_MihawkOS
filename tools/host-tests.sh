@@ -19,11 +19,19 @@ declare -A sources=(
     [test_pw_payload_close]=""
     [test_pw_payload_rendezvous]="wine/ps5/pw_wine_process_io.c"
     [test_pw_frame_pacing]="src/pw_frame_pacing.c"
+    [test_pw_aurelia]="src/pw_aurelia.c"
+    [test_pw_steam]="src/pw_steam.c"
+    [test_pw_steam_guide]="src/pw_steam_guide.c"
+    [test_pw_steam_screen]="src/pw_steam_screen.c src/pw_loading_art.c src/pw_setup.c"
+    [test_pw_path_nocase]="src/pw_path_nocase.c"
+    [test_pw_steamcmd]="src/pw_steamcmd.c"
+    [test_pw_steamcmd_setup]="src/pw_steamcmd_setup.c src/pw_steamcmd.c"
     [test_pw_gpu_timing]=""
     [test_pw_display_copy]=""
     [test_pw_display_capture]=""
     [test_pw_log_drain]=""
     [test_pw_wine_inherit]=""
+    [test_forwarder_worker]=""
     [test_pw_speed_defaults]=""
     [test_pw_display_rate]=""
     [test_pw_present_retry]=""
@@ -38,7 +46,10 @@ declare -A sources=(
     [test_pw_controls]="src/pw_controls.c"
     [test_pw_usb_input]="src/pw_usb_input.c"
     [test_pw_game_mode]="src/pw_game_mode.c"
+    [test_pw_high_refresh]="src/pw_high_refresh.c"
+    [test_pw_controller]="src/pw_controller.c"
     [test_pw_setup]="src/pw_setup.c"
+    [test_pw_loading_art]="src/pw_loading_art.c"
     [test_pw_taskbar_layout]=""
     [test_pw_text_glyphs]=""
     [test_pw_desktop_icons]=""
@@ -51,7 +62,7 @@ declare -A sources=(
     [test_pw_wine_dmem_regions]="wine/ps5/pw_wine_dmem.c"
     [test_pw_wine_heap]="wine/ps5/pw_wine_heap.c"
     [test_pw_wine_dmem_ps5]="wine/ps5/pw_wine_dmem_ps5.c wine/ps5/pw_wine_dmem.c wine/ps5/pw_wine_heap.c wine/ps5/pw_wine_pages.c wine/ps5/pw_wine_vm.c wine/ps5/pw_wine_alias.c
-        wine/ps5/pw_wine_perf.c"
+        wine/ps5/pw_wine_perf.c wine/ps5/pw_wine_codeshare.c wine/ps5/pw_wine_code_budget.c"
     [test_pw_wine_alias]="wine/ps5/pw_wine_alias.c"
     [test_pw_wine_mmu4k]="wine/ps5/pw_wine_mmu4k.c wine/ps5/pw_wine_mmu4k_slot.S wine/ps5/pw_wine_alias.c src/pw_ia32_isa.c
         src/pw_ia32_decode.c"
@@ -72,6 +83,7 @@ declare -A sources=(
     [test_pw_wine_launch]="src/pw_wine_launch.c"
     [test_pw_wine_profile]="src/pw_wine_profile.c"
     [test_pw_wine_cwd_links]="wine/ps5/pw_wine_cwd.c wine/ps5/pw_wine_cwd_libc.c"
+    [test_pw_wine_xattr]="wine/ps5/pw_wine_xattr.c"
     [test_pw_wine_prefix]="wine/ps5/pw_wine_prefix.c src/pw_wine_launch.c"
     [test_pw_civil_time]=""
     [test_pw_wine_wallpaper]="wine/ps5/pw_wine_wallpaper.c"
@@ -79,6 +91,8 @@ declare -A sources=(
     [test_pw_wine_section_cluster]="wine/ps5/pw_wine_section.c"
     [test_pw_wine_section]="wine/ps5/pw_wine_section.c"
     [test_pw_wine_dsection]="wine/ps5/pw_wine_dsection.c"
+    [test_pw_wine_codeshare]="wine/ps5/pw_wine_codeshare.c"
+    [test_pw_wine_code_budget]="wine/ps5/pw_wine_code_budget.c"
     [test_pw_wine_section_data]="wine/ps5/pw_wine_section.c wine/ps5/pw_wine_blocks.c"
     [test_pw_wine_section_blocks]="wine/ps5/pw_wine_section.c wine/ps5/pw_wine_blocks.c"
     [test_pw_wine_section_dmem]="wine/ps5/pw_wine_section.c wine/ps5/pw_wine_dmap.c wine/ps5/pw_wine_dsection.c"
@@ -120,12 +134,14 @@ declare -A sources=(
     [test_pw_ws2_32_libc]="wine/ps5/pw_ws2_32_libc.c"
     [test_pw_ia32_decode]="src/pw_ia32_isa.c src/pw_ia32_decode.c src/pw_ia32_print.c"
     [test_pw_ia32_interp]="src/pw_ia32_isa.c src/pw_ia32_decode.c src/pw_ia32_interp.c"
+    [test_pw_umip]="src/pw_ia32_isa.c src/pw_ia32_decode.c src/pw_umip.c"
     [test_wine_fault_served]=""
     [test_wine_virtual_guard]=""
+    [test_process_rules]="src/pw_steam.c"
     [test_crash_replays]="tests/fake_ps5_kernel.c wine/ps5/pw_wine_dmem_ps5.c wine/ps5/pw_wine_dmem.c wine/ps5/pw_wine_heap.c
         wine/ps5/pw_wine_pages.c wine/ps5/pw_wine_pages_ps5.c wine/ps5/pw_wine_vm.c wine/ps5/pw_wine_prx.c wine/ps5/pw_wine_alias.c
         wine/ps5/pw_wine_mmu4k_ps5.c wine/ps5/pw_wine_mmu4k.c wine/ps5/pw_wine_mmu4k_slot.S src/pw_ia32_isa.c src/pw_ia32_decode.c
-        wine/ps5/pw_wine_perf.c .deps/graphics-foundation/tooling/gpu-broker/client.c"
+        wine/ps5/pw_wine_perf.c wine/ps5/pw_wine_codeshare.c wine/ps5/pw_wine_code_budget.c .deps/graphics-foundation/tooling/gpu-broker/client.c"
 )
 # Extra compiler flags: the resolver's names are prefixed so the test reaches it, not glibc's.
 declare -A flags=(
@@ -138,6 +154,7 @@ declare -A flags=(
     [test_wine_fault_served]="-I$out"
     # Patch 1128's guard in virtual.c, extracted from the applied Wine tree into $out (below).
     [test_wine_virtual_guard]="-I$out"
+    [test_process_rules]="-I$out"
     # The shared fake kernel owns console addresses as host addresses, which below 0x2008fff7000 lie in AddressSanitizer's
     # shadow gap: no ASan here (UBSan stays). The wrapped libc calls reach the fake; Wine's extracted code is built with
     # Wine's warnings, and the host's mincore takes unsigned char where the console's takes char.
@@ -198,6 +215,9 @@ for test in "$root"/tests/test_*.c; do
     if [[ $name == test_pw_tooltip ]]; then
         python3 "$root/tools/build-tooltip-glyphs.py" > /dev/null
     fi
+    if [[ $name == test_process_rules ]]; then
+        python3 "$root/tests/extract_process_rules.py" "$root"/wine/patches/2070-*.patch "$out/process_rules.inc"
+    fi
     if [[ $name == test_wine_virtual_guard ]]; then
         # shortcut: reads the tree the last build-wine-ps5.sh applied, not the patch series; build after editing 1128.
         virtual=$root/.deps/wine-ps5/source/dlls/ntdll/unix/virtual.c
@@ -214,6 +234,12 @@ for test in "$root"/tests/test_*.c; do
         arguments=("$root/tests/pad-scripts/desktop-pointer.txt" "$root/tests/pad-scripts/mouse-controls.txt")
     fi
     [[ $name == test_pw_setup ]] && arguments=("$root")
+    if [[ $name == test_pw_steam_screen ]]; then
+        # Inter from the kit's export, the Chinese and Japanese cuts from the last build's assets (skipped before one)
+        cuts=$root/build/ps5/generated/setup/fonts
+        [[ -f $cuts/noto-sans-sc.ttf && -f $cuts/noto-sans-jp.ttf ]] || cuts=-
+        arguments=("$root/.deps/hui/third_party/fonts" "$cuts")
+    fi
     "$out/$name" "${arguments[@]}" > "$out/$name.log" 2>&1 || { cat "$out/$name.log" >&2; echo "$name: FAILED" >&2; exit 1; }
     echo "$name: ok"
     ran=$((ran + 1))
@@ -230,11 +256,27 @@ for test in "$root"/tests/test_*.c; do
         ran=$((ran + 1))
     fi
 done
+# The WebUI's core (src/pw_webui.cpp) is C++ over nlohmann::json; the C files it saves the settings through are
+# compiled as C, then linked with it.
+if (( $# == 0 )) || [[ "$*" == *webui* ]]; then
+    webui_objects=()
+    for source in pw_controller pw_controls pw_detailed_logs pw_log_sessions pw_game_mode pw_high_refresh; do
+        "${CC:-cc}" -std=gnu11 -O2 -g -Wall -Wextra -Werror -fsanitize=address,undefined -c "$root/src/$source.c" \
+            -o "$out/webui_$source.o"
+        webui_objects+=("$out/webui_$source.o")
+    done
+    "${CXX:-c++}" -std=gnu++17 -O2 -g -Wall -Wextra -Werror -fsanitize=address,undefined -I"$root/src" \
+        -I"$root/external/tinygltf" "$root/tests/test_pw_webui.cpp" "$root/src/pw_webui.cpp" "${webui_objects[@]}" \
+        -o "$out/test_pw_webui"
+    "$out/test_pw_webui" > "$out/test_pw_webui.log" 2>&1 || { cat "$out/test_pw_webui.log" >&2; echo "test_pw_webui: FAILED" >&2; exit 1; }
+    echo "test_pw_webui: ok"
+    ran=$((ran + 1))
+fi
 if (( $# == 0 )) || [[ "$*" == *console_guard* ]]; then
     for test in console_guard battery_runner shell_capture window_compose_runner appearance_runner profile_report \
             desktop_session_runner desktop_input_runner tls_fixture telemetry_teardown \
             window_material_tokens window_effects_runner frame_pacing_runner deploy_folder console_setup sched_watch run_console_verdicts \
-            placed_unmap_order module_wiring helper_opengl privacy_check dll_overrides prx_exports taskbar_logo stage_licences publication_check title_icon pack_runtime pw_https mihawk_wallpaper mihawk_music browser_lines sign_release package_install check_title_imports carrier_image_probe payload_firmware; do
+            placed_unmap_order module_wiring helper_opengl privacy_check dll_overrides prx_exports taskbar_logo stage_licences publication_check title_icon pack_runtime pw_https mihawk_wallpaper aero_wallpapers mihawk_music browser_lines sign_release package_install check_title_imports carrier_image_probe payload_firmware memory_breakdown run_shared_charge webui_http webui_i18n deploy_wine_retire; do
         python3 "$root/tests/test_$test.py"
         ran=$((ran + 1))
     done

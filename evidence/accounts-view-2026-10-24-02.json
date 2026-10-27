@@ -1,0 +1,47 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.149,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.14,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": null,
+  "title": "PPSA99170",
+  "identity": "0b714d1544fd474098108b6ff3ab186a",
+  "frames_requested": 240,
+  "eboot_sha256": "125cabf4ffa5da31dac1d9b80ff78fb82f594043971421fa8a986301da257a40",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 240 frames in 4.39 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "Aurelia page, 59 game(s) from the session snapshot, account freshpotato99"
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.5,
+    "elevation": 0.5,
+    "library": 0.57,
+    "ui": 0.65
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": null,
+  "passed": true,
+  "capture": "klog/accounts-view-2026-10-24-02",
+  "forced_close": false,
+  "storage_errors": 0
+}

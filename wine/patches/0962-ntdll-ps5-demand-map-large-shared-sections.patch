@@ -134,13 +134,13 @@ SPDX-License-Identifier: LGPL-2.1-or-later
 -    if (res) goto done;
 +#ifdef __PROSPERO__
 +    /* The same policy applies to every large shared section and its aliases.
-+     * Leave private/write-copy and unaligned views on their existing path. */
-+    if (full_size >= ((ULONG64)256 << 20) && !(vprot & VPROT_WRITECOPY) &&
-+        !(size & host_page_mask) && !(offset.QuadPart & host_page_mask))
++     * Leave private/write-copy views and unaligned offsets on their existing path; a view ends inside its own 64 KiB, so its last host page is its own (Steam's two 25 MiB sections end inside one). */
++    if (full_size >= __wine_ps5_section_min_bytes() && !(vprot & VPROT_WRITECOPY) &&
++        !(offset.QuadPart & host_page_mask))
 +    {
 +        void *internal = NULL;
 +        if (is_win64 && !base && !(alloc_type & (MEM_REPLACE_PLACEHOLDER | MEM_TOP_DOWN)))
-+            internal = __wine_ps5_section_address( size, limit_low,
++            internal = __wine_ps5_section_address( ROUND_SIZE( 0, size, host_page_mask ), limit_low,
 +                limit_high ? min( limit_high, (ULONG_PTR)user_space_limit - 1 ) :
 +                (ULONG_PTR)user_space_limit - 1, granularity_mask );
 +        if (internal) res = create_view( &view, internal, size, vprot );
@@ -152,7 +152,7 @@ SPDX-License-Identifier: LGPL-2.1-or-later
 +         * released it again when the pager adopted it, leaving the untouched pages unmapped: a mapping made without an
 +         * address then landed inside the view (a Unity game in an emulator read Wine's host-protection leaf, 0x80 bytes,
 +         * as its own memory; 2026-10-14). */
-+        res = __wine_ps5_section_add( &view->ps5_section, (uintptr_t)view->base, size,
++        res = __wine_ps5_section_add( &view->ps5_section, (uintptr_t)view->base, ROUND_SIZE( 0, size, host_page_mask ),
 +                                     unix_handle, offset.QuadPart ) ? STATUS_NO_MEMORY : STATUS_SUCCESS;
 +        if (!res && !internal)
 +        {

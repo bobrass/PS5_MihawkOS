@@ -38,6 +38,8 @@ struct ProtonGame {
 	std::string prefix;     /* optional prefix folder ID; empty: shared default or retained legacy folder */
 	std::vector<std::string> env; /* NAME=VALUE words for this game's environment, from game.json */
 	bool desktop{ true };   /* game.json "desktop": false keeps a diagnostic entry off the Mihawk OS desktop */
+	bool launcher{ true };  /* game.json "launcher": false keeps it out of the launcher's list (the WebUI's "In MihawkOS's
+	                           game list" unticked); it still starts from the desktop, a tile or a profile */
 	std::string complaint;  /* what is wrong with this entry, shown in the launcher */
 	/* The executable is a 32-bit-only Windows program (src/pw_pe_arch.h): it runs under WoW64 when
 	 * the runtime ships its i386 modules, and has a complaint (is not launched) when it does not. */
@@ -58,6 +60,9 @@ struct ProtonLaunch {
 	 * of the test file to run). An explicitly empty value clears them. */
 	std::string arguments;
 	bool arguments_override{ false };
+	/* aurelia=1: this session runs the Aurelia client (src/pw_aurelia.h), whose --json lines the title captures
+	 * from the session output (native/proton_wine.cpp aurelia_line). The launcher sets it for its Aurelia entry. */
+	bool aurelia{ false };
 	/* ended=<reason>: why the last session ended, when it failed (native/proton_wine.cpp fail), for the launcher. */
 	std::string ended;
 };
@@ -106,6 +111,10 @@ std::string proton_title_path(const char *path);
 std::string proton_controls_path();
 /* The Game Mode setting (src/pw_game_mode.h), beside controls.txt. */
 std::string proton_game_mode_path();
+/* The controller setting (src/pw_controller.h), beside game-mode.txt. */
+std::string proton_controller_path();
+/* The 120 Hz setting (src/pw_high_refresh.h), beside game-mode.txt. */
+std::string proton_high_refresh_path();
 /* The Logging setting (src/pw_detailed_logs.h), beside game-mode.txt. */
 std::string proton_logging_path();
 /* Every place the catalog is read from, in order, existing or not. */
@@ -133,6 +142,8 @@ void proton_restart(const ProtonGame *game, unsigned cycle, const char *reason, 
 /* Queue a launcher choice; dispatch only after its UI, audio and Vulkan device are destroyed. */
 void proton_queue_restart(const ProtonGame *game, unsigned cycle, const char *reason);
 void proton_finish_restart();
+/* Whether proton_queue_restart has a restart waiting: a budgeted test run that queued one (the Steam option's) carries it out. */
+bool proton_restart_pending();
 
 /* A line to klog, with the title's prefix. */
 __attribute__((format(printf, 1, 2))) void proton_say(const char *format, ...);

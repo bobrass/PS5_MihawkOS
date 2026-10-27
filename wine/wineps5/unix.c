@@ -52,6 +52,7 @@ struct ps5_stream
     UINT flags;
     HANDLE event;
     BOOL playing;
+    BOOL started;   /* once started, its event is set every period until it is released, stopped or not, as on Windows */
 
     UINT64 written_frames, last_pos_frames;
     UINT32 period_frames, bufsize_frames, tmp_buffer_frames;
@@ -370,6 +371,18 @@ static NTSTATUS ps5_release_stream(void *args)
     return STATUS_SUCCESS;
 }
 
+/* One grain of a stream's period has passed: its event when the period is over. */
+static void tick_event(struct ps5_stream *stream)
+{
+    if (!stream->started) return;
+    stream->since_event += PW_WINE_AUDIO_GRAIN;
+    if (stream->since_event >= stream->period_output_frames)
+    {
+        stream->since_event %= stream->period_output_frames;
+        if (stream->event) NtSetEvent(stream->event, NULL);
+    }
+}
+
 /* The mixer: every started stream into one grain, then the grain to the
  * title, which returns once the console's port took it. */
 static NTSTATUS mixer_loop(void *args)
@@ -377,7 +390,7 @@ static NTSTATUS mixer_loop(void *args)
     static float accumulator[2 * PW_WINE_AUDIO_GRAIN];
     static int16_t grain[2 * PW_WINE_AUDIO_GRAIN];
     struct ps5_stream *stream;
-    BOOL playing;
+    BOOL playing, ticking;
     unsigned grains = 0, short_grains = 0, missing = 0, errors = 0;
     double output_ms = 0, max_gap_ms = 0, previous_end = 0;
     struct timespec stamp;
@@ -387,30 +400,44 @@ static NTSTATUS mixer_loop(void *args)
     NtSetEvent(params->event, NULL);
     for (;;)
     {
-        playing = FALSE;
+        playing = ticking = FALSE;
         for (stream = streams; stream; stream = stream->next)
+        {
             playing |= stream->playing;
-        if (!playing)
+            ticking |= stream->started && stream->event;
+        }
+        if (!playing && !ticking)
         {
             pthread_cond_wait(&started, &lock);
+            continue;
+        }
+        if (!playing)
+        {
+            /* only stopped streams: their events keep the period ("Still receiving events!", mmdevapi's render test) */
+            LARGE_INTEGER delay;
+            pthread_mutex_unlock(&lock);
+            delay.QuadPart = -(LONGLONG)PW_WINE_AUDIO_GRAIN * 10000000 / PW_WINE_AUDIO_RATE;
+            NtDelayExecution(FALSE, &delay);
+            pthread_mutex_lock(&lock);
+            for (stream = streams; stream; stream = stream->next)
+                if (!stream->playing) tick_event(stream);
             continue;
         }
 
         memset(accumulator, 0, sizeof(accumulator));
         for (stream = streams; stream; stream = stream->next)
         {
-            if (!stream->playing) continue;
+            if (!stream->playing)
+            {
+                tick_event(stream);
+                continue;
+            }
             unsigned mixed = pw_audio_mix_add(&stream->mix, accumulator, PW_WINE_AUDIO_GRAIN);
             if (mixed < PW_WINE_AUDIO_GRAIN) {
                 ++short_grains;
                 missing += PW_WINE_AUDIO_GRAIN - mixed;
             }
-            stream->since_event += PW_WINE_AUDIO_GRAIN;
-            if (stream->since_event >= stream->period_output_frames)
-            {
-                stream->since_event %= stream->period_output_frames;
-                if (stream->event) NtSetEvent(stream->event, NULL);
-            }
+            tick_event(stream);
         }
         pw_audio_mix_store(accumulator, grain, PW_WINE_AUDIO_GRAIN);
         pthread_mutex_unlock(&lock);
@@ -454,7 +481,7 @@ static NTSTATUS ps5_start(void *args)
     if (stream->playing)
         return unlock_result(&params->result, AUDCLNT_E_NOT_STOPPED);
 
-    stream->playing = TRUE;
+    stream->playing = stream->started = TRUE;
     stream->since_event = 0;
     pthread_cond_signal(&started);
 

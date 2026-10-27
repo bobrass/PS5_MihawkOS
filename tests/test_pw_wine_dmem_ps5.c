@@ -308,8 +308,8 @@ static unsigned kernel_protection(const void *address)
 }
 static uint64_t backed_bytes(void)
 {
-    uint64_t v[15];
-    assert(__wine_ps5_memory_stats(v, 15) == 15);
+    uint64_t v[20];
+    assert(__wine_ps5_memory_stats(v, 20) == 20);
     return v[0];
 }
 

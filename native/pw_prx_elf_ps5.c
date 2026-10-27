@@ -16,8 +16,15 @@ extern int sceKernelMmap(void *address, size_t bytes, int protection, int flags,
 extern int sceKernelMprotect(const void *address, size_t bytes, int protection);
 extern int sceKernelMunmap(void *address, size_t bytes);
 extern int sceKernelDlsym(int handle, const char *name, void **address);
+extern int sceKernelAllocateDirectMemoryForApp(int64_t, int64_t, size_t, size_t, int, int64_t *);
+extern int64_t sceKernelGetDirectMemorySize(void);
+extern int sceKernelMapDirectMemory(void **address, size_t bytes, int protection, int flags, int64_t offset, size_t alignment);
+extern int sceKernelReleaseDirectMemory(int64_t offset, size_t bytes);
 
 #define PAGE 0x4000u
+#define DIRECT_TYPE 0x0c      /* as wine/ps5/pw_wine_dmem_ps5.c */
+#define CPU_READ_WRITE 0x03   /* never the GPU bits in a payload: wired memory (pw_wine_dmem_ps5.c, map) */
+#define KERNEL_FIXED 0x10
 #define MAX_IMAGES 24
 #define MAX_PROTS 16
 
@@ -137,6 +144,45 @@ static int jit_over(uintptr_t address, size_t bytes)
     return sceKernelMprotect((void *)address, rounded, PROT_READ | PROT_EXEC);
 }
 
+/* Direct memory, which neither flexible pool counts, mapped read-write over a range reserved here (never where the
+ * kernel places a mapping that names no address: wine/ps5/pw_wine_pages.h). The address, or NULL. */
+static void *direct_mapped(size_t bytes, int64_t *offset)
+{
+    void *wanted = NULL, *at;
+    if (sceKernelReserveVirtualRange(&wanted, bytes, 0, PAGE) || !wanted) return NULL;
+    if (!sceKernelAllocateDirectMemoryForApp(0, sceKernelGetDirectMemorySize(), bytes, PAGE, DIRECT_TYPE, offset)) {
+        at = wanted;
+        if (!sceKernelMapDirectMemory(&at, bytes, CPU_READ_WRITE, KERNEL_FIXED, *offset, PAGE) && at == wanted) return at;
+        sceKernelReleaseDirectMemory(*offset, bytes);
+    }
+    sceKernelMunmap(wanted, bytes);
+    return NULL;
+}
+
+static void direct_drop(void *at, size_t bytes, int64_t offset)
+{
+    if (!at) return;
+    sceKernelMunmap(at, bytes);
+    sceKernelReleaseDirectMemory(offset, bytes);
+}
+
+/* A module's data, read-only or writable, moves from anonymous memory (the system pool) to direct memory, as jit_over
+ * moves its text: libvulkan-helper's 14 MiB of read-only data was flexible memory in every helper that loads it
+ * (docs/FLEXIBLE_MEMORY.md). A refusal before the range is replaced keeps the anonymous copy. */
+static int direct_over(uintptr_t address, size_t bytes, int protection)
+{
+    int64_t offset;
+    void *scratch = direct_mapped(bytes, &offset), *at = (void *)address;
+    if (!scratch) return -1;
+    memcpy(scratch, (const void *)address, bytes);
+    sceKernelMunmap(scratch, bytes);
+    if (sceKernelMapDirectMemory(&at, bytes, CPU_READ_WRITE, KERNEL_FIXED, offset, PAGE) || at != (void *)address) {
+        sceKernelReleaseDirectMemory(offset, bytes);
+        return -1;
+    }
+    return protection == (PROT_READ | PROT_WRITE) ? 0 : sceKernelMprotect((void *)address, bytes, protection);
+}
+
 static void apply_protections(Loader *loader)
 {
     uintptr_t at = loader->base, end = loader->base + loader->span;
@@ -167,9 +213,12 @@ static void apply_protections(Loader *loader)
         if (want == (PROT_READ | PROT_EXEC)) {
             if (jit_over(at, run_end - at)) fprintf(stderr, "pw_prx_elf: JIT %#lx+%#lx failed errno=%d\n",
                                                     (unsigned long)at, (unsigned long)(run_end - at), errno);
-        } else if (sceKernelMprotect((void *)at, run_end - at, want)) {
-            fprintf(stderr, "pw_prx_elf: protect %#lx+%#lx -> %d failed errno=%d\n",
-                    (unsigned long)at, (unsigned long)(run_end - at), want, errno);
+        } else if (direct_over(at, run_end - at, want)) {
+            fprintf(stderr, "pw_prx_elf: data %#lx+%#lx stays flexible memory (direct memory refused)\n",
+                    (unsigned long)at, (unsigned long)(run_end - at));
+            if (sceKernelMprotect((void *)at, run_end - at, want))
+                fprintf(stderr, "pw_prx_elf: protect %#lx+%#lx -> %d failed errno=%d\n",
+                        (unsigned long)at, (unsigned long)(run_end - at), want, errno);
         }
         at = run_end;
     }
@@ -346,17 +395,12 @@ static uintptr_t resolve_import(void *opaque, const char *name, const char *libr
     return 0;
 }
 
-int pw_prx_elf_ps5_needed(unsigned firmware)
-{
-    /* 10.01 loads the kernel's fake-signed modules in a payload; 12.00 and later stop at the pager. The word is
-     * BCD: 0x13590001 is 13.59. */
-    return (firmware >> 24) >= 0x12;
-}
-
 int pw_prx_elf_ps5_load(const char *path, PwPrxElfImage *image, char *error, size_t error_size)
 {
     struct stat info;
     unsigned char *bytes = NULL;
+    size_t buffer_bytes = 0;
+    int64_t buffer_offset = 0;
     uintptr_t min = 0, max = 0;
     Loader loader = {0};
     int fd = -1, status = PW_PRX_ELF_ERR_ARGUMENT;
@@ -365,7 +409,9 @@ int pw_prx_elf_ps5_load(const char *path, PwPrxElfImage *image, char *error, siz
     if (!path || !image) return PW_PRX_ELF_ERR_ARGUMENT;
     if ((fd = open(path, O_RDONLY)) < 0) { status = PW_PRX_ELF_ERR_TRUNCATED; goto fail; }
     if (fstat(fd, &info) || info.st_size <= 0 || info.st_size > (64 << 20)) goto fail;
-    bytes = malloc((size_t)info.st_size);
+    /* Not libc's heap, which keeps what is freed: win32u's 26 MiB image stayed resident in every helper. */
+    buffer_bytes = ((size_t)info.st_size + PAGE - 1) & ~(size_t)(PAGE - 1);
+    bytes = direct_mapped(buffer_bytes, &buffer_offset);
     if (!bytes) { status = PW_PRX_ELF_ERR_LIMIT; goto fail; }
     if (read(fd, bytes, (size_t)info.st_size) != info.st_size) goto fail;
     close(fd); fd = -1;
@@ -392,11 +438,11 @@ int pw_prx_elf_ps5_load(const char *path, PwPrxElfImage *image, char *error, siz
         snprintf(image_paths[image_count], sizeof(image_paths[0]), "%s", path);
         image_count++;
     }
-    free(bytes);
+    direct_drop(bytes, buffer_bytes, buffer_offset);
     return PW_PRX_ELF_OK;
 fail:
     if (fd >= 0) close(fd);
-    free(bytes);
+    direct_drop(bytes, buffer_bytes, buffer_offset);
     if (error && error_size)
         snprintf(error, error_size, "%s: status %d errno %d", path, status, errno);
     return status;

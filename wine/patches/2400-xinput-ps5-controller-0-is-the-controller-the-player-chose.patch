@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 16:00:00 -0400
+Subject: [PATCH] xinput: PS5: controller 0 is the controller the player chose.
+
+The DualSense reached every program twice: as XInput's controller 0, described as a wired Xbox 360 controller (patch
+0470), and as a DualSense HID device (patch 0870). The owner saw Steam take both on 2026-10-26: its button glyphs swapped
+between PlayStation and Xbox in a menu. The title now shows programs one controller, the player's choice in MihawkOS's
+Settings (PS5_Proton src/pw_controller.h), and passes it on as WINE_PS5_CONTROLLER; the HID device is made only for the
+DualSense (WINE_PS5_HID). Here xinput reads it once with the title's pad:
+- "dualsense": controller 0 is not connected, as a DualSense is not an XInput controller on Windows;
+- "xbox-one": XInputGetCapabilitiesEx describes it as 045e:02ea, an Xbox One S controller, which SDL and Steam take
+  for an Xbox One controller;
+- anything else, or nothing: 045e:028e, a wired Xbox 360 controller, as before.
+---
+diff --git a/dlls/xinput1_3/main.c b/dlls/xinput1_3/main.c
+--- a/dlls/xinput1_3/main.c
++++ b/dlls/xinput1_3/main.c
+@@ -111,6 +111,11 @@
+  * xinput uses HID. */
+ static unixlib_handle_t title_pad;
+ static BOOL title_pad_enabled = TRUE;
++/* The controller the player chose (WINE_PS5_CONTROLLER, PS5_Proton src/pw_controller.h): "dualsense" is the DualSense's
++ * HID device alone, so XInput has no controller, as on Windows; "xbox-one" describes controller 0 as an Xbox One S
++ * controller; anything else as a wired Xbox 360 controller. */
++static BOOL title_pad_hidden;
++static WORD title_pad_product = 0x028e;
+ static XINPUT_VIBRATION title_pad_vibration;
+ 
+ static BOOL WINAPI find_title_pad(INIT_ONCE *once, void *param, void **context)
+@@ -131,8 +136,15 @@
+         __wine_unload_unix_lib(module);
+         return TRUE;
+     }
++    {
++        WCHAR kind[16];
++        DWORD length = GetEnvironmentVariableW(L"WINE_PS5_CONTROLLER", kind, ARRAY_SIZE(kind));
++        if (length >= ARRAY_SIZE(kind)) length = 0;
++        title_pad_hidden = length && !wcscmp(kind, L"dualsense");
++        if (length && !wcscmp(kind, L"xbox-one")) title_pad_product = 0x02ea;
++    }
+     TRACE("controller 0 is the title's\n");
+-    ERR("pad-path xinput: controller 0 is the title's\n");
++    ERR("pad-path xinput: controller 0 is the title's%s\n", title_pad_hidden ? ", hidden: the DualSense is chosen" : "");
+     title_pad = handle;
+     return TRUE;
+ }
+@@ -148,7 +160,7 @@
+ {
+     struct xinput_pad_state pad = {0};
+ 
+-    if (index || __wine_unix_call(title_pad, unix_pad_state, &pad) || !pad.connected) return FALSE;
++    if (index || title_pad_hidden || __wine_unix_call(title_pad, unix_pad_state, &pad) || !pad.connected) return FALSE;
+     memset(state, 0, sizeof(*state));
+     state->dwPacketNumber = pad.packet;
+     if (!title_pad_enabled) return TRUE;  /* XInputEnable(FALSE): neutral, still connected */
+@@ -1294,7 +1306,7 @@
+ 
+         if (index >= XUSER_MAX_COUNT) return ERROR_BAD_ARGUMENTS;
+         if (!title_pad_state(index, &state)) return ERROR_DEVICE_NOT_CONNECTED;
+-        /* What a wired Xbox 360 controller reports, which games look for. */
++        /* What a wired Xbox 360 controller reports, which games look for; an Xbox One S controller's product when chosen. */
+         memset(caps, 0, sizeof(*caps));
+         caps->Capabilities.Type = XINPUT_DEVTYPE_GAMEPAD;
+         caps->Capabilities.SubType = XINPUT_DEVSUBTYPE_GAMEPAD;
+@@ -1309,12 +1321,12 @@
+         caps->Capabilities.Vibration.wLeftMotorSpeed = 0xff;
+         caps->Capabilities.Vibration.wRightMotorSpeed = 0xff;
+         caps->VendorId = 0x045e;
+-        caps->ProductId = 0x028e;
++        caps->ProductId = title_pad_product;
+         caps->VersionNumber = 0x0114;
+         {
+             /* PS5 controller-path counters (branch controller-input): a program asks what controller 0 is. */
+             static LONG asked;
+-            if (InterlockedIncrement( &asked ) <= 4) ERR( "pad-path xinput: controller 0 described as 045e:028e\n" );
++            if (InterlockedIncrement( &asked ) <= 4) ERR( "pad-path xinput: controller 0 described as 045e:%04x\n", title_pad_product );
+         }
+         return ERROR_SUCCESS;
+     }

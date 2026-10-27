@@ -1,0 +1,35 @@
+"InstallScript"
+{
+	"Registry"
+	{
+		"HKEY_LOCAL_MACHINE\\Software\\PwFixture\\Steam"
+		{
+			"string"
+			{
+				"InstallDir"		"%INSTALLDIR%"
+			}
+			"dword"
+			{
+				"Installed"		"1"
+			}
+		}
+	}
+	"Run Process"
+	{
+		"PwFixture redistributable"
+		{
+			"HasRunKey"		"HKEY_LOCAL_MACHINE\\Software\\PwFixture\\SteamRedist"
+			"process 1"		"%INSTALLDIR%\\pwapp32.exe"
+			"command 1"		"/redist"
+			"NoCleanUp"		"1"
+		}
+	}
+	"Run Process On Uninstall"
+	{
+		"PwFixture redistributable"
+		{
+			"process 1"		"%INSTALLDIR%\\pwapp32.exe"
+			"command 1"		"/unredist"
+		}
+	}
+}

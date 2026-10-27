@@ -1,0 +1,5 @@
+{
+  "passed": false,
+  "status": "incomplete",
+  "stopped": "The launcher refused every game: its runtime-stamp no longer matched the console runtime after the rebuild for the Polish tile fix (title redeployed, runtime not). The press reached the option at 0 s and nothing followed; the harness was interrupted after 22 minutes and removed its hooks. The runtime was then redeployed (143 of 4728 files) and the stamps match; the owner runs the guide by hand next."
+}

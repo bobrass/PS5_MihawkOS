@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 15:00:00 -0400
+Subject: [PATCH] server: PS5: a client the server cannot reach does not end the title.
+
+get_handle_fd sends the descriptor with send_client_fd, which kills a client it cannot reach (EPIPE: the process is
+ending, as a test's child at its exit), and the requesting thread with it, so current is NULL afterwards. Patch 2076's
+lease then read current->process: the title's in-process server faulted at address 0x88 (req_get_handle_fd+0x12f,
+called from main_loop) and the whole title ended, every other program with it (the milestone sweep on 2026-10-26,
+during i386 ntdll file). The lease is now taken only while the thread is alive.
+---
+diff --git a/server/fd.c b/server/fd.c
+index 20d5991..193e66c 100644
+--- a/server/fd.c
++++ b/server/fd.c
+@@ -3422,7 +3422,11 @@ DECL_HANDLER(get_handle_fd)
+             reply->access = get_handle_access( current->process, req->handle );
+             send_client_fd( current->process, unix_fd, req->handle );
+ #ifdef __PROSPERO__
+-            if (reply->cacheable && ps5_is_child_process( current->process )) ps5_lease_take( current->process, req->handle );
++            /* send_client_fd kills a client it cannot reach (EPIPE: the process is ending), and current with it: the
++             * title's server then read current->process at NULL and the whole title ended (sweep 2026-10-26, i386
++             * ntdll file, req_get_handle_fd+0x12f, fault address 0x88) */
++            if (current && reply->cacheable && ps5_is_child_process( current->process ))
++                ps5_lease_take( current->process, req->handle );
+ #endif
+         }
+         release_object( fd );

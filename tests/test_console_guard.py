@@ -365,6 +365,11 @@ class DeployTests(GuardCase):
         guard.before_launch(readiness=lambda: {'ready': True})
         self.assertEqual(self.sleeps, [60.0])
 
+    def test_a_ps5vkctl_that_reads_sync_as_a_title_names_the_fix(self):
+        self.sync.return_value = 'err usage: sync needs a nine-character title id'
+        self.assertIn('tools/console-setup.py', guard.end_write())
+        self.assertEqual(guard.load()['last_write'], self.now)
+
     def test_a_restart_needs_the_title_read_back_again(self):
         guard.record_verified('title', 'title-digest', 'read back')
         guard.record_verified('runtime', 'runtime-digest', 'deploy-wine')

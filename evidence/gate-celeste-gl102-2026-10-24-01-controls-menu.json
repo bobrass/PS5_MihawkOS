@@ -1,0 +1,47 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.139,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.131,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": null,
+  "title": "PPSA99170",
+  "identity": "6dc70200244b42238a3401f7ded0a151",
+  "frames_requested": 300,
+  "eboot_sha256": "0cbe48a2947806a5cb000fe7d082ca226614aa85591f1cbd99051e922b82fd92",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 300 frames in 5.38 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)"
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.49,
+    "elevation": 0.49,
+    "library": 0.54,
+    "ui": 0.62
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": "remapped",
+  "passed": true,
+  "capture": "klog/gate-celeste-gl102-2026-10-24-01-controls-menu",
+  "forced_close": false,
+  "storage_errors": 0,
+  "controls_selection_verified": true
+}

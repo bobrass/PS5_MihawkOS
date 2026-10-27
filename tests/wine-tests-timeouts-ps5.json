@@ -1,0 +1,19 @@
+{
+ "_comment": "Seconds a test file may run in the persistent session where the rule from the PC's time (tools/run-wine-session.py) is too short for a reason measured on the console. A file that still runs past it times out and fails.",
+ "kernel32:process": {
+  "seconds": 900,
+  "why": "starts about 20 child processes; one costs the console seconds (the PC: 10.6 s for the file); 132 s from the PC's time ended it, 2026-10-25"
+ },
+ "kernel32:thread": {
+  "seconds": 600,
+  "why": "timed out at 90 s per launch, 2026-10-25"
+ },
+ "ws2_32:sock": {
+  "seconds": 900,
+  "why": "113 s on the PC"
+ },
+ "ole32:storage32": {
+  "seconds": 900,
+  "why": "every transacted open makes a scratch file, and a create costs the console file system ~20 ms natively (evidence/wine-tests/file-names-cost-2026-10-25.json); 90 s ended it, the PC takes 2 s"
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "run": "steamcmd-setup4",
+ "what": "profile steamcmd",
+ "env": [
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "",
+ "loaded": false,
+ "probe_verdict": null,
+ "stop_requested": null,
+ "cleanup_verified": false,
+ "hooks_removed": true
+}

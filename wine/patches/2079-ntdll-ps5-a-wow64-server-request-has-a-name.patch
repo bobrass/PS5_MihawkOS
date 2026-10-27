@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 04:30:00 -0400
+Subject: [PATCH] ntdll: PS5: a WoW64 server request has a name.
+
+wow64_wine_server_call builds a 64-bit request from the 32-bit one on the
+stack and never set its name, which the runtime counters (patch 0880)
+keep as the label of the request's code. A 32-bit program's first request
+of a code through this path left the stack's bytes there, the helper's
+census printed them every 10 s, and a 2D game's helper crashed
+in snprintf reading address 0x60 (isaac-load-fix1-2026-10-25-01; earlier
+runs printed garbage names). The name is now empty, and the counters keep
+only a real one.
+---
+diff --git a/dlls/ntdll/unix/server.c b/dlls/ntdll/unix/server.c
+index d42f073..7ff5d0b 100644
+--- a/dlls/ntdll/unix/server.c
++++ b/dlls/ntdll/unix/server.c
+@@ -2396,6 +2396,11 @@ NTSTATUS wow64_wine_server_call( void *args )
+     struct __server_request_info req;
+ 
+     req.u.req = req32->u.req;
++#ifdef __PROSPERO__
++    /* The 32-bit request has no name; the stack's was read as one by the runtime counters (patch 0880), and a helper's
++     * census printed it: a 32-bit game's helper crashed in snprintf on 0x60 (isaac-load-fix1-2026-10-25-01). */
++    req.name = "";
++#endif
+     req.data_count = req32->data_count;
+     for (i = 0; i < req.data_count; i++)
+     {

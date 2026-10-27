@@ -1,0 +1,69 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.14,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.131,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": null,
+  "title": "PPSA99170",
+  "identity": "6a4458f8237549b6ad3bf137d7277594",
+  "frames_requested": 1500,
+  "eboot_sha256": "627bc67faa311f5e025a3f49fa082e2d1a066fd2dc50e29ff6817f4d95274808",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 1500 frames in 25.43 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)"
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.5,
+    "elevation": 0.5,
+    "library": 0.56,
+    "ui": 0.62
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": null,
+  "passed": true,
+  "capture": "klog/gate-steamguide-2026-10-26-01-setup-tour",
+  "forced_close": false,
+  "storage_errors": 0,
+  "setup": {
+    "steps": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "language_ja": true,
+    "installed": true,
+    "sky_gpu_ms": [
+      0.512,
+      0.514,
+      0.518,
+      0.516,
+      0.513,
+      0.514
+    ],
+    "fps": [
+      "59.9"
+    ]
+  }
+}

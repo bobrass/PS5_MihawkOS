@@ -1,0 +1,15 @@
+{
+ "run": "steam-pool-raise-2026-10-21-01",
+ "what": "profile steam-e2e program C:\\Program Files (x86)\\Steam\\steam.exe",
+ "env": [
+  "PROTON_SYSTEM_MEMORY_LIMIT=0",
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "ps5vkctl: <console>:9111 did not answer (timed out); load build/ps5vkctl/ps5vkctl.elf on the console first",
+ "loaded": true,
+ "probe_verdict": null,
+ "stop_requested": "run budget reached",
+ "cleanup_verified": false
+}

@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 08:20:00 -0400
+Subject: [PATCH] ntdll: PS5: a thread reads back the debug registers it set.
+
+NtGetContextThread on the current thread with CONTEXT_DEBUG_REGISTERS asked the server whenever Dr7 enabled a
+breakpoint. The console's server cannot read debug registers (a process has no ptrace there), answered without them,
+and the call succeeded with the caller's buffer left as it was: ntdll's exception test set Dr0-Dr7, read back
+0xcccccccccccccccc for all six (exception.c:9241-9246, 12 failures, PE64 console, 2026-10-25), where the pinned Linux Wine
+reads back what was set. Anti-debugging code reads those registers to find a debugger's breakpoints, and garbage there is one. The thread's
+own values are now always the ones it set last (Wine already keeps them, amd64_thread_data). Hardware breakpoints
+still do not fire on the console; only what a program reads back changes. A 32-bit thread's read (WoW64) is answered
+the same way: it asked the server too, and copied what came back over the kept values (exception.c:1016-1021,
+9241-9246, PE32 console).
+---
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -1423,9 +1423,16 @@
+ 
+     if (self && needed_flags & CONTEXT_DEBUG_REGISTERS)
+     {
++#ifdef __PROSPERO__
++        /* The console has no debug registers a process can reach (no ptrace): the server cannot read them and
++         * answered without them, so the caller's buffer came back as it was (0xcc in ntdll's exception test), which
++         * anti-debugging code reads as a debugger's breakpoints. A thread's own are the ones it set last. */
++        use_cached_debug_regs = TRUE;
++#else
+         /* debug registers require a server call if hw breakpoints are enabled */
+         if (amd64_thread_data()->dr7 & 0xff) self = FALSE;
+         else use_cached_debug_regs = TRUE;
++#endif
+     }
+ 
+     if (!self)
+@@ -1682,6 +1689,21 @@
+ 
+     needed_flags = context->ContextFlags & ~CONTEXT_i386;
+ 
++#ifdef __PROSPERO__
++    /* As for a 64-bit thread (NtGetContextThread): the server cannot read debug registers here, and the values it
++     * did not give back also replaced the ones kept below (exception.c:1016-1021 and 9241-9246, PE32 console). */
++    if (self && (needed_flags & CONTEXT_I386_DEBUG_REGISTERS))
++    {
++        context->Dr0 = amd64_thread_data()->dr0;
++        context->Dr1 = amd64_thread_data()->dr1;
++        context->Dr2 = amd64_thread_data()->dr2;
++        context->Dr3 = amd64_thread_data()->dr3;
++        context->Dr6 = amd64_thread_data()->dr6;
++        context->Dr7 = amd64_thread_data()->dr7;
++        context->ContextFlags |= CONTEXT_I386_DEBUG_REGISTERS;
++        needed_flags &= ~CONTEXT_I386_DEBUG_REGISTERS;
++    }
++#endif
+     /* debug registers require a server call */
+     if (needed_flags & CONTEXT_I386_DEBUG_REGISTERS) self = FALSE;
+ 

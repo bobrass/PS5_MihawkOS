@@ -7,6 +7,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
+/* Removes from `target` each name listed in `source`/.pw-retired (one plain file name per line): files the runtime
+ * once put there and stopped shipping. Only that exact name in that folder, and only a regular file: no pattern, no
+ * path, no directory or link. A name that is absent is already gone; any other failure is the caller's. */
+static int retire_files(const char *source, const char *target)
+{
+    char path[1024], name[256];
+    struct stat state;
+    int removed = 0;
+    if (snprintf(path, sizeof(path), "%s/.pw-retired", source) >= (int)sizeof(path)) { errno = ENAMETOOLONG; return -1; }
+    FILE *list = fopen(path, "r");
+    if (!list) return -1;
+    while (fgets(name, sizeof(name), list)) {
+        name[strcspn(name, "\r\n")] = 0;
+        if (!name[0] || strchr(name, '/') || strchr(name, '\\') || !strcmp(name, ".") || !strcmp(name, "..")) continue;
+        if (snprintf(path, sizeof(path), "%s/%s", target, name) >= (int)sizeof(path)) continue;
+        if (lstat(path, &state)) {
+            if (errno == ENOENT) continue;
+            int saved = errno; fclose(list); errno = saved; return -1;
+        }
+        if (!S_ISREG(state.st_mode)) continue;
+        if (!unlink(path)) ++removed;
+        else if (errno != ENOENT) { int saved = errno; fclose(list); errno = saved; return -1; }
+    }
+    fclose(list);
+    return removed;
+}
 
 static int prepare_folder(const char *source, const char *target, unsigned depth)
 {
@@ -14,7 +42,7 @@ static int prepare_folder(const char *source, const char *target, unsigned depth
     char from[1024], to[1024];
     const char *names[MAX_FILES];
     size_t count = 0;
-    int copied = 0, failed = 0, saved = 0;
+    int copied = 0, failed = 0, saved = 0, retired = 0;
     struct stat state;
     if (depth > 4) { errno = ELOOP; return -1; }
     DIR *dir = opendir(source);
@@ -28,6 +56,7 @@ static int prepare_folder(const char *source, const char *target, unsigned depth
         if (!entry) { if (errno) { failed = 1; saved = errno; } break; }
         const char *name = entry->d_name;
         if (!strcmp(name, ".") || !strcmp(name, "..") || !strcmp(name, ".pw-proton-version")) continue;
+        if (!strcmp(name, ".pw-retired")) { retired = 1; continue; }
         int a = snprintf(from, sizeof(from), "%s/%s", source, name);
         int b = snprintf(to, sizeof(to), "%s/%s", target, name);
         if (a < 0 || b < 0 || (size_t)a >= sizeof(from) || (size_t)b >= sizeof(to)) {
@@ -47,6 +76,10 @@ static int prepare_folder(const char *source, const char *target, unsigned depth
         } else { failed = 1; saved = EINVAL; break; }
     }
     closedir(dir);
+    if (!failed && retired) {
+        int n = retire_files(source, target);
+        if (n < 0) { failed = 1; saved = errno; } else copied += n;
+    }
     if (!failed && count) {
         int n = pw_wine_launch_sync(source, target, names, count, ".pw-proton-version");
         if (n < 0) { failed = 1; saved = errno; } else copied += n;

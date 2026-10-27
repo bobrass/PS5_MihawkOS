@@ -7,7 +7,11 @@
 #include "kit.hpp"
 #include "launcher_music.hpp"
 #include "setup_tour.hpp"
+#include "proton_webui.h"
+#include "../../src/pw_qrcodegen.h"
 #include <algorithm>
+#include <cstdio>
+#include <fstream>
 #include <sys/stat.h>
 
 namespace {
@@ -21,8 +25,26 @@ class VulkanExample : public ps5ui::KitExample
 	pw_controls controls{};
 	std::string controlsNotice;
 	int gameMode{1};
+	int highRefresh{1};   // Settings > 120 Hz output (src/pw_high_refresh.h)
 	int detailedLogs{0};   // Settings > Logging (src/pw_detailed_logs.h)
-	enum class Page { library, themes, settings, controls, buttons };
+	int controller{PW_CONTROLLER_XBOX_360};   // Settings > Controller (src/pw_controller.h)
+	unsigned webuiSeen{0};   // the WebUI's change count the launcher last reloaded at (ps5/src/proton_webui.h)
+	std::string qrText;      // the QR code drawn, and its modules (pw_qrcodegen)
+	std::vector<uint8_t> qrModules;
+	int qrSize{0};
+	std::map<std::string, std::pair<long long, uint32_t>> covers;   // entry id: its header art's time and texture
+	enum class Page { library, aurelia, themes, settings, controls, buttons };
+
+	// The Aurelia page's library: the snapshot a session wrote (native/proton_wine.cpp aurelia_save_library), so the
+	// page renders without starting the client. account is the name its sign-in reported, if any.
+	struct AureliaEntry { unsigned app_id; std::string name; unsigned minutes; bool update; };
+	std::vector<AureliaEntry> aureliaEntries;
+	std::string aureliaAccount;
+	std::string aureliaNote;
+	bool aureliaOpenTried{ false };
+	int aureliaFocus{ 0 };
+	float aureliaScroll{ 0.0f };   // the shelf's leftmost tile, animated
+	hui::ui::ListView aureliaList;
 	Page page{Page::library};
 	unsigned mouseAction{0};
 	hui::gfx::DrawList scene;
@@ -43,6 +65,18 @@ class VulkanExample : public ps5ui::KitExample
 	float musicShown{ 0.0f };
 	ProtonUpdate updates;    // Settings > Check for updates (proton_update.h)
 	bool drawnOnce{ false };
+	// The store client's set-up (ps5/src/proton_steam.h), shown as a row of the Aurelia page's Accounts block
+	ProtonSteam store;
+	std::string clientNote;
+	float clientPoll{ 0.0f };
+	float steamPoll{ 0.0f };             // the Steam guide's next read of the client's state
+	bool clientTestTried{ false }; bool clientTest{ false };
+	bool clientInstallQueued{ false };
+	bool aureliaAccounts{ false };       // the Aurelia page shows its Accounts rows instead of the shelf
+	int clientRow{ -1 };                 // the library's Steam row (a default entry, not a catalog entry: its tag is -1)
+	bool fromAccounts{ false };          // the press came from the Aurelia page's rows: the session returns there
+	std::vector<ProtonGame> allGames;    // the catalog before the library's filter: the Aurelia page's entries are in it
+	std::string runtimeBlocked;          // why no session can start now (the runtime or /data), or empty
 
 	const hui::ui::Theme &theme() const
 	{
@@ -61,6 +95,97 @@ class VulkanExample : public ps5ui::KitExample
 		themes.set_focus(selectedTheme);
 		themes.enter();
 		syncThemes();
+	}
+
+	// What the page is showing, written where a run leaves it: a page opened, its game count, the account and the
+	// focused row (the console's klog is not readable from a recorder on every boot, so the page proves itself here).
+	void aureliaMark(const char *state, const char *note)
+	{
+		const std::string path = std::string(PROTON_DATA_ROOT) + "/aurelia-page.txt", temporary = path + ".tmp";
+		FILE *file = fopen(temporary.c_str(), "w");
+		if (!file) return;
+		fprintf(file, "state=%s games=%zu account=%s focus=%d of=%zu note=%s\n", state, aureliaEntries.size(),
+			aureliaAccount.empty() ? "(none)" : aureliaAccount.c_str(), aureliaFocus, aureliaEntries.size(),
+			note ? note : "");
+		fclose(file);
+		rename(temporary.c_str(), path.c_str());
+	}
+
+	// The Aurelia page: the session's snapshot of the account's library, drawn in the launcher's theme, and the two
+	// commands the page can run (sign-in, refresh) queued as ordinary game restarts with their own arguments.
+	void openAurelia(bool accounts = false)
+	{
+		aureliaEntries.clear();
+		aureliaAccount.clear();
+		aureliaNote.clear();
+		std::ifstream account(std::string(PROTON_DATA_ROOT) + "/aurelia-account.txt");
+		if (account) std::getline(account, aureliaAccount);
+		std::ifstream snapshot(std::string(PROTON_DATA_ROOT) + "/aurelia-library.txt");
+		for (std::string line; std::getline(snapshot, line); ) {
+			unsigned app_id = 0, minutes = 0;
+			int update = 0;
+			char name[160] = {};
+			if (sscanf(line.c_str(), "%u\t%159[^\t]\t%u\t%d", &app_id, name, &minutes, &update) >= 2)
+				aureliaEntries.push_back({app_id, name, minutes, update != 0});
+		}
+		// The Accounts rows: the library account (what lists and installs) and the store client (the official one, which a
+		// game that calls the store's API runs on; set up once).
+		std::vector<hui::ui::ListItem> accounts_rows(2);
+		accounts_rows[0].title = "Library account";
+		accounts_rows[0].tag = 0;
+		accounts_rows[1].title = "Steam client";
+		accounts_rows[1].tag = 1;
+		aureliaList.set_items(accounts_rows);
+		aureliaList.set_focus(0);
+		aureliaAccounts = accounts || aureliaEntries.empty();
+		aureliaFocus = 0;
+		aureliaScroll = 0.0f;
+		syncAccounts();
+		if (aureliaEntries.empty())
+			aureliaNote = aureliaAccount.empty() ? "Sign in to Aurelia to see your library."
+				: "The library is empty; press TRIANGLE to refresh it.";
+		else if (aureliaAccount.empty())
+			aureliaNote = "Signed in; the account name shows after the next sign-in.";
+		proton_say("launcher: Aurelia page, %zu game(s) from the session snapshot, account %s", aureliaEntries.size(),
+			aureliaAccount.empty() ? "(none)" : aureliaAccount.c_str());
+		page = Page::aurelia;
+		aureliaMark("open", aureliaNote.c_str());
+	}
+
+	ProtonGame *aureliaProfile()
+	{
+		for (auto &game : allGames)
+			if (game.id == "aurelia") return &game;
+		return nullptr;
+	}
+
+	// Queues a session that runs the client with these arguments, through the ordinary game restart.
+	void aureliaCommand(const char *arguments, const char *reason)
+	{
+		if (ps5.frameBudget) return;
+		ProtonGame *game = aureliaProfile();
+		if (!game) {
+			aureliaNote = "The Aurelia entry is missing from the game catalog.";
+			return;
+		}
+		if (sessionBlocked()) return;
+		// The launcher comes back to this page instead of its library: the startup hook below reopens it.
+		if (FILE *flag = fopen((std::string(PROTON_DATA_ROOT) + "/aurelia-open").c_str(), "w")) fclose(flag);
+		ProtonGame queued = *game;
+		queued.arguments = arguments;
+		aureliaNote = std::string(arguments).find("login") != std::string::npos ? "Opening the sign-in screen..."
+			: "Refreshing the library...";
+		proton_queue_restart(&queued, proton_launch().cycle, reason);
+		quit = true;
+	}
+
+	// A game the client installed and the catalog lists under its app id, launched the launcher's own way.
+	ProtonGame *aureliaInstalled(const AureliaEntry &entry)
+	{
+		const std::string id = std::to_string(entry.app_id);
+		for (auto &game : allGames)
+			if (game.id == id) return &game;
+		return nullptr;
 	}
 
 	void syncMusic()
@@ -102,6 +227,30 @@ class VulkanExample : public ps5ui::KitExample
 		syncGameMode();
 	}
 
+	void syncHighRefresh()
+	{
+		settingsList.item(10).subtitle = highRefresh ? "On: games can run at up to 120 frames a second on a 120 Hz TV" :
+			"Off: the screen stays at 60 Hz";
+		settingsList.item(10).badge = highRefresh ? "ON" : "OFF";
+	}
+
+	void toggleHighRefresh()
+	{
+		const int changed = !highRefresh;
+		// Scripted UI runs preview the choice without overwriting the player's file.
+		const int error = ps5.frameBudget ? 0 : pw_high_refresh_save(changed, proton_high_refresh_path().c_str());
+		if (error) {
+			controlsNotice = "Could not save the 120 Hz setting. Your previous choice is unchanged.";
+			proton_say("120 Hz: save failed (%d)", error);
+		} else {
+			highRefresh = changed;
+			controlsNotice = highRefresh ? "120 Hz on. Applies from the next launch." : "120 Hz off. Applies from the next launch.";
+			feedback.play(hui::audio::Cue::saved);
+			proton_say("120 Hz: %s %s", ps5.frameBudget ? "preview" : "saved", highRefresh ? "on" : "off");
+		}
+		syncHighRefresh();
+	}
+
 	void syncLogging()
 	{
 		settingsList.item(7).subtitle = detailedLogs ? "On: each session's logs go to one folder, for a report" :
@@ -124,6 +273,32 @@ class VulkanExample : public ps5ui::KitExample
 			proton_say("Logging: %s %s", ps5.frameBudget ? "preview" : "saved", detailedLogs ? "on" : "off");
 		}
 		syncLogging();
+	}
+
+	void syncController()
+	{
+		settingsList.item(8).subtitle = std::string("Games and Steam see ") +
+			(controller == PW_CONTROLLER_DUALSENSE ? "a " : "an ") + pw_controller_name(controller);
+		settingsList.item(8).badge = controller == PW_CONTROLLER_DUALSENSE ? "DUALSENSE" : controller == PW_CONTROLLER_XBOX_ONE ?
+			"XBOX ONE" : "XBOX 360";
+	}
+
+	// CROSS takes the next choice: Xbox 360, Xbox One, DualSense.
+	void nextController()
+	{
+		const int changed = (controller + 1) % PW_CONTROLLER_KINDS;
+		// Scripted UI runs preview the choice without overwriting the player's file.
+		const int error = ps5.frameBudget ? 0 : pw_controller_save(changed, proton_controller_path().c_str());
+		if (error) {
+			controlsNotice = "Could not save the controller. Your previous choice is unchanged.";
+			proton_say("Controller: save failed (%d)", error);
+		} else {
+			controller = changed;
+			controlsNotice = std::string(pw_controller_name(controller)) + " chosen. Applies from the next launch.";
+			feedback.play(hui::audio::Cue::saved);
+			proton_say("Controller: %s %s", ps5.frameBudget ? "preview" : "saved", pw_controller_word(controller));
+		}
+		syncController();
 	}
 
 	void syncUpdates()
@@ -149,9 +324,218 @@ class VulkanExample : public ps5ui::KitExample
 			controlsList.item(i).subtitle = pw_controls_button_label(controls.button[i]);
 	}
 
+	// The library's rows: the Steam row first, then each game; first: the focus starts on the first game below Steam.
+	void syncLibraryRows(bool first)
+	{
+		std::vector<hui::ui::ListItem> rows;
+		for (size_t i = 0; i < games.size(); ++i) {
+			hui::ui::ListItem item;
+			item.title = games[i].name;
+			item.subtitle = games[i].detail;
+			item.badge = games[i].complaint.empty() ? "" : games[i].x86_32 ? "32-BIT" : "UNAVAILABLE";
+			item.disabled = !games[i].complaint.empty();
+			item.tag = (int)i;
+			rows.push_back(item);
+		}
+		if (dataAvailable) {
+			// The default entry: Steam is always in the library. CROSS downloads and installs it from Valve when it is missing, opens
+			// its sign-in once, and from then on runs it in Big Picture (src/pw_steam.h's steps).
+			hui::ui::ListItem clientItem;
+			clientItem.title = "Steam";
+			clientItem.tag = -1;
+			clientRow = 0;
+			rows.insert(rows.begin(), clientItem);   // first: a default entry. The focus starts on the first game below it.
+		}
+		const int focus = library.focus();
+		library.set_items(rows);
+		if (first && clientRow == 0 && rows.size() > 1) library.set_focus(1);
+		else if (!first && !rows.empty()) library.set_focus(std::min(focus, (int)rows.size() - 1));
+		syncAccounts();
+	}
+
+	// What the WebUI changed (ps5/src/proton_webui.h): the settings and the library, read again as at the start.
+	void reloadFromWebui()
+	{
+		pw_controls_load(&controls, proton_controls_path().c_str());
+		pw_game_mode_load(&gameMode, proton_game_mode_path().c_str());
+		pw_high_refresh_load(&highRefresh, proton_high_refresh_path().c_str());
+		pw_detailed_logs_load(&detailedLogs, proton_logging_path().c_str());
+		pw_controller_load(&controller, proton_controller_path().c_str());
+		syncControls();
+		syncGameMode();
+		syncHighRefresh();
+		syncLogging();
+		syncController();
+		// The theme and the music the page chose (title folder hui/theme.txt, hui/music.txt)
+		std::string id;
+		hui::save::read_file(proton_title_path(PS5_APP_ROOT "/hui/theme.txt"), &id, 64);
+		while (!id.empty() && (id.back() == '\n' || id.back() == '\r' || id.back() == ' ')) id.pop_back();
+		const auto looks = hui::ui::themes();
+		for (int i = 0; i < (int)looks.size(); ++i)
+			if (id == looks[i].id && i != selectedTheme) {
+				selectedTheme = i;
+				ps5ui::set_active_theme(i);
+				syncThemes();
+			}
+		if (music.remembered() != music.piece()) {
+			music.play(music.remembered(), false);
+			musicShown = 2.5f;
+			syncMusic();
+		}
+		loadGames();
+		syncLibraryRows(false);
+		proton_say("webui: the launcher reloaded its settings and library");
+	}
+
+	// The library page's Web UI block, under the panel's words: its code and its address, where the eye finds it first.
+	void drawWebuiBlock(hui::ui::Painter &paint, const hui::ui::Theme &look)
+	{
+		const std::string url = proton_webui_url();
+		if (url.empty()) return;
+		drawQr(url, 1240, 778, 164);
+		paint.heading("Web UI", 1426, 806, 28, look.text);
+		float y = 846;
+		for (const auto &line : kit.fonts.regular.font->wrap(url, 21, 350.0f)) {
+			paint.body(line, 1426, y, 21, look.text);
+			y += 30;
+		}
+		for (const auto &line : kit.fonts.regular.font->wrap("Scan it with your phone to add games, back up saves and change settings.", 19, 350.0f)) {
+			paint.body(line, 1426, y + 4, 19, look.text_muted);
+			y += 27;
+		}
+	}
+
+	// The entry's header art (the WebUI saves it: covers/<id>-header.img), uploaded again only when its file changes; 0: none.
+	uint32_t coverTexture(const std::string &id)
+	{
+		const std::string path = proton_webui_data_root() + "/covers/" + id + "-header.img";
+		struct stat status;
+		const long long when = stat(path.c_str(), &status) == 0 ? (long long)status.st_mtime : 0;
+		auto found = covers.find(id);
+		if (found != covers.end() && found->second.first == when) return found->second.second;
+		if (found != covers.end() && found->second.second) kit.renderer.destroy_texture(found->second.second);
+		uint32_t texture = 0;
+		std::string data;
+		if (when && hui::save::read_file(path, &data, 4u << 20)) {
+			int w = 0, h = 0, channels = 0;
+			stbi_uc *rgba = stbi_load_from_memory((const stbi_uc *)data.data(), (int)data.size(), &w, &h, &channels, 4);
+			if (rgba) {
+				texture = kit.renderer.create_texture(w, h, rgba);
+				stbi_image_free(rgba);
+			}
+		}
+		covers[id] = { when, texture };
+		return texture;
+	}
+
+	// A QR code of text, black modules on a white card size wide, at x, y; encoded once for each text (pw_qrcodegen).
+	void drawQr(const std::string &text, float x, float y, float size)
+	{
+		if (text != qrText) {
+			static uint8_t code[qrcodegen_BUFFER_LEN_MAX], temp[qrcodegen_BUFFER_LEN_MAX];
+			qrText = text;
+			qrSize = 0;
+			qrModules.clear();
+			if (qrcodegen_encodeText(text.c_str(), temp, code, qrcodegen_Ecc_MEDIUM, qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX,
+					qrcodegen_Mask_AUTO, true)) {
+				qrSize = qrcodegen_getSize(code);
+				for (int row = 0; row < qrSize; ++row)
+					for (int col = 0; col < qrSize; ++col) qrModules.push_back(qrcodegen_getModule(code, col, row) ? 1 : 0);
+			}
+		}
+		if (!qrSize) return;
+		scene.rounded_rect({ x, y, size, size }, size * 0.06f, hui::gfx::Color::rgb(0xffffff));
+		const float quiet = size * 0.07f, module = (size - 2 * quiet) / qrSize;
+		for (int row = 0; row < qrSize; ++row)
+			for (int col = 0; col < qrSize; ++col)
+				if (qrModules[size_t(row * qrSize + col)])
+					scene.rounded_rect({ x + quiet + col * module, y + quiet + row * module, module + 0.5f, module + 0.5f }, 0,
+						hui::gfx::Color::rgb(0x1b2430));
+	}
+
+	// The two Accounts rows' words, from what the files and the download thread say now (src/pw_steam.h's step words).
+	void syncAccounts()
+	{
+		store = proton_steam_state();
+		if (clientRow >= 0) {
+			auto &row = library.item(clientRow);
+			const PwSteamStep step = proton_steam_step(store);
+			row.subtitle = pw_steam_step_subtitle(step);
+			row.badge = pw_steam_step_badge(step);
+		}
+		if (aureliaList.items().size() < 2) return;
+		auto &library_row = aureliaList.item(0);
+		library_row.subtitle = aureliaAccount.empty() ? "Not signed in. Press CROSS, then scan the code with your phone"
+			: "Signed in as " + aureliaAccount;
+		library_row.badge = aureliaAccount.empty() ? "SIGN IN" : "SIGNED IN";
+		const PwSteamStep step = proton_steam_step(store);
+		auto &client_row = aureliaList.item(1);
+		client_row.subtitle = pw_steam_step_subtitle(step);
+		client_row.badge = pw_steam_step_badge(step);
+	}
+
+	// A session started from the Accounts rows comes back to the Aurelia page, on those rows (the startup hook reads this).
+	void returnToAccounts()
+	{
+		if (!fromAccounts) return;   // pressed on the library's row: back to the library
+		if (FILE *flag = fopen(PROTON_DATA_ROOT "/aurelia-open", "w")) {
+			fputs("accounts\n", flag);
+			fclose(flag);
+		}
+	}
+
+	// CROSS on the Steam client row: until it is signed in, the Steam guide (src/pw_steam_guide.h) takes the user through
+	// the download, the install and the sign-in; signed in, Steam opens in Big Picture.
+	void pressSteam()
+	{
+		if (ps5.frameBudget && !clientTest) return;   // a scripted run asks nothing of the network
+		syncAccounts();
+		const PwSteamStep step = proton_steam_step(store);
+		if (step != PW_STEAM_STEP_SIGNED_IN) {
+			if (sessionBlocked()) return;   // the note says why
+			clientNote.clear();
+			returnToAccounts();
+			// A test's press (the client-press flag) takes the guide past its first page: Start is pressed for it
+			const bool busy = step == PW_STEAM_STEP_DOWNLOADING || step == PW_STEAM_STEP_INSTALLING;
+			startSteamGuide(busy || clientTest ? PW_STEAM_PAGE_DOWNLOAD : PW_STEAM_PAGE_INTRO, PW_STEAM_FAIL_NONE);
+			if (clientTest && !busy) proton_steam_download();
+		} else if (sessionBlocked()) {
+			// the note says why
+		} else {
+			ProtonGame client;
+			std::string problem;
+			if (proton_steam_game(&client, false, &problem, true)) {
+				proton_say("launcher: %s in Big Picture", proton_steam_title());
+				proton_queue_restart(&client, proton_launch().cycle, "steam");
+				quit = true;
+			} else {
+				clientNote = std::string(proton_steam_title()) + " cannot start: " + problem;
+			}
+		}
+		syncAccounts();
+	}
+
+	// A session cannot start while the runtime or /data is missing: say why on the page instead of restarting into a failure.
+	bool sessionBlocked()
+	{
+		if (runtimeBlocked.empty()) return false;
+		aureliaNote = clientNote = "Sessions cannot start: " + runtimeBlocked;
+		return true;
+	}
+
+	// A press on an Accounts row: row 0 is the library account's QR sign-in, row 1 the store client's set-up.
+	void accountAction(int row)
+	{
+		if (ps5.frameBudget) return;
+		fromAccounts = true;
+		if (row == 0) aureliaCommand("login --qr --json", "Aurelia sign-in");
+		else pressSteam();
+	}
+
 	hui::ui::ListView &activeList()
 	{
 		switch (page) {
+		case Page::aurelia: return aureliaList;
 		case Page::themes: return themes;
 		case Page::settings: return settingsList;
 		case Page::controls: return controlsList;
@@ -183,13 +567,105 @@ class VulkanExample : public ps5ui::KitExample
 		const hui::InputFrame input = ps5.frameBudget ? kit.scripted("ps5proton", ps5.framesDrawn) : kit.input();
 		clock += dt;
 		applied = std::max(0.0f, applied - dt);
+		if (const unsigned changes = proton_webui_changes(); changes != webuiSeen) {
+			webuiSeen = changes;
+			reloadFromWebui();
+		}
+		// A one-shot test hook: with /data/ps5proton/aurelia-open present the page opens on the first frame, so a run
+		// nobody sits at can prove the page (the marker it writes) without a controller.
+		if (!aureliaOpenTried) {
+			aureliaOpenTried = true;
+			const std::string flag = std::string(PROTON_DATA_ROOT) + "/aurelia-open";
+			if (access(flag.c_str(), F_OK) == 0) {
+				std::string how;
+				{
+					std::ifstream content(flag);
+					std::getline(content, how);
+				}
+				remove(flag.c_str());
+				proton_say("launcher: the Aurelia-open flag opened the page%s", how == "accounts" ? " on its Accounts rows" : "");
+				openAurelia(how == "accounts");
+			}
+		}
+		// A one-shot test hook, like the Aurelia page's: with /data/ps5proton/client-press present, CROSS is pressed on the
+		// option on the first frame, so a run nobody sits at can take the option through its steps. It works under a
+		// frame budget too (the budget then ends the launcher, and a restart the option queued is carried out).
+		if (!clientTestTried) {
+			clientTestTried = true;
+			if (access(PROTON_DATA_ROOT "/client-press", F_OK) == 0) {
+				clientTest = true;
+				remove(PROTON_DATA_ROOT "/client-press");
+				proton_say("launcher: the client-press flag pressed CROSS on the option");
+				pressSteam();
+			}
+		}
+		const bool clientBusy = store.phase == ProtonSteam::downloading || store.phase == ProtonSteam::downloaded;
+		if ((page == Page::aurelia || clientBusy) && (clientPoll -= dt) <= 0.0f) {
+			clientPoll = 0.5f;
+			syncAccounts();
+			// The download is done and checked: restart into the session that runs the installer, once.
+			if (store.phase == ProtonSteam::downloaded && !store.installed && !clientInstallQueued && (!ps5.frameBudget || clientTest)) {
+				clientInstallQueued = true;
+				ProtonGame installer;
+				std::string problem;
+				if (proton_steam_game(&installer, true, &problem)) {
+					proton_say("launcher: installing from the downloaded installer");
+					returnToAccounts();
+					proton_queue_restart(&installer, proton_launch().cycle, "install");
+					quit = true;
+				} else {
+					clientNote = "The installer cannot run: " + problem;
+					clientInstallQueued = false;
+					proton_steam_fail("The installer cannot run: " + problem);   // the row offers CROSS to try again
+				}
+			}
+		}
 		if (page == Page::library && input.is_pressed(hui::Action::west)) {
 			openThemes();
 		} else if (page == Page::library && input.is_pressed(hui::Action::north)) {
 			page = Page::settings;
 			settingsList.enter();
-		} else if (page == Page::library && input.is_pressed(hui::Action::page_next)) {
-			nextMusic();
+		// Aurelia is parked (the owner, 2026-10-24): its page stays (the aurelia-open test hook still opens it), but R2 no
+		// longer does and the hints no longer name it.
+		} else if (page == Page::aurelia && input.is_pressed(hui::Action::west)) {
+			aureliaCommand("login --qr --json", "Aurelia sign-in");
+		} else if (page == Page::aurelia && input.is_pressed(hui::Action::north)) {
+			aureliaCommand("list --json", "Aurelia refresh");
+
+		} else if (page == Page::aurelia && aureliaAccounts) {
+			// The Accounts rows. CIRCLE goes back to the shelf, or to the library when there is no shelf to go to.
+			const auto event = aureliaList.handle(input, feedback);
+			if (event == hui::ui::Event::cancelled || input.is_pressed(hui::Action::back)) {
+				if (aureliaEntries.empty()) page = Page::library;
+				else aureliaAccounts = false;
+			} else if (event == hui::ui::Event::activated) {
+				accountAction(aureliaList.focus());
+			}
+		} else if (page == Page::aurelia) {
+			if (input.nav == hui::Direction::up) {
+				aureliaAccounts = true;
+			} else if (input.nav == hui::Direction::left) {
+				aureliaFocus = std::max(0, aureliaFocus - 1);
+			} else if (input.nav == hui::Direction::right) {
+				aureliaFocus = std::min(int(aureliaEntries.size()) - 1, aureliaFocus + 1);
+			} else if (input.is_pressed(hui::Action::back)) {
+				page = Page::library;
+			} else if (input.is_pressed(hui::Action::confirm)) {
+				const AureliaEntry &entry = aureliaEntries[size_t(aureliaFocus)];
+				if (ProtonGame *installed = aureliaInstalled(entry)) {
+					if (!installed->complaint.empty()) {
+						aureliaNote = installed->complaint;   // the library refuses such a game; so does the page
+					} else {
+						proton_say("launcher: Aurelia plays %s (%u)", entry.name.c_str(), entry.app_id);
+						proton_queue_restart(installed, proton_launch().cycle, "aurelia play");
+						quit = true;
+					}
+				} else {
+					char command[96];
+					snprintf(command, sizeof(command), "install %u --json", entry.app_id);
+					aureliaCommand(command, "Aurelia install");
+				}
+			}
 		} else {
 			const auto event = activeList().handle(input, feedback);
 			if (event == hui::ui::Event::cancelled || input.is_pressed(hui::Action::back)) {
@@ -214,8 +690,12 @@ class VulkanExample : public ps5ui::KitExample
 						startSetup(PW_SETUP_WELCOME);
 					} else if (settingsList.focus() == 1) {
 						toggleGameMode();
+					} else if (settingsList.focus() == 10) {
+						toggleHighRefresh();
 					} else if (settingsList.focus() == 7) {
 						toggleLogging();
+					} else if (settingsList.focus() == 8) {
+						nextController();
 					} else if (settingsList.focus() == 3) {
 						// Look again each time (a stick may have been plugged in), then start when the pieces are all there.
 						if (!ps5.frameBudget && proton_install_find().phase == ProtonInstall::ready) proton_install_start();
@@ -260,16 +740,30 @@ class VulkanExample : public ps5ui::KitExample
 				case Page::library:
 					if (!ps5.frameBudget) {
 						const int index = library.items()[library.focus()].tag;
+						if (index < 0) {
+							fromAccounts = false;
+							pressSteam();
+							break;
+						}
 						proton_queue_restart(&games[index], proton_launch().cycle, "chosen");
 						quit = true;
 					}
+					break;
+				case Page::aurelia:   // handled above: the Accounts rows and the shelf have their own branches
 					break;
 				}
 			}
 		}
 		leaving.label = "Close " PS5_TITLE_NAME;
 		if (!ps5.frameBudget && leaving.update(dt, (ps5_pad().held & PAD_OPTIONS) != 0)) quit = true;
-		for (auto *list : {&library, &themes, &settingsList, &controlsList, &buttonList}) {
+		if (page == Page::aurelia) {
+			static int marked = -1;
+			if (marked != aureliaFocus) {
+				marked = aureliaFocus;
+				aureliaMark("focus", aureliaNote.c_str());
+			}
+		}
+		for (auto *list : {&library, &aureliaList, &themes, &settingsList, &controlsList, &buttonList}) {
 			list->style.theme = theme();
 			list->update(dt);
 		}
@@ -317,28 +811,76 @@ class VulkanExample : public ps5ui::KitExample
 		}
 	}
 
+	// The shelf: one row of large tiles, the focused one lifted and ringed, the row scrolling to keep it in view. The
+	// theme's surface, radius, accent and ink style it, so all 30 looks carry over.
+	void drawAureliaShelf()
+	{
+		const auto &look = theme();
+		const float tile_w = 250, tile_h = 330, gap = 26, left = 120, top = 300, text_w = tile_w - 32;
+		const int visible = 5;
+		const int count = int(aureliaEntries.size());
+		if (!count) return;
+		const float target = std::max(0, aureliaFocus - 2);
+		aureliaScroll += (target - aureliaScroll) * 0.25f;
+		for (int i = 0; i < count; ++i) {
+			const float offset = float(i) - aureliaScroll;
+			if (offset < -0.7f || offset > visible - 0.3f) continue;
+			const bool focused = i == aureliaFocus;
+			const float x = left + offset * (tile_w + gap), lift = focused ? 10.0f : 0.0f;
+			const float w = tile_w + (focused ? 18.0f : 0.0f), h = tile_h + (focused ? 18.0f : 0.0f);
+			const hui::gfx::Rect tile{ x - (focused ? 9.0f : 0.0f), top - lift, w, h };
+			if (focused) scene.rounded_rect(tile, look.radius_card, look.accent);
+			scene.rounded_rect({ tile.x + (focused ? 2.0f : 0.0f), tile.y + (focused ? 2.0f : 0.0f), w - (focused ? 4.0f : 0.0f),
+				h - (focused ? 4.0f : 0.0f) }, look.radius_card, focused ? look.surface_high : look.surface);
+			const auto &entry = aureliaEntries[size_t(i)];
+			const auto name = kit.fonts.semibold.font->wrap(entry.name, 26, text_w);
+			float y = tile.y + 54;
+			for (size_t line = 0; line < name.size() && line < 3; ++line, y += 34)
+				hui::ui::text(scene, kit.fonts.semibold, name[line], x + 16, y, 26, look.text);
+			hui::ui::text(scene, kit.fonts.regular, std::to_string(entry.minutes) + " min", x + 16, tile.y + h - 26, 20,
+				look.text_muted);
+			if (entry.update)
+				hui::ui::text(scene, kit.fonts.regular, "UPDATE", x + 16, tile.y + h - 56, 18, look.accent);
+			if (aureliaInstalled(entry))
+				hui::ui::text(scene, kit.fonts.regular, "INSTALLED", x + 16, tile.y + h - 86, 18, look.success);
+		}
+	}
+
 	void compose()
 	{
 		const auto &look = theme();
+		if (settingsList.items().size() > 9) {
+			const std::string url = proton_webui_url();
+			settingsList.item(9).subtitle = url.empty() ? "Starts once the PS5 is on your network" : url;
+		}
 		const auto glass = kit.renderer.glass_texture();
 		scene.clear();
 		hui::ui::Canvas canvas{ scene, kit.fonts, glass, clock };
 		hui::ui::Painter paint(scene, kit.fonts, look, glass);
 		const bool picking = page == Page::themes;
-		const bool configuring = page != Page::library && !picking;
+		const bool configuring = page != Page::library && !picking && page != Page::aurelia;
 		const char *titles[] = {"Left mouse click", "Right mouse click", "Middle mouse click"};
-		const char *heading = picking ? "Themes" : page == Page::settings ? "Settings" :
+		const char *heading = page == Page::aurelia ? "Aurelia" : picking ? "Themes" : page == Page::settings ? "Settings" :
 			page == Page::controls ? "Controls" : page == Page::buttons ? titles[mouseAction] : PS5_TITLE_NAME;
 		paint.heading(heading, 120, 145, 64, paint.page_text());
-		paint.body(picking ? "Find your look. Preview any theme, then press CROSS to keep it." :
-			configuring ? "Choose how your controller operates the mouse." : "Your Windows game library", 122, 195, 24, paint.page_text_muted());
+		const std::string subtitle = page == Page::aurelia
+			? (aureliaAccounts ? std::string("Accounts: your library, and the Steam client your games run on")
+				: aureliaAccount.empty() ? std::string("Steam, without a browser: sign in with the app on your phone")
+				: std::string("Signed in as ") + aureliaAccount + " \u00b7 your library")
+			: picking ? std::string("Find your look. Preview any theme, then press CROSS to keep it.")
+			: configuring ? std::string("Choose how your controller operates the mouse.")
+			: std::string("Your Windows game library");
+		paint.body(subtitle, 122, 195, 24, paint.page_text_muted());
 		char count[64];
-		if (picking) snprintf(count, sizeof(count), "%02d / %02zu", themes.focus() + 1, themes.items().size());
+		if (page == Page::aurelia && aureliaAccounts) snprintf(count, sizeof(count), "Accounts");
+		else if (page == Page::aurelia) snprintf(count, sizeof(count), "%zu game%s", aureliaEntries.size(), aureliaEntries.size() == 1 ? "" : "s");
+		else if (picking) snprintf(count, sizeof(count), "%02d / %02zu", themes.focus() + 1, themes.items().size());
 		else if (configuring) snprintf(count, sizeof(count), "Settings / Controls");
 		else if (!dataAvailable) snprintf(count, sizeof(count), "Library unavailable");
 		else snprintf(count, sizeof(count), "%zu game%s", games.size(), games.size() == 1 ? "" : "s");
 		paint.label(count, 1800, 145, 24, paint.page_text_muted(), hui::gfx::Align::right);
-		activeList().draw(canvas);
+		if (page == Page::aurelia && !aureliaAccounts) drawAureliaShelf();
+		else activeList().draw(canvas);
 
 		const hui::gfx::Rect panel{ 1200, 230, 600, 740 };
 		paint.panel(panel);
@@ -375,6 +917,19 @@ class VulkanExample : public ps5ui::KitExample
 			paragraph(paint, controlsNotice, 1240, y, 24, look.text);
 			ps5ui::draw_hints(scene, kit.fonts, look,
 				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, gameMode ? "Turn off" : "Turn on" },
+				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
+		} else if (page == Page::settings && settingsList.focus() == 10) {
+			paint.heading("120 Hz output", 1240, y, 38, look.text);
+			y += 65;
+			paragraph(paint, "On: games can run at up to 120 frames a second, where your TV supports 120 Hz. In a game's own "
+				"display settings, choose 120 Hz too.", 1240, y, 24, look.text_muted);
+			y += 30;
+			paragraph(paint, "Off: the screen stays at 60 Hz. Use it if your TV shows no picture or flickers when a game "
+				"starts. This is one setting for every game.", 1240, y, 24, look.text_muted);
+			y += 30;
+			paragraph(paint, controlsNotice, 1240, y, 24, look.text);
+			ps5ui::draw_hints(scene, kit.fonts, look,
+				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, highRefresh ? "Turn off" : "Turn on" },
 				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
 		} else if (page == Page::settings && settingsList.focus() == 2) {
 			// The Appropriate Legal Notices GPLv3 asks an interactive program to show (LICENSE, section 0); wording approved
@@ -484,6 +1039,40 @@ class VulkanExample : public ps5ui::KitExample
 			ps5ui::draw_hints(scene, kit.fonts, look,
 				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, detailedLogs ? "Turn off" : "Turn on" },
 				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
+		} else if (page == Page::settings && settingsList.focus() == 9) {
+			const std::string url = proton_webui_url();
+			paint.heading("Web UI", 1240, y, 38, look.text);
+			y += 50;
+			if (url.empty()) {
+				paragraph(paint, "Connect the PS5 to your network: the Web UI then opens here, with its address and a code to scan.",
+					1240, y, 24, look.text_muted);
+			} else {
+				drawQr(url, 1240, y, 250);
+				y += 296;
+				paint.heading(url, 1240, y, 30, look.text);
+				y += 44;
+				paragraph(paint, "Scan the code with your phone, or type the address in a browser on your home network. It walks "
+					"you through adding a game from your computer, gives each game its picture and its own settings, puts games "
+					"on the PS5 home screen, backs up your saves and changes these settings.", 1240, y, 22, look.text_muted);
+			}
+			ps5ui::draw_hints(scene, kit.fonts, look,
+				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::circle, "Back" } }, 120, 1040);
+		} else if (page == Page::settings && settingsList.focus() == 8) {
+			paint.heading("Controller", 1240, y, 38, look.text);
+			y += 65;
+			paragraph(paint, "Which controller Windows games and Steam see. Your DualSense is shown to them as one controller, "
+				"so menus show one set of buttons.", 1240, y, 24, look.text_muted);
+			y += 30;
+			paragraph(paint, "Xbox 360 or Xbox One: every game that supports a controller sees it. Steam shows Xbox buttons.",
+				1240, y, 24, look.text_muted);
+			y += 30;
+			paragraph(paint, "DualSense: Steam and games made for it show PlayStation buttons. Games that only know Xbox "
+				"controllers see none.", 1240, y, 24, look.text_muted);
+			y += 30;
+			paragraph(paint, controlsNotice, 1240, y, 24, look.text);
+			ps5ui::draw_hints(scene, kit.fonts, look,
+				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, "Change" },
+				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
 		} else if (configuring) {
 			paint.heading("Mouse controls", 1240, y, 38, look.text);
 			y += 65;
@@ -500,23 +1089,89 @@ class VulkanExample : public ps5ui::KitExample
 			ps5ui::draw_hints(scene, kit.fonts, look,
 				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, "Select" },
 				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
+		} else if (page == Page::aurelia && aureliaAccounts) {
+			scene.push_clip({ 1240, 250, 520, 700 });
+			if (aureliaList.focus() == 0) {
+				paint.heading("Library account", 1240, y, 34, look.text);
+				y += 55;
+				paragraph(paint, "What lists your games and installs them: no browser, so it costs little memory. Sign in with the "
+					"Steam app on your phone: scan the code on the screen.", 1240, y, 22, look.text_muted);
+				y += 150;
+				paragraph(paint, aureliaAccount.empty() ? "Not signed in." : "Signed in as " + aureliaAccount + ".", 1240, y, 22, look.text);
+			} else {
+				paint.heading("Steam client", 1240, y, 34, look.text);
+				y += 45;
+				// What went wrong first: below the long paragraphs it fell outside the panel.
+				if (!clientNote.empty()) paragraph(paint, clientNote, 1240, y, 22, look.danger);
+				else if (store.phase == ProtonSteam::failed) paragraph(paint, store.message, 1240, y, 22, look.danger);
+				for (const std::string &line : proton_steam_panel(store)) {
+					paragraph(paint, line, 1240, y, 22, look.text_muted);
+					y += 14;
+				}
+			}
+			scene.pop_clip();
+			float noteY = 880;
+			if (!aureliaNote.empty() && aureliaList.focus() == 0) paragraph(paint, aureliaNote, 1240, noteY, 22, look.text);
+			ps5ui::draw_hints(scene, kit.fonts, look,
+				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, "Select" },
+				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
+		} else if (page == Page::aurelia) {
+			if (!aureliaEntries.empty()) {
+				const auto &entry = aureliaEntries[size_t(aureliaFocus)];
+				paint.heading(entry.name, 1240, y, 34, look.text);
+				y += 55;
+				char line[128];
+				snprintf(line, sizeof(line), "App %u  \u00b7  %u min played%s", entry.app_id, entry.minutes,
+					entry.update ? "  \u00b7  update" : "");
+				paragraph(paint, line, 1240, y, 24, look.text_muted);
+				y += 32;
+				const bool installed = aureliaInstalled(entry) != nullptr;
+				paragraph(paint, installed ? "Installed: CROSS plays it." : "Not installed yet.", 1240, y, 24,
+					installed ? look.success : look.text_muted);
+				y += 32;
+			}
+			if (!aureliaNote.empty()) paragraph(paint, aureliaNote, 1240, y, 22, look.text);
+			y += 60;
+			paragraph(paint, "Press UP for your accounts: the library account and the Steam client.", 1240, y, 22, look.text_muted);
+			ps5ui::draw_hints(scene, kit.fonts, look,
+				{ { hui::ui::Button::dpad, "Browse" }, { hui::ui::Button::cross, "Play" },
+				  { hui::ui::Button::square, "Sign in" }, { hui::ui::Button::triangle, "Refresh" },
+				  { hui::ui::Button::circle, "Back" } }, 120, 1040);
 		} else {
 			scene.push_clip({ 1240, 250, 520, 500 });
 			// The library always holds Mihawk OS (proton_read_games), so a reason a game cannot start is its complaint.
 			const auto &item = library.items()[library.focus()];
+			// The entry's art from the WebUI, across the panel's top, the words below it
+			if (item.tag >= 0) {
+				if (const uint32_t cover = coverTexture(games[item.tag].id)) {
+					scene.image(cover, { 1240, 252, 520, 243 }, hui::gfx::kFullUv, hui::gfx::Color::rgb(0xffffff), 12);
+					y = 545;
+				}
+			}
 			paragraph(paint, item.title, 1240, y, 34, look.text);
 			y += 30;
-			paragraph(paint, item.subtitle, 1240, y, 24, look.text_muted);
-			for (const std::string *note : { &games[item.tag].complaint, &sessionNote, &noticesNote }) {
-				if (note->empty()) continue;
-				y += 30;
-				paragraph(paint, *note, 1240, y, 22, look.danger);
+			if (item.tag < 0) {
+				if (!clientNote.empty()) paragraph(paint, clientNote, 1240, y, 22, look.danger);
+				else if (store.phase == ProtonSteam::failed) paragraph(paint, store.message, 1240, y, 22, look.danger);
+				for (const std::string &line : proton_steam_panel(store)) {
+					paragraph(paint, line, 1240, y, 22, look.text_muted);
+					y += 14;
+				}
+			} else {
+				paragraph(paint, item.subtitle, 1240, y, 24, look.text_muted);
+				for (const std::string *note : { &games[item.tag].complaint, &sessionNote, &noticesNote }) {
+					if (note->empty()) continue;
+					y += 30;
+					paragraph(paint, *note, 1240, y, 22, look.danger);
+				}
 			}
 			scene.pop_clip();
+			drawWebuiBlock(paint, look);
 			ps5ui::draw_hints(scene, kit.fonts, look,
 				{ { hui::ui::Button::dpad, "Choose" }, { hui::ui::Button::cross, "Select" },
 				  { hui::ui::Button::square, "Themes" }, { hui::ui::Button::triangle, "Settings" },
-				  { hui::ui::Button::r1, "Music" }, { hui::ui::Button::options, "Hold to close" } }, 120, 1040);
+				  { hui::ui::Button::r1, "Music" },
+				  { hui::ui::Button::options, "Hold to close" } }, 120, 1040);
 		}
 		drawMusic(look);
 		leaving.draw(scene, kit.fonts, look);
@@ -553,28 +1208,7 @@ public:
 		settings.overlay = false;
 		ps5.ownOverlay = true;
 		dataAvailable = proton_data_grant(); // Cached startup result; never retries after threads start.
-		games = proton_read_games(&problem);
-		proton_say("launcher: %zu game(s); %s", games.size(), problem.c_str());
-		// The library shows Mihawk OS (the user's choice, 2026-10-12): every other game in its prefix stays installed, is
-		// opened from the desktop's shortcuts, and is still what proton_read_games gives the owner when it starts a
-		// profile. An entry with a prefix of its own has no shortcut (a session serves one prefix), so it stays listed.
-		// A file named library-show-all in the data folder brings the whole list back.
-		struct stat showAll;
-		if (!(dataAvailable && stat(PROTON_DATA_ROOT "/library-show-all", &showAll) == 0)) {
-			const size_t installed = games.size();
-			std::string desktop;
-			for (const auto &game : games)
-				if (game.id == "mihawk-os") desktop = proton_game_prefix(game);
-			games.erase(std::remove_if(games.begin(), games.end(), [&desktop](const ProtonGame &game) {
-				return game.id != "mihawk-os" && proton_game_prefix(game) == desktop; }), games.end());
-			proton_say("launcher: library shows %zu of %zu (Mihawk OS and entries with a prefix of their own; %s/library-show-all "
-				"shows them all)", games.size(), installed, PROTON_DATA_ROOT);
-		}
-		// Checked here, before LoadExec: a game that cannot start is shown why instead of being started.
-		const std::string blocked = dataAvailable ? proton_runtime_problem() : proton_data_problem();
-		for (auto &game : games)
-			if (game.complaint.empty()) game.complaint = blocked;
-		if (!blocked.empty()) proton_say("launcher: games cannot start: %s", blocked.c_str());
+		loadGames();
 		// A failed session's reason (ended=), or a session that never came back to say one (its marker is still there).
 		const std::string marker = proton_title_path(PROTON_SESSION_MARKER);
 		if (FILE *file = fopen(marker.c_str(), "rb")) {
@@ -603,6 +1237,34 @@ public:
 		}
 	}
 
+	// The library: the catalog, filtered as the launcher shows it, each entry's complaint. Called again when the WebUI
+	// changes an entry.
+	void loadGames()
+	{
+		games = proton_read_games(&problem);
+		allGames = games;   // the Aurelia page plays and installs from the whole catalog, not the library's filtered list
+		proton_say("launcher: %zu game(s); %s", games.size(), problem.c_str());
+		// The library lists every game (the owner, 2026-10-26: a game added in the WebUI belongs in it), but an entry whose
+		// game.json says "launcher": false: that one starts from the desktop's shortcut, a tile or a profile only.
+		// A file named library-show-all in the data folder lists those too.
+		struct stat showAll;
+		if (!(dataAvailable && stat(PROTON_DATA_ROOT "/library-show-all", &showAll) == 0)) {
+			const size_t installed = games.size();
+			games.erase(std::remove_if(games.begin(), games.end(), [](const ProtonGame &game) {
+				return game.id != "mihawk-os" && !game.launcher; }), games.end());
+			proton_say("launcher: library shows %zu of %zu (every entry but those with \"launcher\": false; "
+				"%s/library-show-all shows them all)", games.size(), installed, PROTON_DATA_ROOT);
+		}
+		// Checked here, before LoadExec: a game that cannot start is shown why instead of being started.
+		const std::string blocked = dataAvailable ? proton_runtime_problem() : proton_data_problem();
+		runtimeBlocked = blocked;
+		for (auto &game : games)
+			if (game.complaint.empty()) game.complaint = blocked;
+		for (auto &game : allGames)
+			if (game.complaint.empty()) game.complaint = blocked;
+		if (!blocked.empty()) proton_say("launcher: games cannot start: %s", blocked.c_str());
+	}
+
 	void prepare() override
 	{
 		VulkanExampleBase::prepare();
@@ -620,18 +1282,16 @@ public:
 		music.init(kit.mixer, getAssetPath() + "music", ps5.frameBudget != 0);
 		music.play(music.remembered(), false, 2.5f);
 		selectedTheme = ps5ui::active_theme_index();
-		std::vector<hui::ui::ListItem> rows;
-		for (size_t i = 0; i < games.size(); ++i) {
-			hui::ui::ListItem item;
-			item.title = games[i].name;
-			item.subtitle = games[i].detail;
-			item.badge = games[i].complaint.empty() ? "" : games[i].x86_32 ? "32-BIT" : "UNAVAILABLE";
-			item.disabled = !games[i].complaint.empty();
-			item.tag = (int)i;
-			rows.push_back(item);
+		{
+			std::string why;
+			std::vector<PwWebuiChoice> looks, pieces;
+			for (const auto &look : hui::ui::themes()) looks.push_back({ look.id, look.name });
+			for (int i = 0; i < Jukebox::kPieces; ++i) pieces.push_back({ Jukebox::kIds[i], Jukebox::kTitles[i] });
+			if (proton_webui_start(&why, std::move(looks), std::move(pieces))) proton_say("webui: listening on port 6767");   // it refuses without /data
+			else proton_say("webui: not started: %s", why.c_str());
 		}
-		library.set_items(rows);
-		rows.clear();
+		syncLibraryRows(true);
+		std::vector<hui::ui::ListItem> rows;
 		for (const auto &look : hui::ui::themes()) {
 			hui::ui::ListItem item;
 			item.title = look.name;
@@ -667,6 +1327,16 @@ public:
 		item = {};
 		item.title = "Logging";
 		rows.push_back(item);
+		item = {};
+		item.title = "Controller";
+		rows.push_back(item);
+		item = {};
+		item.title = "Web UI";
+		item.subtitle = "Your library and settings in a browser";
+		rows.push_back(item);
+		item = {};
+		item.title = "120 Hz output";
+		rows.push_back(item);
 		settingsList.set_items(rows);
 		rows.clear();
 		for (const char *label : {"Left mouse click", "Right mouse click", "Middle mouse click", "Restore defaults"}) {
@@ -687,12 +1357,16 @@ public:
 		syncControls();
 		if (!ps5.frameBudget) pw_game_mode_load(&gameMode, proton_game_mode_path().c_str());
 		syncGameMode();
+		if (!ps5.frameBudget) pw_high_refresh_load(&highRefresh, proton_high_refresh_path().c_str());
+		syncHighRefresh();
 		if (!ps5.frameBudget) pw_detailed_logs_load(&detailedLogs, proton_logging_path().c_str());
 		syncLogging();
+		if (!ps5.frameBudget) pw_controller_load(&controller, proton_controller_path().c_str());
+		syncController();
 		syncInstall();
 		syncMusic();
 		syncUpdates();
-		for (auto *list : { &library, &themes, &settingsList, &controlsList, &buttonList }) {
+		for (auto *list : { &library, &aureliaList, &themes, &settingsList, &controlsList, &buttonList }) {
 			list->style.panel = true;
 			list->style.row_height = 84;
 			list->style.title_size = 28;
@@ -703,10 +1377,14 @@ public:
 		syncThemes();
 		proton_say("launcher UI: %zu themes, active=%s", themes.items().size(), theme().id);
 		if (setupStep != PW_SETUP_NONE) startSetup(setupStep);
+		else if (getenv("PROTON_STEAM_GUIDE_TEST")) steamGuideTest(getenv("PROTON_STEAM_GUIDE_TEST"));
+		else if (ps5.frameBudget && startShowcase()) {}
+		else if (dataAvailable && !ps5.frameBudget) resumeSteamGuide();
 		prepared = true;
 	}
 
-	void startSetup(PwSetupStep step)
+	// The tour and its sky (the setup and the Steam guide draw over the same one)
+	void makeTour()
 	{
 		tour = std::make_unique<SetupTour>();
 		const VkPipelineShaderStageCreateInfo stages[2] = {
@@ -715,6 +1393,187 @@ public:
 		if (!tour->sky.init(device, physicalDevice, vulkanDevice->queueFamilyIndices.graphics, renderPass, pipelineCache, stages,
 				maxConcurrentFrames))
 			proton_say("setup: the sky's pipeline failed; the theme's backdrop stands in");
+	}
+
+	void closeTour()
+	{
+		vkDeviceWaitIdle(device);
+		tour->sky.release();
+		tour.reset();
+		page = Page::library;
+	}
+
+	// ---- The Steam guide (src/pw_steam_guide.h): its launcher pages are the tour's Steam mode ----
+	void startSteamGuide(PwSteamPage page, PwSteamFailure failure, bool starting = false)
+	{
+		makeTour();
+		tour->beginSteam(kit, getAssetPath(), page, failure, ps5.frameBudget != 0 && !clientTest, starting);
+		steamPoll = 0.0f;
+	}
+
+	// The launcher starts where the guide's last session left it: the sign-in session after the install, the done page
+	// after a sign-in, a failed page with the reason
+	void resumeSteamGuide()
+	{
+		PwSteamGuideRecord record;
+		if (pw_steam_guide_record_load(&record, PW_STEAM_GUIDE_RECORD) != 0) return;
+		const ProtonSteam now = proton_steam_state();
+		PwSteamFailure failure;
+		const PwSteamResume resume = pw_steam_guide_resume(&record, now.installed, now.signed_in, &failure);
+		proton_say("steam guide: back from its %s session (%s): resume %d, failure %d",
+			record.stage == PW_STEAM_STAGE_INSTALL ? "install" : "sign-in", pw_steam_guide_result_word(record.result), (int)resume,
+			(int)failure);
+		switch (resume) {
+		case PW_STEAM_RESUME_NOTHING: unlink(PW_STEAM_GUIDE_RECORD); break;
+		case PW_STEAM_RESUME_SIGNIN:
+			startSteamGuide(PW_STEAM_PAGE_DOWNLOAD, PW_STEAM_FAIL_NONE, true);
+			tour->outcome = SetupTour::Outcome::steam_signin;
+			break;
+		case PW_STEAM_RESUME_DONE: startSteamGuide(PW_STEAM_PAGE_DONE, PW_STEAM_FAIL_NONE); break;
+		case PW_STEAM_RESUME_FAILED: startSteamGuide(PW_STEAM_PAGE_FAILED, failure); break;
+		}
+	}
+
+	// A test's pictures of the guide's pages on the console (tools/run-launcher.py --steam-guide-pictures): the hook
+	// /data/ps5proton/steam-guide-showcase names a language ("1": all ten); every page in it is held 24 frames and the
+	// 20th kept as /data/ps5proton/steam-guide-pictures/<page>-<language>.ppm.
+	std::vector<std::pair<std::string, std::string>> showcase;   // (page as steamGuideTest takes it, language)
+	size_t showcaseItem{ 0 };
+	uint32_t showcaseFrame{ 0 };
+	bool startShowcase()
+	{
+		char word[32] = {};
+		FILE *hook = fopen(PROTON_DATA_ROOT "/steam-guide-showcase", "r");
+		if (!hook) return false;
+		if (!fgets(word, sizeof(word), hook)) word[0] = 0;
+		fclose(hook);
+		unlink(PROTON_DATA_ROOT "/steam-guide-showcase");
+		word[strcspn(word, "\r\n")] = 0;
+		size_t count = 0;
+		const PwSetupLanguage *all = pw_setup_languages(&count);
+		for (size_t i = 0; i < count; ++i)
+			if (all[i].text && (!strcmp(word, "1") || !strcmp(word, all[i].tag)))
+				for (const char *page : { "intro", "download@0.45", "starting", "failed:offline", "done#Mihawk" })
+					showcase.push_back({ page, all[i].tag });
+		mkdir(PROTON_DATA_ROOT "/steam-guide-pictures", 0777);
+		proton_say("steam guide showcase: %zu pages", showcase.size());
+		if (showcase.empty()) return false;
+		steamGuideTest(showcase[0].first, showcase[0].second.c_str());
+		return true;
+	}
+	void showcaseStep()
+	{
+		if (showcase.empty() || showcaseItem >= showcase.size()) return;
+		if (++showcaseFrame == 20) {
+			std::string name = showcase[showcaseItem].first.substr(0, showcase[showcaseItem].first.find_first_of(":@#"));
+			ps5.capturePath = std::string(PROTON_DATA_ROOT "/steam-guide-pictures/") + name + "-" + showcase[showcaseItem].second +
+				".ppm";
+			proton_say("steam guide showcase: picture %zu is %s in %s", showcaseItem + 1, name.c_str(), showcase[showcaseItem].second.c_str());
+		} else if (showcaseFrame >= 24 && showcaseItem + 1 < showcase.size()) {
+			++showcaseItem;
+			showcaseFrame = 0;
+			closeTour();
+			steamGuideTest(showcase[showcaseItem].first, showcase[showcaseItem].second.c_str());
+		}
+	}
+
+	// PROTON_STEAM_GUIDE_TEST=<page>[:<failure>][@<share downloaded>][#<display name>]: a page held for a picture on
+	// the PC (pages intro, download, starting, failed, done; failures as pw_steam_guide.h names them, lower case)
+	void steamGuideTest(const std::string &test, const char *language = getenv("PROTON_SETUP_LANGUAGE"))
+	{
+		static const char *const pages[] = { "intro", "download", "failed", "done" };
+		static const char *const failures[] = { "none", "offline", "clock", "download", "install", "stalled", "cancelled",
+			"timeout", "guard", "ended" };
+		const std::string name = test.substr(0, test.find_first_of(":@#"));
+		PwSteamPage page = PW_STEAM_PAGE_INTRO;
+		for (int i = 0; i < 4; ++i) if (name == pages[i]) page = (PwSteamPage)i;
+		if (name == "starting") page = PW_STEAM_PAGE_DOWNLOAD;
+		PwSteamFailure failure = PW_STEAM_FAIL_NONE;
+		if (const size_t colon = test.find(':'); colon != std::string::npos) {
+			const std::string word = test.substr(colon + 1, test.find_first_of("@#", colon) - colon - 1);
+			for (int i = 0; i < 10; ++i) if (word == failures[i]) failure = (PwSteamFailure)i;
+		}
+		startSteamGuide(page, failure, name == "starting");
+		const size_t at = test.find('@'), hash = test.find('#');
+		tour->holdSteam(at == std::string::npos ? 0.0f : (float)atof(test.c_str() + at + 1),
+			hash == std::string::npos ? nullptr : test.c_str() + hash + 1);
+		if (language) tour->preview_language(language);
+	}
+
+	// The guide's facts, a few times a second (the client's files are read each time: proton_steam_state)
+	void pollSteamGuide(float dt)
+	{
+		if ((steamPoll -= dt) > 0.0f) return;
+		steamPoll = 0.25f;
+		const ProtonSteam now = proton_steam_state();
+		SetupTour::SteamFacts facts;
+		facts.downloading = now.phase == ProtonSteam::downloading;
+		facts.downloaded = now.phase == ProtonSteam::downloaded;
+		facts.failed = now.phase == ProtonSteam::failed;
+		facts.installed = now.installed;
+		facts.signed_in = now.signed_in;
+		facts.bytes = now.bytes;
+		facts.fetch_status = now.fetch_status;
+		facts.persona = now.persona;
+		tour->steam(facts);
+	}
+
+	// What the guide asked for: the download, a session (its record written first, so the launcher knows on its return
+	// where it was), Big Picture, or back to the library
+	void steamGuideOutcome()
+	{
+		const auto outcome = tour->outcome;
+		const bool live = !ps5.frameBudget || clientTest;
+		if (outcome == SetupTour::Outcome::none) return;
+		if (outcome == SetupTour::Outcome::steam_download) {
+			tour->outcome = SetupTour::Outcome::none;
+			if (live) proton_steam_download();
+			return;
+		}
+		if (outcome == SetupTour::Outcome::library) {
+			if (live) unlink(PW_STEAM_GUIDE_RECORD);
+			closeTour();
+			syncAccounts();
+			return;
+		}
+		if (!live) return;   // a test's picture holds its page
+		ProtonGame game;
+		std::string problem;
+		PwSteamGuideRecord record{};
+		bool ok = false;
+		const char *why = "steam", *said = "launcher: Steam in Big Picture";   // the words tools/run-steam-option.py follows
+		if (outcome == SetupTour::Outcome::steam_install) {
+			record.stage = PW_STEAM_STAGE_INSTALL;
+			ok = proton_steam_game(&game, true, &problem);
+			why = "install";
+			said = "launcher: installing from the downloaded installer";
+		} else if (outcome == SetupTour::Outcome::steam_signin) {
+			record.stage = PW_STEAM_STAGE_SIGNIN;
+			ok = proton_steam_game(&game, false, &problem);
+			why = "sign-in";
+			said = "launcher: Steam sign-in session";
+		} else {
+			unlink(PW_STEAM_GUIDE_RECORD);
+			ok = proton_steam_game(&game, false, &problem, true);
+		}
+		if (ok && !runtimeBlocked.empty()) ok = false, problem = "sessions cannot start: " + runtimeBlocked;
+		if (!ok) {
+			proton_say("steam guide: the session cannot start: %s", problem.c_str());
+			tour->failSteam(outcome == SetupTour::Outcome::steam_install ? PW_STEAM_FAIL_INSTALL : PW_STEAM_FAIL_ENDED);
+			return;
+		}
+		if (record.stage) {
+			const int error = pw_steam_guide_record_save(&record, PW_STEAM_GUIDE_RECORD);
+			if (error) proton_say("steam guide: record not saved (%d)", error);
+		}
+		proton_say("%s", said);
+		proton_queue_restart(&game, proton_launch().cycle, why);
+		quit = true;
+	}
+
+	void startSetup(PwSetupStep step)
+	{
+		makeTour();
 		// The installer's engine (proton_install.h); a test (PROTON_SETUP_TEST on the PC) or the first-run marker plays the
 		// install with the fake one, so nothing of the console's runtime is written.
 		const char *test = getenv("PROTON_SETUP_TEST");
@@ -733,6 +1592,7 @@ public:
 
 	void renderSetup()
 	{
+		showcaseStep();   // may put the next page's tour in place
 		static const int gloss = [] {
 			const auto all = hui::ui::themes();
 			for (size_t i = 0; i < all.size(); ++i) if (!strcmp(all[i].id, "gloss")) return (int)i;
@@ -740,6 +1600,7 @@ public:
 		}();
 		const auto &look = hui::ui::themes()[gloss];
 		const hui::InputFrame input = ps5.frameBudget ? kit.scripted("ps5proton", ps5.framesDrawn) : kit.input();
+		if (tour->steamMode() && (!ps5.frameBudget || clientTest)) pollSteamGuide(std::min(frameTimer, 0.05f));
 		tour->update(std::min(frameTimer, 0.05f), input, ps5.frameBudget ? nullptr : &ps5_pad());
 		music.pump(std::min(frameTimer, 0.05f));
 		scene.clear();
@@ -757,6 +1618,10 @@ public:
 		if (tour->outcome == SetupTour::Outcome::prepare && (!ps5.frameBudget || setupUnattended))
 			ps5.capturePath = PROTON_DATA_ROOT "/" PW_SETUP_COVER_NAME;
 		submitFrame();
+		if (tour->steamMode()) {
+			steamGuideOutcome();
+			return;
+		}
 		const auto outcome = tour->outcome;
 		if (outcome == SetupTour::Outcome::none) return;
 		const auto mihawk = std::find_if(games.begin(), games.end(), [](const ProtonGame &game) { return game.id == "mihawk-os"; });
@@ -765,10 +1630,7 @@ public:
 			quit = true;
 			return;
 		}
-		vkDeviceWaitIdle(device);
-		tour->sky.release();
-		tour.reset();
-		page = Page::library;
+		closeTour();
 	}
 
 	void render() override

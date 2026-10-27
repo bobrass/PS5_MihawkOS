@@ -1,0 +1,200 @@
+{
+ "where": "host",
+ "kind": "vcredist",
+ "wine": ".deps/wine-host-display/build/wine",
+ "prefix_seconds": 6.2,
+ "seconds": 12.3,
+ "timed_out": false,
+ "verdict": {
+  "passed": false,
+  "summary": "vcredist, 22 checks, 1 failed, 5150 ms in all"
+ },
+ "checks": [
+  {
+   "step": "snapshot",
+   "verdict": "N/A",
+   "ms": 9,
+   "detail": "entries 1711"
+  },
+  {
+   "step": "install",
+   "verdict": "PASS",
+   "ms": 1274,
+   "detail": "exit codes 0 0"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (64-bit view) SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x86"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\msvcp140.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\vcruntime140.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\vcruntime140_1.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\msvcp140.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\vcruntime140.dll"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 12,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp32.exe\" /load msvcp140.dll _Query_perf_frequency"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 9,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp64.exe\" /load msvcp140.dll _Query_perf_frequency"
+  },
+  {
+   "step": "reinstall",
+   "verdict": "PASS",
+   "ms": 1085,
+   "detail": "exit codes 0 0"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (64-bit view) SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x86"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\msvcp140.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\vcruntime140.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\vcruntime140_1.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\msvcp140.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\vcruntime140.dll"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 13,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp32.exe\" /load msvcp140.dll _Query_perf_frequency"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 8,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp64.exe\" /load msvcp140.dll _Query_perf_frequency"
+  },
+  {
+   "step": "uninstall",
+   "verdict": "PASS",
+   "ms": 1070,
+   "detail": "exit codes 0 0"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\concrt140.dll|483328"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\msvcp140.dll|3055616"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\msvcp140_1.dll|73728"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\msvcp140_2.dll|65536"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\msvcp140_atomic_wait.dll|98304"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\msvcp140_codecvt_ids.dll|40960"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\vccorlib140.dll|442368"
+  },
+  {
+   "step": "clean-removed",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "gone or changed: C:\\windows\\system32\\vcomp140.dll|188416"
+  },
+  {
+   "step": "clean",
+   "verdict": "FAIL",
+   "ms": 1666,
+   "detail": "added or changed 0, removed 24 (of the snapshot's entries)"
+  }
+ ]
+}

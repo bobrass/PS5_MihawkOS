@@ -24,11 +24,13 @@ typedef enum {
     PW_SETUP_NONE = -1,
     PW_SETUP_WELCOME = 0,
     PW_SETUP_LANGUAGE,
-    PW_SETUP_METHOD,      /* USB drive, or the Internet (coming soon) */
+    PW_SETUP_METHOD,      /* USB drive, FTP, or the Internet (coming soon) */
     PW_SETUP_USB,         /* how to prepare the drive, then the drive's check */
     PW_SETUP_INSTALLING,
     PW_SETUP_PREPARING,   /* the first Mihawk OS session, which builds the prefix and ends by itself */
     PW_SETUP_DONE,
+    PW_SETUP_FTP,         /* USB's alternative: the pieces copied into /data/ps5proton/install over FTP, then that folder's
+                           * check. Last, so the steps' numbers in logs and test expectations stay as they were. */
     PW_SETUP_STEPS
 } PwSetupStep;
 
@@ -62,6 +64,8 @@ typedef enum {
     PW_TEXT_METHOD_BODY,
     PW_TEXT_METHOD_USB,
     PW_TEXT_METHOD_USB_BODY,
+    PW_TEXT_METHOD_FTP,
+    PW_TEXT_METHOD_FTP_BODY,
     PW_TEXT_METHOD_INTERNET,
     PW_TEXT_METHOD_INTERNET_BODY,
     PW_TEXT_COMING_SOON,
@@ -77,6 +81,18 @@ typedef enum {
     PW_TEXT_FOUND,             /* {1}: the size */
     PW_TEXT_INSTALL,
     PW_TEXT_RETRY,
+    PW_TEXT_FTP_TITLE,
+    PW_TEXT_FTP_STEP1,
+    PW_TEXT_FTP_STEP2,
+    PW_TEXT_FTP_STEP3,
+    PW_TEXT_FTP_STEP4,
+    PW_TEXT_CHECK_FILES,
+    PW_TEXT_FTP_FOUND,         /* {1}: the size */
+    PW_TEXT_ERR_FTP_EMPTY,
+    PW_TEXT_ERR_FTP_PARTIAL,   /* {1} pieces of {2} */
+    PW_TEXT_FTP_INSTALLING_BODY,
+    PW_TEXT_ERR_FTP_READ,
+    PW_TEXT_ERR_FTP_DAMAGED,
     PW_TEXT_ERR_NO_STICK,
     PW_TEXT_ERR_NO_FOLDER,
     PW_TEXT_ERR_PARTIAL,       /* {1} pieces of {2} */
@@ -112,6 +128,49 @@ typedef enum {
     PW_TEXT_STEP_OF,           /* {1} of {2} */
     PW_TEXT_GIGABYTES,         /* {1}: the number, written with PW_TEXT_DECIMAL */
     PW_TEXT_DECIMAL,
+    /* The Steam guide (src/pw_steam_guide.h): the launcher's pages, then the screens its sessions draw */
+    PW_TEXT_STEAM_TITLE,
+    PW_TEXT_STEAM_BODY,
+    PW_TEXT_STEAM_STEP_DOWNLOAD, /* the intro's four stages: name, then a line */
+    PW_TEXT_STEAM_STEP_DOWNLOAD_BODY,
+    PW_TEXT_STEAM_STEP_INSTALL,
+    PW_TEXT_STEAM_STEP_INSTALL_BODY,
+    PW_TEXT_STEAM_STEP_UPDATE,
+    PW_TEXT_STEAM_STEP_UPDATE_BODY,
+    PW_TEXT_STEAM_STEP_SIGNIN,
+    PW_TEXT_STEAM_STEP_SIGNIN_BODY,
+    PW_TEXT_STEAM_NOTE,
+    PW_TEXT_STEAM_START,
+    PW_TEXT_STEAM_NOT_NOW,
+    PW_TEXT_STEAM_DOWNLOADING,
+    PW_TEXT_STEAM_DOWNLOADING_BODY,
+    PW_TEXT_STEAM_MEGABYTES, /* {1} of about {2} MB */
+    PW_TEXT_STEAM_STARTING,
+    PW_TEXT_STEAM_FAIL_TITLE,
+    PW_TEXT_STEAM_ERR_OFFLINE, /* why the guide stopped (PwSteamGuideFailure) */
+    PW_TEXT_STEAM_ERR_CLOCK,
+    PW_TEXT_STEAM_ERR_DOWNLOAD,
+    PW_TEXT_STEAM_ERR_INSTALL,
+    PW_TEXT_STEAM_ERR_STALLED,
+    PW_TEXT_STEAM_ERR_CANCELLED,
+    PW_TEXT_STEAM_ERR_TIMEOUT,
+    PW_TEXT_STEAM_ERR_GUARD,
+    PW_TEXT_STEAM_ERR_ENDED,
+    PW_TEXT_STEAM_INSTALLING_TITLE, /* the session's screens (title-drawn) */
+    PW_TEXT_STEAM_INSTALLING_BODY,
+    PW_TEXT_STEAM_UPDATING_TITLE,
+    PW_TEXT_STEAM_UPDATING_BODY,
+    PW_TEXT_STEAM_DOWNLOADED, /* {1} MB */
+    PW_TEXT_STEAM_ELAPSED, /* {1}: minutes:seconds */
+    PW_TEXT_STEAM_SLOW,
+    PW_TEXT_STEAM_SCAN_TITLE,
+    PW_TEXT_STEAM_SCAN_BODY,
+    PW_TEXT_STEAM_CANCEL_NOTE,
+    PW_TEXT_STEAM_SIGNED_IN,
+    PW_TEXT_STEAM_SIGNED_IN_AS, /* {1}: the Steam display name */
+    PW_TEXT_STEAM_REOPEN_BODY,
+    PW_TEXT_STEAM_DONE_BODY,
+    PW_TEXT_STEAM_OPENING_IN, /* {1} seconds */
     PW_TEXT_COUNT
 } PwSetupText;
 
@@ -131,6 +190,10 @@ const PwSetupLanguage *pw_setup_language(const char *tag);
 /* The default: English (US). */
 const PwSetupLanguage *pw_setup_default_language(void);
 const char *pw_setup_text(const PwSetupLanguage *language, PwSetupText key);
+/* The key a step of the install shows on its route: on the FTP route (ftp nonzero) each text that speaks of the USB
+ * drive (the page, its check, what was found, the install's note and errors) becomes its FTP twin, which speaks of
+ * /data/ps5proton/install; every other key, and every key on the USB route, is itself. */
+PwSetupText pw_setup_route_text(int ftp, PwSetupText key);
 /* text with {1}..{9} replaced by args[0..]; a missing argument leaves the braces. Returns the length written,
  * truncated to size - 1. */
 size_t pw_setup_fill(char *out, size_t size, const char *text, const char *const *args, size_t count);

@@ -112,11 +112,13 @@ static int32_t load_one(const char *path)
 /* A Windows program in a Sony-managed helper process (WINE_PS5_CHILD) loads a module's helper build when the
  * runtime has one beside it: "name-helper.prx" for "name.prx". win32u's has no OpenGL driver, whose system
  * libraries a helper cannot use, and libvulkan's is the GPU broker's client in place of RADV. Each is linked under
- * the plain name, so the modules that need it find it by that name. */
+ * the plain name, so the modules that need it find it by that name. The one program the title runs itself beside the
+ * broker (WINE_PS5_TITLE_CLIENT, docs/TITLE_CLIENT.md) takes the same builds: its graphics are a helper's. */
 static int32_t try_load(const char *path)
 {
     size_t length=strlen(path);
-    if(getenv("WINE_PS5_CHILD") && length>4 && length+7<PW_WINE_DL_MAX_PATH && !strcmp(path+length-4,".prx")) {
+    const char *title_client=getenv("WINE_PS5_TITLE_CLIENT");
+    if((getenv("WINE_PS5_CHILD") || (title_client && !strcmp(title_client,"1"))) && length>4 && length+7<PW_WINE_DL_MAX_PATH && !strcmp(path+length-4,".prx")) {
         char variant[PW_WINE_DL_MAX_PATH];
         memcpy(variant,path,length-4);memcpy(variant+length-4,"-helper.prx",12);
         if(!access(variant,R_OK))return load_one(variant);

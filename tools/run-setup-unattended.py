@@ -6,6 +6,12 @@ presses with the real install engine, its first Mihawk OS session, Done, and one
   tools/run-setup-unattended.py --name RUN
   tools/run-setup-unattended.py --name RUN --read --package DIR    afterwards: downloads only, nothing launched or
                                                                    written
+  tools/run-setup-unattended.py --name RUN --route ftp --pieces DIR
+                         the FTP route instead of the stick: DIR's files (a package's usb/mihawkos) are copied into
+                         /data/ps5proton/install, the tour is walked Welcome, language, FTP, Check files, Install, to
+                         "You're all set" (step 6), and the launcher is closed there. It runs on a set-up console too:
+                         setup.txt is put aside for the run and put back after it, the prefix and saves are not touched,
+                         and an installed runtime is installed over (the engine keeps what already matches).
 
 Before it: the title folder holds the build under test, the tour has not finished (no setup.txt with done=1), and a USB
 stick with mihawkos/ is plugged in. The harness writes only its own hooks (/data/ps5proton/setup-unattended, the title
@@ -137,7 +143,11 @@ def main():
     parser.add_argument('--name', required=True)
     parser.add_argument('--read', action='store_true', help='downloads only: nothing is launched or written')
     parser.add_argument('--package', type=Path, help="with --read: the package's title folder (its runtime-pack.txt)")
+    parser.add_argument('--route', choices=('usb', 'ftp'), default='usb')
+    parser.add_argument('--pieces', type=Path, help="with --route ftp: the folder of runtime pieces to copy over FTP")
     args = parser.parse_args()
+    if args.route == 'ftp' and not (args.pieces and args.pieces.is_dir()):
+        parser.error('--route ftp needs --pieces DIR')
     if not re.fullmatch(r'[a-zA-Z0-9_-]+', args.name):
         parser.error('use a plain run name')
     if args.read:
@@ -193,7 +203,9 @@ def main():
                 if not str(error).startswith(('550', '226')):
                     raise
 
-    record = {'name': args.name, 'launch_readiness': readiness, 'milestones': [], 'stop_lines': [], 'launches': []}
+    record = {'name': args.name, 'route': args.route, 'launch_readiness': readiness, 'milestones': [], 'stop_lines': [],
+              'launches': []}
+    kept_record = []   # --route ftp: setup.txt as it was, put back in the finally
     lines = []
     clean = False
     sock = socket.create_connection((settings['host'], settings['klog_port']), timeout=10)
@@ -263,6 +275,57 @@ def main():
                                  'stopped here')
         put(MARKER, b'')
         remove('/data/ps5proton/setup-first-run')   # the simulated first run would win over the real one
+        if args.route == 'ftp':
+            # The pieces into /data/ps5proton/install, as a user's FTP client puts them (one already there at its size
+            # is left alone). The tour makes the folder too; here it must exist before the copy.
+            with ftp() as connection:
+                try:
+                    connection.mkd('/data/ps5proton/install')
+                except error_perm:
+                    pass
+                there = {}
+                connection.retrlines('LIST /data/ps5proton/install',
+                                     lambda line: there.__setitem__(line.split()[-1], int(line.split()[4])))
+                pieces = sorted(p for p in args.pieces.iterdir() if p.is_file())
+                copied = 0
+                for piece in pieces:
+                    if there.get(piece.name) == piece.stat().st_size:
+                        continue
+                    with piece.open('rb') as data:
+                        connection.storbinary(f'STOR /data/ps5proton/install/{piece.name}', data)
+                    copied += 1
+            record['pieces'] = {'count': len(pieces), 'copied': copied}
+            print(f'pieces: {len(pieces)} in /data/ps5proton/install ({copied} copied)', flush=True)
+            # setup.txt aside, so the tour starts at Welcome; it is put back after the run, whatever happens
+            kept = fetch('/data/ps5proton/setup.txt')
+            if kept:
+                kept_record.append(kept.encode())
+                (run / 'setup.txt.kept').write_bytes(kept_record[0])   # a copy here before the console's is removed
+                remove('/data/ps5proton/setup.txt')
+            runtime = bool(fetch('/data/ps5proton/runtime/ge11-7/runtime-stamp'))
+            record['runtime_was_installed'] = runtime
+            # Welcome; the language focused (en-US); How to install: with a runtime, Continue has the focus and two
+            # lefts reach FTP (past Internet), without one USB has it and one right does; FTP; Check files; Install.
+            # Nothing is pressed after Install: during the install CROSS is Stop.
+            method = [(100, 'left'), (110, 'left')] if runtime else [(100, 'right')]
+            presses = [(30, 'cross'), (70, 'cross'), *method, (130, 'cross'), (160, 'cross'), (190, 'cross')]
+            put(TITLE + '/test-run.txt', script(uuid.uuid4().hex, 18000, presses))
+            console_guard.after_launch()
+            mark = len(lines)
+            ps5_console.ps5vkctl_command(settings, 'launch PPSA99170', timeout=120)
+            record['launches'].append('install-ftp')
+            reached = wait(lambda all_lines: any('setup: step 6' in l or 'install: failed' in l
+                                                 for l in all_lines[mark:]), 900)
+            after = lines[mark:]
+            record['ftp_step_shown'] = any('setup: step 7' in l for l in after)
+            record['folder_checked'] = [l for l in after if 'setup: folder check' in l]
+            record['install_done'] = any('install: done' in l for l in after)
+            record['all_set'] = reached and any('setup: step 6' in l for l in after)
+            # The tour waits at "You're all set"; the scripted launcher is closed there (nobody presses Enter)
+            ps5_console.ps5vkctl_command(settings, 'kill PPSA99170', timeout=120)
+            wait(lambda all_lines: False, 60, idle_ends=True)
+            clean = record['all_set'] and record['install_done'] and record['ftp_step_shown'] and not record['stop_lines']
+            return 0 if clean else 1
         # 1. The install, unless an earlier run finished it: the stamp is the last file an install writes.
         stamp = fetch('/data/ps5proton/runtime/ge11-7/runtime-stamp')
         record['install_skipped'] = bool(stamp)
@@ -327,6 +390,9 @@ def main():
             if idle():
                 for path in (MARKER, TITLE + '/test-run.txt', TITLE + '/wine-run.txt', '/data/ps5proton/stop-game'):
                     remove(path)
+                if kept_record:
+                    put('/data/ps5proton/setup.txt', kept_record[0])
+                    record['setup_record_restored'] = fetch('/data/ps5proton/setup.txt').encode() == kept_record[0]
                 record['hooks_removed'] = True
             else:
                 record['hooks_removed'] = False   # a title still runs: nothing is touched under it

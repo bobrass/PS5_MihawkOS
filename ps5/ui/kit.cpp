@@ -139,6 +139,14 @@ hui::InputFrame Kit::scripted(const char *program, uint32_t frame) const
 			input.pressed |= hui::action_bit(hui::Action::page_next);
 		} else if (press.action == "l1") {
 			input.pressed |= hui::action_bit(hui::Action::page_prev);
+		} else if (press.action == "r2") {
+			input.pressed |= hui::action_bit(hui::Action::jump_next);
+		} else if (press.action == "l2") {
+			input.pressed |= hui::action_bit(hui::Action::jump_prev);
+		} else if (press.action == "touch") {
+			input.pressed |= hui::action_bit(hui::Action::touch);
+		} else if (press.action == "options") {
+			input.pressed |= hui::action_bit(hui::Action::menu);
 		}
 		input.held |= input.pressed;
 	}

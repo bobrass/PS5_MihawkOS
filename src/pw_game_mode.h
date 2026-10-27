@@ -9,6 +9,10 @@
  * goes black. The file holds one line, "game-mode on" or "game-mode off"; a missing or unreadable file means on.
  * Save is atomic (a temporary file, fsync, rename): a failed save leaves the previous file. Functions return errno
  * values. */
+/* A game's own choice (game.json "env", or a launch's): "1" on, "0" off, anything else the player's setting. It wins
+ * over the file for the game's session (native/proton_wine.cpp) and for its windows in the Mihawk OS session, where
+ * the programs it starts inherit it (src/pw_window_direct.h). */
+#define PW_GAME_MODE_ENV "WINE_PS5_GAME_MODE"
 #ifdef __cplusplus
 extern "C" {
 #endif

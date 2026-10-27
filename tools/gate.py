@@ -107,8 +107,8 @@ def run(args):
         sys.exit('gate: the console does not hold this build (' + '; '.join(problems[:5]) +
                  f'{"; ..." if len(problems) > 5 else ""}): bash ps5/tools/deploy.sh && python3 tools/deploy-wine.py')
     verify.console_guard.record_verified('title', digest, 'every file read back by sha256 with SELF off (gate)')
-    status = subprocess.run([sys.executable, str(ROOT / 'tools/run-battery.py'), '--name', args.name, '--gate',
-                             '--grouped'],
+    status = subprocess.run([sys.executable, str(ROOT / 'tools/run-battery.py'), '--name', args.name, '--gate', '--grouped']
+                            + (['--grouped-launches'] if args.grouped_launches else []),
                             cwd=ROOT).returncode
     evidence = json.loads((ROOT / 'evidence' / f'{args.name}.json').read_text())
     if status or not evidence.get('passed'):
@@ -152,6 +152,9 @@ def main():
     commands.add_parser('record').set_defaults(handler=record)
     runner = commands.add_parser('run')
     runner.add_argument('--name', required=True)
+    runner.add_argument('--grouped-launches', action='store_true',
+                        help="the groups' probes one after another in one launch per group, as before 2026-10-25 (for "
+                             'comparison); the default runs them in one persistent session, 4 at a time')
     runner.set_defaults(handler=run)
     commands.add_parser('check').set_defaults(handler=check)
     shower = commands.add_parser('fingerprint')

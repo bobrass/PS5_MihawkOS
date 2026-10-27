@@ -1,0 +1,25 @@
+{
+ "_comment": "Which of Wine's test directories the console must pass (owner, 2026-10-25): every dlls/*/tests and programs/*/tests of the pinned tree in both architectures, except the areas games do not use. A program's tests are named NAME.exe. tools/wine-test-scope.py lists them in order. inetmib1 is SNMP (network interface statistics), not mail: in scope.",
+ "excluded": {
+  "winspool.drv": "printing", "localspl": "printing", "localui": "printing", "spoolss": "printing", "compstui": "printing", "printui": "printing",
+  "mapi32": "mail", "inetcomm": "mail",
+  "riched20": "Office-style controls", "riched32": "Office-style controls", "msftedit": "Office-style controls",
+  "msacm32": "old multimedia codecs", "imaadp32.acm": "old multimedia codecs", "msadp32.acm": "old multimedia codecs",
+  "msg711.acm": "old multimedia codecs", "msgsm32.acm": "old multimedia codecs", "l3codeca.acm": "old multimedia codecs",
+  "msvfw32": "old multimedia codecs", "avifil32": "old multimedia codecs", "iccvid": "old multimedia codecs",
+  "msrle32": "old multimedia codecs", "msvidc32": "old multimedia codecs", "ir50_32": "old multimedia codecs",
+  "mciavi32": "old multimedia codecs", "mciseq": "old multimedia codecs", "mciwave": "old multimedia codecs", "mcicda": "old multimedia codecs"
+ },
+ "order": [
+  "ntdll", "kernelbase", "kernel32", "user32", "gdi32", "msvcrt", "ucrtbase", "advapi32", "ws2_32", "winhttp", "ole32", "rpcrt4",
+  "crypt32", "bcrypt", "secur32", "dinput", "xinput1_3", "hid", "mmdevapi", "dsound", "xaudio2_7",
+  "d3d11", "dxgi", "d3d9", "d3d12", "d3d10core", "d3d10", "d3d10_1", "d3d8", "ddraw", "opengl32", "d3dcompiler_43", "d3dcompiler_47", "d3dx9_36", "d3dx10_43", "d3dx11_43", "dxva2", "dxgi", "vulkan-1", "winevulkan",
+  "msvcp140", "msvcp120", "msvcp110", "msvcp100", "msvcp90", "msvcr120", "msvcr100", "msvcr90", "vcruntime140", "concrt140", "vcomp",
+  "shell32", "shlwapi", "shcore", "comctl32", "comdlg32", "oleaut32", "combase", "propsys", "version", "psapi", "dbghelp", "imagehlp",
+  "setupapi", "cfgmgr32", "iphlpapi", "dnsapi", "wininet", "urlmon", "winmm", "quartz", "mf", "mfplat", "mfreadwrite", "winegstreamer",
+  "xaudio2_8", "x3daudio1_7", "xactengine3_7", "dinput8", "windows.gaming.input", "hidclass.sys", "winebus.sys", "imm32", "msctf",
+  "dwrite", "d2d1", "windowscodecs", "gdiplus", "fontsub", "usp10", "msi", "cabinet", "msxml3", "msxml6", "jscript", "vbscript",
+  "mshtml", "ieframe", "xinput9_1_0", "steam_api", "wintrust", "cryptnet", "ncrypt", "schannel", "netapi32", "wtsapi32", "userenv",
+  "powrprof", "pdh", "wbemprox", "wmiutils", "taskschd", "sechost", "cmd.exe", "reg.exe", "regedit.exe", "conhost.exe", "explorer.exe"
+ ]
+}

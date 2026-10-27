@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 22:50:00 -0400
+Subject: [PATCH] winedmo: a 32-bit demuxer's destroy passes the demuxer it names.
+
+wow64_demuxer_destroy filled a struct demuxer_create_params and handed it to demuxer_destroy, which reads a
+struct demuxer_destroy_params: its demuxer is the first member there, but the create struct's first member is the
+url, never set on this path, so the 64-bit side destroyed whatever handle the stack held and read through it. On the
+console that read reached execute-only system code, the kernel stopped the helper for good (SYSTEM_XO_VIOLATION,
+0xa0020328), and every later launch was refused until a restart: quartz's 32-bit avisplit, filtergraph, mpegsplit
+and waveparser tests, each at winedmo_demuxer_destroy (trace-avisplit32-224423, 2026-10-25). On Linux the stale
+value happened to be harmless. The returned context sits at the same offset in both structs, so only the demuxer
+was wrong.
+---
+--- a/dlls/winedmo/unixlib.c
++++ b/dlls/winedmo/unixlib.c
+@@ -228,7 +228,7 @@
+         struct winedmo_demuxer demuxer;
+         PTR32 context;
+     } *params32 = arg;
+-    struct demuxer_create_params params;
++    struct demuxer_destroy_params params;
+     NTSTATUS status;
+ 
+     params.demuxer = params32->demuxer;

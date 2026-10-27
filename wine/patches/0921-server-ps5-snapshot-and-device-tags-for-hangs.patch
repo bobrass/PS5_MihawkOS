@@ -315,7 +315,7 @@ index dec6851..a02e818 100644
  {
      struct thread *thread;
      struct thread_wait *wait;
-@@ -1203,13 +1207,23 @@ static void wait_watchdog( void *arg )
+@@ -1203,13 +1207,24 @@ static void wait_watchdog( void *arg )
      fprintf( stderr, "wine-ps5: wait snapshot\n" );
      LIST_FOR_EACH_ENTRY( thread, &thread_list, struct thread, entry )
      {
@@ -337,9 +337,10 @@ index dec6851..a02e818 100644
 -         * The server runs in the game's process, so it can read it. */
 -        if (!thread->wait && thread->teb && monotonic_time - thread->ps5_last_req_time > TICKS_PER_SEC)
 +         * The server runs in the game's process, so it can read it. A 64-bit
-+         * process keeps its own data in that slot. */
-+        if (is_wow64_process( thread->process ) && !thread->wait && thread->teb &&
-+            monotonic_time - thread->ps5_last_req_time > TICKS_PER_SEC)
++         * process keeps its own data in that slot. Only a process this host runs:
++         * a helper's TEB is an address of another process. */
++        if (thread->process->unix_pid == getpid() && is_wow64_process( thread->process ) && !thread->wait &&
++            thread->teb && monotonic_time - thread->ps5_last_req_time > TICKS_PER_SEC)
          {
              const unsigned char *cpu = *(unsigned char * const *)(ULONG_PTR)(thread->teb + 0x1480 + 8);
              if (cpu && *(const unsigned short *)(cpu + 2) == 0x14c /* IMAGE_FILE_MACHINE_I386 */)

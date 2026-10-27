@@ -298,16 +298,33 @@ index 900d4a3..0987a7a 100644
              ptr = alloc_free_area( start, end, host_size, top_down, unix_prot, align_mask );
  #else
              ptr = alloc_free_area( (void *)limit_low, (void *)limit_high, size, top_down, unix_prot, align_mask );
-@@ -3300,7 +3420,13 @@ static NTSTATUS map_file_into_view( struct file_view *view, int fd, size_t start
+@@ -3300,7 +3420,30 @@ static NTSTATUS map_file_into_view( struct file_view *view, int fd, size_t start
          return STATUS_INVALID_PARAMETER;
      }
  
 +#ifdef __PROSPERO__
++    /* The file's bytes become direct memory where the region engine can claim the view (the flexible
++     * fallback stays when it cannot). */
++    {
++        extern int __wine_ps5_dmem_claim( void *addr, size_t len );
++        __wine_ps5_dmem_claim( map_addr, map_size );
++    }
 +    /* Read in only where the engine could commit: never into a mapping that is not Wine's (patch 1128). */
 +    if (mprotect( map_addr, map_size, PROT_READ | PROT_WRITE ))
 +        return errno == EEXIST ? STATUS_CONFLICTING_ADDRESSES : STATUS_NO_MEMORY;
 +#else
      mprotect( map_addr, map_size, PROT_READ | PROT_WRITE );
++#endif
++#ifdef __PROSPERO__
++    /* An image's bytes are read once and shared: the registry answers every later helper with the object (the
++     * file-keyed image cluster), so another process with the same DLL maps it instead of reading the file again. */
++    /* Only the read-only sections (patch 2066): a writable section's shared object would take every process's
++     * writes, and the shim's whole-section read could not tell them apart. */
++    if ((view->protect & SEC_IMAGE) && !(vprot & (VPROT_WRITE | VPROT_WRITECOPY)))
++    {
++        extern int __wine_ps5_image_read( int fd, void *at, size_t bytes, off_t offset );
++        if (!__wine_ps5_image_read( fd, map_addr, size, offset )) return STATUS_SUCCESS;
++    }
 +#endif
      pread( fd, map_addr, size, offset );
      vm_stat_add( VM_STAT_FILE_READ, size );

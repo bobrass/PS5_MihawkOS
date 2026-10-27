@@ -1,0 +1,5926 @@
+{
+ "rows": [
+  [
+   "ntdll",
+   52,
+   34,
+   0,
+   0,
+   3,
+   15
+  ],
+  [
+   "kernelbase",
+   12,
+   10,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "kernel32",
+   66,
+   44,
+   1,
+   4,
+   0,
+   17
+  ],
+  [
+   "user32",
+   48,
+   32,
+   0,
+   0,
+   0,
+   16
+  ],
+  [
+   "gdi32",
+   28,
+   24,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "msvcrt",
+   26,
+   26,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ucrtbase",
+   16,
+   16,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "advapi32",
+   24,
+   18,
+   0,
+   0,
+   2,
+   4
+  ],
+  [
+   "ws2_32",
+   6,
+   0,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "winhttp",
+   6,
+   4,
+   0,
+   0,
+   2,
+   0
+  ],
+  [
+   "ole32",
+   28,
+   26,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "rpcrt4",
+   12,
+   8,
+   0,
+   0,
+   2,
+   2
+  ],
+  [
+   "crypt32",
+   30,
+   30,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "bcrypt",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "secur32",
+   10,
+   4,
+   0,
+   0,
+   2,
+   4
+  ],
+  [
+   "dinput",
+   12,
+   7,
+   0,
+   0,
+   5,
+   0
+  ],
+  [
+   "xinput1_3",
+   2,
+   0,
+   0,
+   2,
+   0,
+   0
+  ],
+  [
+   "hid",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "mmdevapi",
+   12,
+   8,
+   2,
+   0,
+   0,
+   2
+  ],
+  [
+   "dsound",
+   14,
+   10,
+   0,
+   0,
+   4,
+   0
+  ],
+  [
+   "xaudio2_7",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3d11",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dxgi",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3d9",
+   8,
+   0,
+   0,
+   0,
+   0,
+   8
+  ],
+  [
+   "d3d12",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3d10core",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3d10",
+   6,
+   6,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "d3d10_1",
+   4,
+   2,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3d8",
+   6,
+   0,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "ddraw",
+   18,
+   12,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "opengl32",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dcompiler_43",
+   10,
+   10,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "d3dcompiler_47",
+   10,
+   10,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "d3dx9_36",
+   22,
+   16,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "d3dx10_43",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx11_43",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dxva2",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "vulkan-1",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "msvcp140",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "msvcp120",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "msvcp110",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "msvcp100",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcp90",
+   6,
+   6,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr120",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr100",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr90",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "concrt140",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "vcomp",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "shell32",
+   38,
+   24,
+   0,
+   0,
+   0,
+   14
+  ],
+  [
+   "shlwapi",
+   22,
+   20,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "shcore",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "comctl32",
+   58,
+   50,
+   0,
+   0,
+   0,
+   8
+  ],
+  [
+   "comdlg32",
+   10,
+   10,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "oleaut32",
+   20,
+   19,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "combase",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "propsys",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "version",
+   4,
+   3,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "psapi",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dbghelp",
+   6,
+   2,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "imagehlp",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "setupapi",
+   18,
+   18,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cfgmgr32",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "iphlpapi",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dnsapi",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wininet",
+   12,
+   10,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "urlmon",
+   14,
+   13,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "winmm",
+   20,
+   18,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "quartz",
+   36,
+   14,
+   0,
+   0,
+   0,
+   22
+  ],
+  [
+   "mf",
+   6,
+   0,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "mfplat",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "mfreadwrite",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "xaudio2_8",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "xactengine3_7",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "windows.gaming.input",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "imm32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msctf",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dwrite",
+   6,
+   0,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "d2d1",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "windowscodecs",
+   30,
+   29,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "gdiplus",
+   24,
+   24,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "usp10",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msi",
+   22,
+   17,
+   0,
+   0,
+   0,
+   5
+  ],
+  [
+   "cabinet",
+   4,
+   3,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "msxml3",
+   14,
+   14,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msxml6",
+   6,
+   6,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "jscript",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "vbscript",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mshtml",
+   20,
+   20,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ieframe",
+   6,
+   4,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wintrust",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cryptnet",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ncrypt",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "schannel",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "netapi32",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wtsapi32",
+   2,
+   1,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "userenv",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "pdh",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wbemprox",
+   4,
+   2,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wmiutils",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "taskschd",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cmd.exe",
+   6,
+   4,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "reg.exe",
+   12,
+   0,
+   0,
+   0,
+   0,
+   12
+  ],
+  [
+   "regedit.exe",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "conhost.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "explorer.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "activeds",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "adsldp",
+   4,
+   3,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "advpack",
+   6,
+   5,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "amstream",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "apphelp",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "atl",
+   6,
+   6,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "atl100",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "atl110",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "atl80",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "atlthunk",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "bcp47langs",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "bluetoothapis",
+   8,
+   4,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "browseui",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "comcat",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "comsvcs",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "coremessaging",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "credui",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cryptext",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cryptowinrt",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cryptui",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "cryptxml",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "d3dcompiler_42",
+   10,
+   6,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "d3dcompiler_46",
+   10,
+   10,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "d3drm",
+   4,
+   2,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_33",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_34",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_35",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_36",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_37",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_38",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_39",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_40",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_41",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx10_42",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx11_42",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "d3dx9_35",
+   22,
+   16,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "d3dx9_42",
+   22,
+   16,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "d3dx9_43",
+   22,
+   16,
+   0,
+   0,
+   0,
+   6
+  ],
+  [
+   "d3dxof",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dataexchange",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dbgeng",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ddrawex",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "devenum",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dhcpcsvc",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "directmanipulation",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dispex",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dmband",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dmcompos",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dmime",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dmloader",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dmscript",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dmstyle",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dmsynth",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dmusic",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dplayx",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "dpnet",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dpvoice",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dsdmo",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dssenh",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dswave",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dwmapi",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dxcore",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "dxdiagn",
+   4,
+   2,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "evr",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "explorerframe",
+   4,
+   2,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "faultrep",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "fc.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "find.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "findstr.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "fsutil.exe",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "fusion",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "gameux",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "geolocation",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "glu32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "graphicscapture",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "hlink",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "hnetcfg",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "httpapi",
+   2,
+   1,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "hvsimanagementapi",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "icmui",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "iertutil",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "inetmib1",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "infosoft",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "itss",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "iyuv_32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "jsproxy",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "lz32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mfmediaengine",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "mfplay",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "mfsrcsnk",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "mlang",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mmcndmgr",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mp3dmod",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mpr",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msado15",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msasn1",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mscms",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mscoree",
+   8,
+   8,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msdasql",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msdmo",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mspatcha",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msscript.ocx",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "mstask",
+   6,
+   4,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "msvcirt",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcp140_1",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcp140_2",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcp140_atomic_wait",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcp60",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr110",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr70",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr71",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcr80",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msvcrtd",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "msxml4",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ndis.sys",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "net.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "netcfgx",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "netprofm",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ninput",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "nsi",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "ntdsapi",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "ntoskrnl.exe",
+   2,
+   1,
+   0,
+   0,
+   0,
+   1
+  ],
+  [
+   "ntprint",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "odbc32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "odbccp32",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "oleacc",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "oledb32",
+   6,
+   6,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "oledlg",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "opcservices",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "packager",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "prntvpt",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "pstorec",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "qasf",
+   4,
+   0,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "qcap",
+   18,
+   16,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "qdvd",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "qedit",
+   8,
+   4,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "qmgr",
+   10,
+   10,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "qwave",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "rasapi32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "rometadata",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "rsaenh",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "rtworkq",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "sapi",
+   12,
+   9,
+   0,
+   0,
+   0,
+   3
+  ],
+  [
+   "sc.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "schedsvc",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "schtasks.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "scrobj",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "scrrun",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "serialui",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "services.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "shdocvw",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "slc",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "snmpapi",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "sti",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "sxs",
+   6,
+   6,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "t2embed",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "tapi32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "tasklist.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "tdh",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "threadpoolwinrt",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "timeout.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "twain_32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "twinapi.appcore",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "uianimation",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "uiautomationcore",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "uxtheme",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "vccorlib140",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "vcomp110",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "virtdisk",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wbemdisp",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "webservices",
+   12,
+   10,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wer",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wevtapi",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wiaservc",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "win32u",
+   4,
+   0,
+   0,
+   0,
+   0,
+   4
+  ],
+  [
+   "windows.applicationmodel",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.devices.bluetooth",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.devices.enumeration",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.devices.usb",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.gaming.ui.gamebar",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.globalization",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.media",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.media.devices",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.media.mediacontrol",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.media.playback.backgroundmediaplayer",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.media.playback.mediaplayer",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.media.speech",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.networking.connectivity",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.networking.hostname",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.perception.stub",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.security.authentication.onlineid",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.security.credentials.ui.userconsentverifier",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.storage",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.storage.applicationdata",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.system.profile.systemid",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.system.profile.systemmanufacturers",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.ui",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.ui.core.textinput",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.ui.xaml",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windows.web",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "windowscodecsext",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wing32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "winscard",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "winsqlite3",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wintab32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wintypes",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wlanapi",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wldap32",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wldp",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wmp",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wmvcore",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wpc",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wpcap",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wscript.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "wsdapi",
+   10,
+   8,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wshom.ocx",
+   2,
+   0,
+   0,
+   0,
+   0,
+   2
+  ],
+  [
+   "wsnmp32",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "xcopy.exe",
+   2,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   "xmllite",
+   4,
+   4,
+   0,
+   0,
+   0,
+   0
+  ]
+ ],
+ "files": {
+  "ntdll x86_64": {
+   "atom": "matching",
+   "change": "open",
+   "directory": "open",
+   "env": "matching",
+   "error": "matching",
+   "exception": "open",
+   "file": "open",
+   "generated": "matching",
+   "info": "awaiting",
+   "large_int": "matching",
+   "om": "matching",
+   "path": "matching",
+   "pipe": "open",
+   "port": "matching",
+   "reg": "matching",
+   "rtl": "matching",
+   "rtlbitmap": "matching",
+   "rtlstr": "matching",
+   "string": "matching",
+   "sync": "matching",
+   "thread": "matching",
+   "threadpool": "open",
+   "time": "matching",
+   "unwind": "matching",
+   "virtual": "open",
+   "wow64": "awaiting"
+  },
+  "ntdll i386": {
+   "atom": "matching",
+   "change": "open",
+   "directory": "open",
+   "env": "matching",
+   "error": "matching",
+   "exception": "open",
+   "file": "open",
+   "generated": "matching",
+   "info": "awaiting",
+   "large_int": "matching",
+   "om": "matching",
+   "path": "matching",
+   "pipe": "open",
+   "port": "matching",
+   "reg": "matching",
+   "rtl": "matching",
+   "rtlbitmap": "matching",
+   "rtlstr": "matching",
+   "string": "matching",
+   "sync": "matching",
+   "thread": "matching",
+   "threadpool": "open",
+   "time": "matching",
+   "unwind": "matching",
+   "virtual": "open",
+   "wow64": "open"
+  },
+  "kernelbase x86_64": {
+   "file": "matching",
+   "memory": "matching",
+   "path": "matching",
+   "process": "open",
+   "security": "matching",
+   "sync": "matching"
+  },
+  "kernelbase i386": {
+   "file": "matching",
+   "memory": "matching",
+   "path": "matching",
+   "process": "open",
+   "security": "matching",
+   "sync": "matching"
+  },
+  "kernel32 x86_64": {
+   "actctx": "matching",
+   "atom": "matching",
+   "change": "open",
+   "codepage": "matching",
+   "comm": "matching",
+   "console": "qualified",
+   "debugger": "open",
+   "directory": "matching",
+   "drive": "matching",
+   "environ": "matching",
+   "fiber": "open",
+   "file": "open",
+   "format_msg": "matching",
+   "generated": "matching",
+   "heap": "open",
+   "loader": "open",
+   "locale": "matching",
+   "mailslot": "matching",
+   "module": "matching",
+   "path": "matching",
+   "pipe": "open",
+   "power": "matching",
+   "process": "open",
+   "profile": "matching",
+   "resource": "matching",
+   "sync": "matching",
+   "thread": "matching",
+   "time": "matching",
+   "timer": "matching",
+   "toolhelp": "matching",
+   "version": "matching",
+   "virtual": "open",
+   "volume": "qualified"
+  },
+  "kernel32 i386": {
+   "actctx": "matching",
+   "atom": "matching",
+   "change": "open",
+   "codepage": "matching",
+   "comm": "matching",
+   "console": "qualified",
+   "debugger": "open",
+   "directory": "matching",
+   "drive": "matching",
+   "environ": "matching",
+   "fiber": "open",
+   "file": "open",
+   "format_msg": "matching",
+   "generated": "matching",
+   "heap": "open",
+   "loader": "open",
+   "locale": "matching",
+   "mailslot": "matching",
+   "module": "matching",
+   "path": "matching",
+   "pipe": "matching",
+   "power": "matching",
+   "process": "open",
+   "profile": "matching",
+   "resource": "matching",
+   "sync": "matching",
+   "thread": "fixed",
+   "time": "matching",
+   "timer": "matching",
+   "toolhelp": "matching",
+   "version": "matching",
+   "virtual": "open",
+   "volume": "qualified"
+  },
+  "user32 x86_64": {
+   "broadcast": "matching",
+   "class": "matching",
+   "clipboard": "matching",
+   "combo": "matching",
+   "cursoricon": "open",
+   "dce": "open",
+   "dde": "matching",
+   "dialog": "matching",
+   "edit": "open",
+   "generated": "matching",
+   "input": "open",
+   "listbox": "matching",
+   "menu": "open",
+   "monitor": "matching",
+   "msg": "open",
+   "resource": "matching",
+   "scroll": "matching",
+   "static": "matching",
+   "sysparams": "matching",
+   "text": "matching",
+   "uitools": "matching",
+   "win": "open",
+   "winstation": "open",
+   "wsprintf": "matching"
+  },
+  "user32 i386": {
+   "broadcast": "matching",
+   "class": "matching",
+   "clipboard": "matching",
+   "combo": "matching",
+   "cursoricon": "open",
+   "dce": "open",
+   "dde": "matching",
+   "dialog": "matching",
+   "edit": "open",
+   "generated": "matching",
+   "input": "open",
+   "listbox": "matching",
+   "menu": "open",
+   "monitor": "matching",
+   "msg": "open",
+   "resource": "matching",
+   "scroll": "matching",
+   "static": "matching",
+   "sysparams": "matching",
+   "text": "matching",
+   "uitools": "matching",
+   "win": "open",
+   "winstation": "open",
+   "wsprintf": "matching"
+  },
+  "gdi32 x86_64": {
+   "bitmap": "matching",
+   "brush": "matching",
+   "clipping": "matching",
+   "dc": "open",
+   "dib": "matching",
+   "font": "open",
+   "gdiobj": "matching",
+   "generated": "matching",
+   "icm": "matching",
+   "mapping": "matching",
+   "metafile": "matching",
+   "palette": "matching",
+   "path": "matching",
+   "pen": "matching"
+  },
+  "gdi32 i386": {
+   "bitmap": "matching",
+   "brush": "matching",
+   "clipping": "matching",
+   "dc": "open",
+   "dib": "matching",
+   "font": "open",
+   "gdiobj": "matching",
+   "generated": "matching",
+   "icm": "matching",
+   "mapping": "matching",
+   "metafile": "matching",
+   "palette": "matching",
+   "path": "matching",
+   "pen": "matching"
+  },
+  "msvcrt x86_64": {
+   "cpp": "matching",
+   "data": "matching",
+   "dir": "matching",
+   "environ": "matching",
+   "file": "matching",
+   "heap": "matching",
+   "locale": "matching",
+   "misc": "matching",
+   "printf": "matching",
+   "scanf": "matching",
+   "signal": "matching",
+   "string": "matching",
+   "time": "matching"
+  },
+  "msvcrt i386": {
+   "cpp": "matching",
+   "data": "matching",
+   "dir": "matching",
+   "environ": "matching",
+   "file": "matching",
+   "heap": "matching",
+   "locale": "matching",
+   "misc": "matching",
+   "printf": "matching",
+   "scanf": "matching",
+   "signal": "matching",
+   "string": "matching",
+   "time": "matching"
+  },
+  "ucrtbase x86_64": {
+   "cpp": "matching",
+   "environ": "matching",
+   "file": "matching",
+   "misc": "matching",
+   "printf": "matching",
+   "scanf": "matching",
+   "string": "matching",
+   "thread": "matching"
+  },
+  "ucrtbase i386": {
+   "cpp": "matching",
+   "environ": "matching",
+   "file": "matching",
+   "misc": "matching",
+   "printf": "matching",
+   "scanf": "matching",
+   "string": "matching",
+   "thread": "matching"
+  },
+  "advapi32 x86_64": {
+   "cred": "matching",
+   "crypt": "matching",
+   "crypt_lmhash": "matching",
+   "crypt_md4": "matching",
+   "crypt_md5": "matching",
+   "crypt_sha": "matching",
+   "eventlog": "matching",
+   "lsa": "open",
+   "perf": "matching",
+   "registry": "matching",
+   "security": "open",
+   "service": "awaiting"
+  },
+  "advapi32 i386": {
+   "cred": "matching",
+   "crypt": "matching",
+   "crypt_lmhash": "matching",
+   "crypt_md4": "matching",
+   "crypt_md5": "matching",
+   "crypt_sha": "matching",
+   "eventlog": "matching",
+   "lsa": "open",
+   "perf": "matching",
+   "registry": "matching",
+   "security": "open",
+   "service": "awaiting"
+  },
+  "ws2_32 x86_64": {
+   "afd": "open",
+   "protocol": "open",
+   "sock": "open"
+  },
+  "ws2_32 i386": {
+   "afd": "open",
+   "protocol": "open",
+   "sock": "open"
+  },
+  "winhttp x86_64": {
+   "notification": "matching",
+   "url": "matching",
+   "winhttp": "awaiting"
+  },
+  "winhttp i386": {
+   "notification": "matching",
+   "url": "matching",
+   "winhttp": "awaiting"
+  },
+  "ole32 x86_64": {
+   "clipboard": "open",
+   "compobj": "matching",
+   "defaulthandler": "matching",
+   "dragdrop": "matching",
+   "errorinfo": "matching",
+   "hglobalstream": "matching",
+   "marshal": "matching",
+   "moniker": "matching",
+   "ole2": "matching",
+   "ole_server": "matching",
+   "propvariant": "matching",
+   "stg_prop": "matching",
+   "storage32": "matching",
+   "usrmarshal": "matching"
+  },
+  "ole32 i386": {
+   "clipboard": "open",
+   "compobj": "matching",
+   "defaulthandler": "matching",
+   "dragdrop": "matching",
+   "errorinfo": "matching",
+   "hglobalstream": "matching",
+   "marshal": "matching",
+   "moniker": "matching",
+   "ole2": "matching",
+   "ole_server": "matching",
+   "propvariant": "matching",
+   "stg_prop": "matching",
+   "storage32": "matching",
+   "usrmarshal": "matching"
+  },
+  "rpcrt4 x86_64": {
+   "cstub": "matching",
+   "generated": "matching",
+   "ndr_marshall": "matching",
+   "rpc": "awaiting",
+   "rpc_async": "matching",
+   "server": "open"
+  },
+  "rpcrt4 i386": {
+   "cstub": "matching",
+   "generated": "matching",
+   "ndr_marshall": "matching",
+   "rpc": "awaiting",
+   "rpc_async": "matching",
+   "server": "open"
+  },
+  "crypt32 x86_64": {
+   "base64": "matching",
+   "cert": "matching",
+   "chain": "matching",
+   "crl": "matching",
+   "ctl": "matching",
+   "encode": "matching",
+   "main": "matching",
+   "message": "matching",
+   "msg": "matching",
+   "object": "matching",
+   "oid": "matching",
+   "protectdata": "matching",
+   "sip": "matching",
+   "store": "matching",
+   "str": "matching"
+  },
+  "crypt32 i386": {
+   "base64": "matching",
+   "cert": "matching",
+   "chain": "matching",
+   "crl": "matching",
+   "ctl": "matching",
+   "encode": "matching",
+   "main": "matching",
+   "message": "matching",
+   "msg": "matching",
+   "object": "matching",
+   "oid": "matching",
+   "protectdata": "matching",
+   "sip": "matching",
+   "store": "matching",
+   "str": "matching"
+  },
+  "bcrypt x86_64": {
+   "bcrypt": "open"
+  },
+  "bcrypt i386": {
+   "bcrypt": "open"
+  },
+  "secur32 x86_64": {
+   "main": "matching",
+   "negotiate": "open",
+   "ntlm": "awaiting",
+   "schannel": "matching",
+   "secur32": "open"
+  },
+  "secur32 i386": {
+   "main": "matching",
+   "negotiate": "open",
+   "ntlm": "awaiting",
+   "schannel": "matching",
+   "secur32": "open"
+  },
+  "dinput x86_64": {
+   "device8": "awaiting",
+   "dinput": "matching",
+   "force_feedback": "awaiting",
+   "hid": "awaiting",
+   "hotplug": "awaiting",
+   "joystick8": "awaiting"
+  },
+  "dinput i386": {
+   "device8": "matching",
+   "dinput": "matching",
+   "force_feedback": "matching",
+   "hid": "matching",
+   "hotplug": "matching",
+   "joystick8": "matching"
+  },
+  "xinput1_3 x86_64": {
+   "xinput": "qualified"
+  },
+  "xinput1_3 i386": {
+   "xinput": "qualified"
+  },
+  "hid x86_64": {
+   "device": "open"
+  },
+  "hid i386": {
+   "device": "open"
+  },
+  "mmdevapi x86_64": {
+   "capture": "matching",
+   "dependency": "matching",
+   "mmdevenum": "matching",
+   "propstore": "matching",
+   "render": "open",
+   "spatialaudio": "fixed"
+  },
+  "mmdevapi i386": {
+   "capture": "matching",
+   "dependency": "matching",
+   "mmdevenum": "matching",
+   "propstore": "matching",
+   "render": "open",
+   "spatialaudio": "fixed"
+  },
+  "dsound x86_64": {
+   "capture": "awaiting",
+   "ds3d": "matching",
+   "ds3d8": "matching",
+   "dsound": "matching",
+   "dsound8": "matching",
+   "duplex": "awaiting",
+   "propset": "matching"
+  },
+  "dsound i386": {
+   "capture": "awaiting",
+   "ds3d": "matching",
+   "ds3d8": "matching",
+   "dsound": "matching",
+   "dsound8": "matching",
+   "duplex": "awaiting",
+   "propset": "matching"
+  },
+  "xaudio2_7 x86_64": {
+   "xaudio2": "open"
+  },
+  "xaudio2_7 i386": {
+   "xaudio2": "open"
+  },
+  "d3d11 x86_64": {
+   "d3d11": "open"
+  },
+  "d3d11 i386": {
+   "d3d11": "open"
+  },
+  "dxgi x86_64": {
+   "dxgi": "open"
+  },
+  "dxgi i386": {
+   "dxgi": "open"
+  },
+  "d3d9 x86_64": {
+   "d3d9ex": "open",
+   "device": "open",
+   "stateblock": "open",
+   "visual": "open"
+  },
+  "d3d9 i386": {
+   "d3d9ex": "open",
+   "device": "open",
+   "stateblock": "open",
+   "visual": "open"
+  },
+  "d3d12 x86_64": {
+   "d3d12": "open"
+  },
+  "d3d12 i386": {
+   "d3d12": "open"
+  },
+  "d3d10core x86_64": {
+   "d3d10core": "open"
+  },
+  "d3d10core i386": {
+   "d3d10core": "open"
+  },
+  "d3d10 x86_64": {
+   "device": "matching",
+   "effect": "matching",
+   "reflection": "matching"
+  },
+  "d3d10 i386": {
+   "device": "matching",
+   "effect": "matching",
+   "reflection": "matching"
+  },
+  "d3d10_1 x86_64": {
+   "d3d10_1": "open",
+   "reflection": "matching"
+  },
+  "d3d10_1 i386": {
+   "d3d10_1": "open",
+   "reflection": "matching"
+  },
+  "d3d8 x86_64": {
+   "device": "open",
+   "stateblock": "open",
+   "visual": "open"
+  },
+  "d3d8 i386": {
+   "device": "open",
+   "stateblock": "open",
+   "visual": "open"
+  },
+  "ddraw x86_64": {
+   "d3d": "matching",
+   "ddraw1": "matching",
+   "ddraw2": "matching",
+   "ddraw4": "open",
+   "ddraw7": "open",
+   "ddrawmodes": "matching",
+   "dsurface": "open",
+   "refcount": "matching",
+   "visual": "open"
+  },
+  "ddraw i386": {
+   "d3d": "matching",
+   "ddraw1": "matching",
+   "ddraw2": "matching",
+   "ddraw4": "matching",
+   "ddraw7": "matching",
+   "ddrawmodes": "matching",
+   "dsurface": "open",
+   "refcount": "matching",
+   "visual": "open"
+  },
+  "opengl32 x86_64": {
+   "opengl": "open"
+  },
+  "opengl32 i386": {
+   "opengl": "open"
+  },
+  "d3dcompiler_43 x86_64": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "matching",
+   "hlsl_d3d9": "matching",
+   "reflection": "matching"
+  },
+  "d3dcompiler_43 i386": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "matching",
+   "hlsl_d3d9": "matching",
+   "reflection": "matching"
+  },
+  "d3dcompiler_47 x86_64": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "matching",
+   "hlsl_d3d9": "matching",
+   "reflection": "matching"
+  },
+  "d3dcompiler_47 i386": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "matching",
+   "hlsl_d3d9": "matching",
+   "reflection": "matching"
+  },
+  "d3dx9_36 x86_64": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx9_36 i386": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx10_43 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_43 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx11_43 x86_64": {
+   "d3dx11": "open"
+  },
+  "d3dx11_43 i386": {
+   "d3dx11": "open"
+  },
+  "dxva2 x86_64": {
+   "dxva2": "matching"
+  },
+  "dxva2 i386": {
+   "dxva2": "matching"
+  },
+  "vulkan-1 x86_64": {
+   "vulkan": "open"
+  },
+  "vulkan-1 i386": {
+   "vulkan": "open"
+  },
+  "msvcp140 x86_64": {
+   "msvcp140": "open"
+  },
+  "msvcp140 i386": {
+   "msvcp140": "open"
+  },
+  "msvcp120 x86_64": {
+   "msvcp120": "open"
+  },
+  "msvcp120 i386": {
+   "msvcp120": "open"
+  },
+  "msvcp110 x86_64": {
+   "msvcp110": "open"
+  },
+  "msvcp110 i386": {
+   "msvcp110": "open"
+  },
+  "msvcp100 x86_64": {
+   "misc": "matching",
+   "string": "matching"
+  },
+  "msvcp100 i386": {
+   "misc": "matching",
+   "string": "matching"
+  },
+  "msvcp90 x86_64": {
+   "ios": "matching",
+   "misc": "matching",
+   "string": "matching"
+  },
+  "msvcp90 i386": {
+   "ios": "matching",
+   "misc": "matching",
+   "string": "matching"
+  },
+  "msvcr120 x86_64": {
+   "msvcr120": "matching"
+  },
+  "msvcr120 i386": {
+   "msvcr120": "matching"
+  },
+  "msvcr100 x86_64": {
+   "msvcr100": "matching"
+  },
+  "msvcr100 i386": {
+   "msvcr100": "matching"
+  },
+  "msvcr90 x86_64": {
+   "msvcr90": "matching"
+  },
+  "msvcr90 i386": {
+   "msvcr90": "matching"
+  },
+  "concrt140 x86_64": {
+   "concrt140": "matching"
+  },
+  "concrt140 i386": {
+   "concrt140": "matching"
+  },
+  "vcomp x86_64": {
+   "vcomp": "matching"
+  },
+  "vcomp i386": {
+   "vcomp": "matching"
+  },
+  "shell32 x86_64": {
+   "appbar": "open",
+   "assoc": "matching",
+   "autocomplete": "matching",
+   "brsfolder": "matching",
+   "ebrowser": "matching",
+   "generated": "matching",
+   "progman_dde": "matching",
+   "recyclebin": "open",
+   "shelldispatch": "open",
+   "shelllink": "matching",
+   "shellole": "matching",
+   "shellpath": "open",
+   "shfldr_special": "matching",
+   "shlexec": "matching",
+   "shlfileop": "open",
+   "shlfolder": "open",
+   "shlview": "matching",
+   "string": "matching",
+   "systray": "open"
+  },
+  "shell32 i386": {
+   "appbar": "open",
+   "assoc": "matching",
+   "autocomplete": "matching",
+   "brsfolder": "matching",
+   "ebrowser": "matching",
+   "generated": "matching",
+   "progman_dde": "matching",
+   "recyclebin": "open",
+   "shelldispatch": "open",
+   "shelllink": "matching",
+   "shellole": "matching",
+   "shellpath": "open",
+   "shfldr_special": "matching",
+   "shlexec": "matching",
+   "shlfileop": "open",
+   "shlfolder": "open",
+   "shlview": "matching",
+   "string": "matching",
+   "systray": "open"
+  },
+  "shlwapi x86_64": {
+   "assoc": "matching",
+   "clist": "matching",
+   "clsid": "matching",
+   "generated": "matching",
+   "istream": "matching",
+   "ordinal": "matching",
+   "path": "open",
+   "shreg": "matching",
+   "string": "matching",
+   "thread": "matching",
+   "url": "matching"
+  },
+  "shlwapi i386": {
+   "assoc": "matching",
+   "clist": "matching",
+   "clsid": "matching",
+   "generated": "matching",
+   "istream": "matching",
+   "ordinal": "matching",
+   "path": "open",
+   "shreg": "matching",
+   "string": "matching",
+   "thread": "matching",
+   "url": "matching"
+  },
+  "shcore x86_64": {
+   "shcore": "matching"
+  },
+  "shcore i386": {
+   "shcore": "matching"
+  },
+  "comctl32 x86_64": {
+   "animate": "matching",
+   "button": "matching",
+   "combo": "matching",
+   "datetime": "matching",
+   "dpa": "matching",
+   "edit": "open",
+   "header": "matching",
+   "imagelist": "matching",
+   "ipaddress": "matching",
+   "listbox": "matching",
+   "listview": "open",
+   "misc": "matching",
+   "monthcal": "matching",
+   "mru": "matching",
+   "pager": "matching",
+   "progress": "matching",
+   "propsheet": "matching",
+   "rebar": "matching",
+   "static": "matching",
+   "status": "matching",
+   "subclass": "matching",
+   "syslink": "matching",
+   "tab": "open",
+   "taskdialog": "matching",
+   "toolbar": "matching",
+   "tooltips": "open",
+   "trackbar": "matching",
+   "treeview": "matching",
+   "updown": "matching"
+  },
+  "comctl32 i386": {
+   "animate": "matching",
+   "button": "matching",
+   "combo": "matching",
+   "datetime": "matching",
+   "dpa": "matching",
+   "edit": "open",
+   "header": "matching",
+   "imagelist": "matching",
+   "ipaddress": "matching",
+   "listbox": "matching",
+   "listview": "open",
+   "misc": "matching",
+   "monthcal": "matching",
+   "mru": "matching",
+   "pager": "matching",
+   "progress": "matching",
+   "propsheet": "matching",
+   "rebar": "matching",
+   "static": "matching",
+   "status": "matching",
+   "subclass": "matching",
+   "syslink": "matching",
+   "tab": "open",
+   "taskdialog": "matching",
+   "toolbar": "matching",
+   "tooltips": "open",
+   "trackbar": "matching",
+   "treeview": "matching",
+   "updown": "matching"
+  },
+  "comdlg32 x86_64": {
+   "filedlg": "matching",
+   "finddlg": "matching",
+   "fontdlg": "matching",
+   "itemdlg": "matching",
+   "printdlg": "matching"
+  },
+  "comdlg32 i386": {
+   "filedlg": "matching",
+   "finddlg": "matching",
+   "fontdlg": "matching",
+   "itemdlg": "matching",
+   "printdlg": "matching"
+  },
+  "oleaut32 x86_64": {
+   "dispatch": "matching",
+   "olefont": "matching",
+   "olepicture": "matching",
+   "safearray": "matching",
+   "tmarshal": "matching",
+   "typelib": "matching",
+   "usrmarshal": "matching",
+   "varformat": "matching",
+   "vartest": "matching",
+   "vartype": "matching"
+  },
+  "oleaut32 i386": {
+   "dispatch": "matching",
+   "olefont": "matching",
+   "olepicture": "matching",
+   "safearray": "matching",
+   "tmarshal": "matching",
+   "typelib": "matching",
+   "usrmarshal": "matching",
+   "varformat": "matching",
+   "vartest": "matching",
+   "vartype": "open"
+  },
+  "combase x86_64": {
+   "roapi": "matching",
+   "string": "matching"
+  },
+  "combase i386": {
+   "roapi": "matching",
+   "string": "matching"
+  },
+  "propsys x86_64": {
+   "propsys": "matching"
+  },
+  "propsys i386": {
+   "propsys": "matching"
+  },
+  "version x86_64": {
+   "info": "matching",
+   "install": "open"
+  },
+  "version i386": {
+   "info": "matching",
+   "install": "matching"
+  },
+  "psapi x86_64": {
+   "psapi_main": "open"
+  },
+  "psapi i386": {
+   "psapi_main": "open"
+  },
+  "dbghelp x86_64": {
+   "dbghelp": "open",
+   "minidump": "open",
+   "path": "matching"
+  },
+  "dbghelp i386": {
+   "dbghelp": "open",
+   "minidump": "open",
+   "path": "matching"
+  },
+  "imagehlp x86_64": {
+   "image": "matching",
+   "integrity": "matching"
+  },
+  "imagehlp i386": {
+   "image": "matching",
+   "integrity": "matching"
+  },
+  "setupapi x86_64": {
+   "devinst": "matching",
+   "dialog": "matching",
+   "diskspace": "matching",
+   "install": "matching",
+   "misc": "matching",
+   "parser": "matching",
+   "query": "matching",
+   "setupcab": "matching",
+   "stringtable": "matching"
+  },
+  "setupapi i386": {
+   "devinst": "matching",
+   "dialog": "matching",
+   "diskspace": "matching",
+   "install": "matching",
+   "misc": "matching",
+   "parser": "matching",
+   "query": "matching",
+   "setupcab": "matching",
+   "stringtable": "matching"
+  },
+  "cfgmgr32 x86_64": {
+   "cfgmgr32": "open"
+  },
+  "cfgmgr32 i386": {
+   "cfgmgr32": "open"
+  },
+  "iphlpapi x86_64": {
+   "iphlpapi": "open"
+  },
+  "iphlpapi i386": {
+   "iphlpapi": "open"
+  },
+  "dnsapi x86_64": {
+   "cache": "matching",
+   "name": "matching",
+   "query": "matching",
+   "record": "matching"
+  },
+  "dnsapi i386": {
+   "cache": "matching",
+   "name": "matching",
+   "query": "matching",
+   "record": "matching"
+  },
+  "wininet x86_64": {
+   "ftp": "matching",
+   "generated": "matching",
+   "http": "open",
+   "internet": "matching",
+   "url": "matching",
+   "urlcache": "matching"
+  },
+  "wininet i386": {
+   "ftp": "matching",
+   "generated": "matching",
+   "http": "open",
+   "internet": "matching",
+   "url": "matching",
+   "urlcache": "matching"
+  },
+  "urlmon x86_64": {
+   "generated": "matching",
+   "misc": "matching",
+   "protocol": "matching",
+   "sec_mgr": "matching",
+   "stream": "matching",
+   "uri": "matching",
+   "url": "open"
+  },
+  "urlmon i386": {
+   "generated": "matching",
+   "misc": "matching",
+   "protocol": "matching",
+   "sec_mgr": "matching",
+   "stream": "matching",
+   "uri": "matching",
+   "url": "matching"
+  },
+  "winmm x86_64": {
+   "capture": "matching",
+   "generated": "matching",
+   "joystick": "matching",
+   "mci": "open",
+   "mcicda": "matching",
+   "midi": "matching",
+   "mixer": "matching",
+   "mmio": "matching",
+   "timer": "matching",
+   "wave": "matching"
+  },
+  "winmm i386": {
+   "capture": "matching",
+   "generated": "matching",
+   "joystick": "matching",
+   "mci": "open",
+   "mcicda": "matching",
+   "midi": "matching",
+   "mixer": "matching",
+   "mmio": "matching",
+   "timer": "matching",
+   "wave": "matching"
+  },
+  "quartz x86_64": {
+   "acmwrapper": "matching",
+   "avidec": "matching",
+   "avisplit": "open",
+   "dsoundrender": "open",
+   "filesource": "matching",
+   "filtergraph": "open",
+   "filtermapper": "matching",
+   "memallocator": "matching",
+   "mpegaudio": "open",
+   "mpeglayer3": "open",
+   "mpegsplit": "open",
+   "mpegvideo": "open",
+   "passthrough": "matching",
+   "systemclock": "matching",
+   "videorenderer": "open",
+   "vmr7": "open",
+   "vmr9": "open",
+   "waveparser": "open"
+  },
+  "quartz i386": {
+   "acmwrapper": "matching",
+   "avidec": "matching",
+   "avisplit": "open",
+   "dsoundrender": "open",
+   "filesource": "matching",
+   "filtergraph": "open",
+   "filtermapper": "matching",
+   "memallocator": "matching",
+   "mpegaudio": "open",
+   "mpeglayer3": "open",
+   "mpegsplit": "open",
+   "mpegvideo": "open",
+   "passthrough": "matching",
+   "systemclock": "matching",
+   "videorenderer": "open",
+   "vmr7": "open",
+   "vmr9": "open",
+   "waveparser": "open"
+  },
+  "mf x86_64": {
+   "mf": "open",
+   "topology": "open",
+   "transform": "open"
+  },
+  "mf i386": {
+   "mf": "open",
+   "topology": "open",
+   "transform": "open"
+  },
+  "mfplat x86_64": {
+   "mfplat": "open"
+  },
+  "mfplat i386": {
+   "mfplat": "open"
+  },
+  "mfreadwrite x86_64": {
+   "mfplat": "open"
+  },
+  "mfreadwrite i386": {
+   "mfplat": "open"
+  },
+  "xaudio2_8 x86_64": {
+   "xaudio2": "open"
+  },
+  "xaudio2_8 i386": {
+   "xaudio2": "open"
+  },
+  "xactengine3_7 x86_64": {
+   "xact3": "open"
+  },
+  "xactengine3_7 i386": {
+   "xact3": "open"
+  },
+  "windows.gaming.input x86_64": {
+   "input": "matching"
+  },
+  "windows.gaming.input i386": {
+   "input": "matching"
+  },
+  "imm32 x86_64": {
+   "imm32": "matching"
+  },
+  "imm32 i386": {
+   "imm32": "matching"
+  },
+  "msctf x86_64": {
+   "inputprocessor": "matching"
+  },
+  "msctf i386": {
+   "inputprocessor": "matching"
+  },
+  "dwrite x86_64": {
+   "analyzer": "open",
+   "font": "open",
+   "layout": "open"
+  },
+  "dwrite i386": {
+   "analyzer": "open",
+   "font": "open",
+   "layout": "open"
+  },
+  "d2d1 x86_64": {
+   "d2d1": "open"
+  },
+  "d2d1 i386": {
+   "d2d1": "open"
+  },
+  "windowscodecs x86_64": {
+   "bitmap": "matching",
+   "bmpformat": "matching",
+   "converter": "matching",
+   "ddsformat": "matching",
+   "gifformat": "matching",
+   "icoformat": "matching",
+   "info": "matching",
+   "jpegformat": "matching",
+   "metadata": "matching",
+   "palette": "matching",
+   "pngformat": "matching",
+   "propertybag": "matching",
+   "stream": "matching",
+   "tiffformat": "matching",
+   "wmpformat": "matching"
+  },
+  "windowscodecs i386": {
+   "bitmap": "matching",
+   "bmpformat": "matching",
+   "converter": "matching",
+   "ddsformat": "matching",
+   "gifformat": "matching",
+   "icoformat": "matching",
+   "info": "matching",
+   "jpegformat": "matching",
+   "metadata": "open",
+   "palette": "matching",
+   "pngformat": "matching",
+   "propertybag": "matching",
+   "stream": "matching",
+   "tiffformat": "matching",
+   "wmpformat": "matching"
+  },
+  "gdiplus x86_64": {
+   "brush": "matching",
+   "customlinecap": "matching",
+   "font": "matching",
+   "graphics": "matching",
+   "graphicspath": "matching",
+   "image": "matching",
+   "matrix": "matching",
+   "metafile": "matching",
+   "pathiterator": "matching",
+   "pen": "matching",
+   "region": "matching",
+   "stringformat": "matching"
+  },
+  "gdiplus i386": {
+   "brush": "matching",
+   "customlinecap": "matching",
+   "font": "matching",
+   "graphics": "matching",
+   "graphicspath": "matching",
+   "image": "matching",
+   "matrix": "matching",
+   "metafile": "matching",
+   "pathiterator": "matching",
+   "pen": "matching",
+   "region": "matching",
+   "stringformat": "matching"
+  },
+  "usp10 x86_64": {
+   "usp10": "matching"
+  },
+  "usp10 i386": {
+   "usp10": "matching"
+  },
+  "msi x86_64": {
+   "action": "open",
+   "automation": "matching",
+   "db": "matching",
+   "format": "matching",
+   "install": "open",
+   "msi": "matching",
+   "package": "matching",
+   "patch": "matching",
+   "record": "matching",
+   "source": "open",
+   "suminfo": "matching"
+  },
+  "msi i386": {
+   "action": "open",
+   "automation": "matching",
+   "db": "matching",
+   "format": "matching",
+   "install": "open",
+   "msi": "matching",
+   "package": "matching",
+   "patch": "matching",
+   "record": "matching",
+   "source": "matching",
+   "suminfo": "matching"
+  },
+  "cabinet x86_64": {
+   "extract": "matching",
+   "fdi": "matching"
+  },
+  "cabinet i386": {
+   "extract": "matching",
+   "fdi": "open"
+  },
+  "msxml3 x86_64": {
+   "domdoc": "matching",
+   "httpreq": "matching",
+   "saxreader": "matching",
+   "schema": "matching",
+   "xmldoc": "matching",
+   "xmlparser": "matching",
+   "xmlview": "matching"
+  },
+  "msxml3 i386": {
+   "domdoc": "matching",
+   "httpreq": "matching",
+   "saxreader": "matching",
+   "schema": "matching",
+   "xmldoc": "matching",
+   "xmlparser": "matching",
+   "xmlview": "matching"
+  },
+  "msxml6 x86_64": {
+   "domdoc": "matching",
+   "saxreader": "matching",
+   "schema": "matching"
+  },
+  "msxml6 i386": {
+   "domdoc": "matching",
+   "saxreader": "matching",
+   "schema": "matching"
+  },
+  "jscript x86_64": {
+   "activex": "matching",
+   "caller": "matching",
+   "jscript": "matching",
+   "run": "matching"
+  },
+  "jscript i386": {
+   "activex": "matching",
+   "caller": "matching",
+   "jscript": "matching",
+   "run": "matching"
+  },
+  "vbscript x86_64": {
+   "caller": "matching",
+   "createobj": "matching",
+   "run": "matching",
+   "vbscript": "matching"
+  },
+  "vbscript i386": {
+   "caller": "matching",
+   "createobj": "matching",
+   "run": "matching",
+   "vbscript": "matching"
+  },
+  "mshtml x86_64": {
+   "activex": "matching",
+   "dom": "matching",
+   "events": "matching",
+   "htmldoc": "matching",
+   "htmllocation": "matching",
+   "misc": "matching",
+   "protocol": "matching",
+   "script": "matching",
+   "style": "matching",
+   "xmlhttprequest": "matching"
+  },
+  "mshtml i386": {
+   "activex": "matching",
+   "dom": "matching",
+   "events": "matching",
+   "htmldoc": "matching",
+   "htmllocation": "matching",
+   "misc": "matching",
+   "protocol": "matching",
+   "script": "matching",
+   "style": "matching",
+   "xmlhttprequest": "matching"
+  },
+  "ieframe x86_64": {
+   "ie": "matching",
+   "intshcut": "matching",
+   "webbrowser": "open"
+  },
+  "ieframe i386": {
+   "ie": "matching",
+   "intshcut": "matching",
+   "webbrowser": "open"
+  },
+  "wintrust x86_64": {
+   "asn": "matching",
+   "crypt": "matching",
+   "register": "matching",
+   "softpub": "matching"
+  },
+  "wintrust i386": {
+   "asn": "matching",
+   "crypt": "matching",
+   "register": "matching",
+   "softpub": "matching"
+  },
+  "cryptnet x86_64": {
+   "cryptnet": "matching"
+  },
+  "cryptnet i386": {
+   "cryptnet": "matching"
+  },
+  "ncrypt x86_64": {
+   "ncrypt": "matching"
+  },
+  "ncrypt i386": {
+   "ncrypt": "matching"
+  },
+  "schannel x86_64": {
+   "main": "matching"
+  },
+  "schannel i386": {
+   "main": "matching"
+  },
+  "netapi32 x86_64": {
+   "access": "matching",
+   "apibuf": "matching",
+   "ds": "matching",
+   "wksta": "matching"
+  },
+  "netapi32 i386": {
+   "access": "matching",
+   "apibuf": "matching",
+   "ds": "matching",
+   "wksta": "matching"
+  },
+  "wtsapi32 x86_64": {
+   "wtsapi": "open"
+  },
+  "wtsapi32 i386": {
+   "wtsapi": "matching"
+  },
+  "userenv x86_64": {
+   "userenv": "matching"
+  },
+  "userenv i386": {
+   "userenv": "matching"
+  },
+  "pdh x86_64": {
+   "pdh": "matching"
+  },
+  "pdh i386": {
+   "pdh": "matching"
+  },
+  "wbemprox x86_64": {
+   "query": "open",
+   "services": "matching"
+  },
+  "wbemprox i386": {
+   "query": "open",
+   "services": "matching"
+  },
+  "wmiutils x86_64": {
+   "path": "matching"
+  },
+  "wmiutils i386": {
+   "path": "matching"
+  },
+  "taskschd x86_64": {
+   "scheduler": "matching"
+  },
+  "taskschd i386": {
+   "scheduler": "matching"
+  },
+  "cmd.exe x86_64": {
+   "batch": "open",
+   "console": "matching",
+   "directory": "matching"
+  },
+  "cmd.exe i386": {
+   "batch": "open",
+   "console": "matching",
+   "directory": "matching"
+  },
+  "reg.exe x86_64": {
+   "add": "open",
+   "copy": "open",
+   "delete": "open",
+   "export": "open",
+   "import": "open",
+   "query": "open"
+  },
+  "reg.exe i386": {
+   "add": "open",
+   "copy": "open",
+   "delete": "open",
+   "export": "open",
+   "import": "open",
+   "query": "open"
+  },
+  "regedit.exe x86_64": {
+   "regedit": "open"
+  },
+  "regedit.exe i386": {
+   "regedit": "open"
+  },
+  "conhost.exe x86_64": {
+   "tty": "matching"
+  },
+  "conhost.exe i386": {
+   "tty": "matching"
+  },
+  "explorer.exe x86_64": {
+   "explorer": "matching"
+  },
+  "explorer.exe i386": {
+   "explorer": "matching"
+  },
+  "activeds x86_64": {
+   "activeds": "matching"
+  },
+  "activeds i386": {
+   "activeds": "matching"
+  },
+  "adsldp x86_64": {
+   "ldap": "matching",
+   "sysinfo": "matching"
+  },
+  "adsldp i386": {
+   "ldap": "open",
+   "sysinfo": "matching"
+  },
+  "advpack x86_64": {
+   "advpack": "matching",
+   "files": "matching",
+   "install": "open"
+  },
+  "advpack i386": {
+   "advpack": "matching",
+   "files": "matching",
+   "install": "matching"
+  },
+  "amstream x86_64": {
+   "amstream": "open"
+  },
+  "amstream i386": {
+   "amstream": "open"
+  },
+  "apphelp x86_64": {
+   "apphelp": "matching"
+  },
+  "apphelp i386": {
+   "apphelp": "matching"
+  },
+  "atl x86_64": {
+   "atl_ax": "matching",
+   "module": "matching",
+   "registrar": "matching"
+  },
+  "atl i386": {
+   "atl_ax": "matching",
+   "module": "matching",
+   "registrar": "matching"
+  },
+  "atl100 x86_64": {
+   "atl": "matching"
+  },
+  "atl100 i386": {
+   "atl": "matching"
+  },
+  "atl110 x86_64": {
+   "atl": "matching"
+  },
+  "atl110 i386": {
+   "atl": "matching"
+  },
+  "atl80 x86_64": {
+   "atl": "matching"
+  },
+  "atl80 i386": {
+   "atl": "matching"
+  },
+  "atlthunk x86_64": {
+   "atlthunk": "matching"
+  },
+  "atlthunk i386": {
+   "atlthunk": "matching"
+  },
+  "bcp47langs x86_64": {
+   "bcp47langs": "matching"
+  },
+  "bcp47langs i386": {
+   "bcp47langs": "matching"
+  },
+  "bluetoothapis x86_64": {
+   "device": "open",
+   "gatt": "matching",
+   "radio": "open",
+   "sdp": "matching"
+  },
+  "bluetoothapis i386": {
+   "device": "open",
+   "gatt": "matching",
+   "radio": "open",
+   "sdp": "matching"
+  },
+  "browseui x86_64": {
+   "autocomplete": "matching",
+   "progressdlg": "matching"
+  },
+  "browseui i386": {
+   "autocomplete": "matching",
+   "progressdlg": "matching"
+  },
+  "comcat x86_64": {
+   "comcat": "matching"
+  },
+  "comcat i386": {
+   "comcat": "matching"
+  },
+  "comsvcs x86_64": {
+   "comsvcs": "matching",
+   "property": "matching"
+  },
+  "comsvcs i386": {
+   "comsvcs": "matching",
+   "property": "matching"
+  },
+  "coremessaging x86_64": {
+   "coremessaging": "matching"
+  },
+  "coremessaging i386": {
+   "coremessaging": "matching"
+  },
+  "credui x86_64": {
+   "credui": "matching"
+  },
+  "credui i386": {
+   "credui": "matching"
+  },
+  "cryptext x86_64": {
+   "cryptext": "matching"
+  },
+  "cryptext i386": {
+   "cryptext": "matching"
+  },
+  "cryptowinrt x86_64": {
+   "crypto": "matching"
+  },
+  "cryptowinrt i386": {
+   "crypto": "matching"
+  },
+  "cryptui x86_64": {
+   "cryptui": "matching"
+  },
+  "cryptui i386": {
+   "cryptui": "matching"
+  },
+  "cryptxml x86_64": {
+   "cryptxml": "matching"
+  },
+  "cryptxml i386": {
+   "cryptxml": "matching"
+  },
+  "d3dcompiler_42 x86_64": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "open",
+   "hlsl_d3d9": "open",
+   "reflection": "matching"
+  },
+  "d3dcompiler_42 i386": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "open",
+   "hlsl_d3d9": "open",
+   "reflection": "matching"
+  },
+  "d3dcompiler_46 x86_64": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "matching",
+   "hlsl_d3d9": "matching",
+   "reflection": "matching"
+  },
+  "d3dcompiler_46 i386": {
+   "asm": "matching",
+   "blob": "matching",
+   "hlsl_d3d11": "matching",
+   "hlsl_d3d9": "matching",
+   "reflection": "matching"
+  },
+  "d3drm x86_64": {
+   "d3drm": "open",
+   "vector": "matching"
+  },
+  "d3drm i386": {
+   "d3drm": "open",
+   "vector": "matching"
+  },
+  "d3dx10_33 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_33 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_34 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_34 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_35 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_35 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_36 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_36 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_37 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_37 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_38 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_38 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_39 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_39 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_40 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_40 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_41 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_41 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx10_42 x86_64": {
+   "d3dx10": "open"
+  },
+  "d3dx10_42 i386": {
+   "d3dx10": "open"
+  },
+  "d3dx11_42 x86_64": {
+   "d3dx11": "open"
+  },
+  "d3dx11_42 i386": {
+   "d3dx11": "open"
+  },
+  "d3dx9_35 x86_64": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx9_35 i386": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx9_42 x86_64": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx9_42 i386": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx9_43 x86_64": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dx9_43 i386": {
+   "asm": "matching",
+   "core": "matching",
+   "effect": "open",
+   "line": "matching",
+   "math": "matching",
+   "mesh": "matching",
+   "shader": "open",
+   "surface": "matching",
+   "texture": "open",
+   "volume": "matching",
+   "xfile": "matching"
+  },
+  "d3dxof x86_64": {
+   "d3dxof": "matching"
+  },
+  "d3dxof i386": {
+   "d3dxof": "matching"
+  },
+  "dataexchange x86_64": {
+   "dataexchange": "matching"
+  },
+  "dataexchange i386": {
+   "dataexchange": "matching"
+  },
+  "dbgeng x86_64": {
+   "dbgeng": "matching"
+  },
+  "dbgeng i386": {
+   "dbgeng": "matching"
+  },
+  "ddrawex x86_64": {
+   "ddrawex": "matching",
+   "surface": "matching"
+  },
+  "ddrawex i386": {
+   "ddrawex": "matching",
+   "surface": "matching"
+  },
+  "devenum x86_64": {
+   "devenum": "open"
+  },
+  "devenum i386": {
+   "devenum": "open"
+  },
+  "dhcpcsvc x86_64": {
+   "dhcpcsvc": "matching"
+  },
+  "dhcpcsvc i386": {
+   "dhcpcsvc": "matching"
+  },
+  "directmanipulation x86_64": {
+   "manipulation": "matching"
+  },
+  "directmanipulation i386": {
+   "manipulation": "matching"
+  },
+  "dispex x86_64": {
+   "marshal": "matching"
+  },
+  "dispex i386": {
+   "marshal": "matching"
+  },
+  "dmband x86_64": {
+   "dmband": "matching"
+  },
+  "dmband i386": {
+   "dmband": "matching"
+  },
+  "dmcompos x86_64": {
+   "dmcompos": "matching"
+  },
+  "dmcompos i386": {
+   "dmcompos": "matching"
+  },
+  "dmime x86_64": {
+   "dmime": "open"
+  },
+  "dmime i386": {
+   "dmime": "open"
+  },
+  "dmloader x86_64": {
+   "loader": "open"
+  },
+  "dmloader i386": {
+   "loader": "open"
+  },
+  "dmscript x86_64": {
+   "dmscript": "matching"
+  },
+  "dmscript i386": {
+   "dmscript": "matching"
+  },
+  "dmstyle x86_64": {
+   "dmstyle": "matching"
+  },
+  "dmstyle i386": {
+   "dmstyle": "matching"
+  },
+  "dmsynth x86_64": {
+   "dmsynth": "open"
+  },
+  "dmsynth i386": {
+   "dmsynth": "open"
+  },
+  "dmusic x86_64": {
+   "dmusic": "open"
+  },
+  "dmusic i386": {
+   "dmusic": "open"
+  },
+  "dplayx x86_64": {
+   "dplayx": "open"
+  },
+  "dplayx i386": {
+   "dplayx": "open"
+  },
+  "dpnet x86_64": {
+   "address": "matching",
+   "client": "matching",
+   "server": "matching",
+   "thread": "matching"
+  },
+  "dpnet i386": {
+   "address": "matching",
+   "client": "matching",
+   "server": "matching",
+   "thread": "matching"
+  },
+  "dpvoice x86_64": {
+   "voice": "matching"
+  },
+  "dpvoice i386": {
+   "voice": "matching"
+  },
+  "dsdmo x86_64": {
+   "dsdmo": "matching"
+  },
+  "dsdmo i386": {
+   "dsdmo": "matching"
+  },
+  "dssenh x86_64": {
+   "dssenh": "matching"
+  },
+  "dssenh i386": {
+   "dssenh": "matching"
+  },
+  "dswave x86_64": {
+   "dswave": "matching"
+  },
+  "dswave i386": {
+   "dswave": "matching"
+  },
+  "dwmapi x86_64": {
+   "dwmapi": "matching"
+  },
+  "dwmapi i386": {
+   "dwmapi": "matching"
+  },
+  "dxcore x86_64": {
+   "dxcore": "matching"
+  },
+  "dxcore i386": {
+   "dxcore": "matching"
+  },
+  "dxdiagn x86_64": {
+   "container": "open",
+   "provider": "matching"
+  },
+  "dxdiagn i386": {
+   "container": "open",
+   "provider": "matching"
+  },
+  "evr x86_64": {
+   "evr": "open"
+  },
+  "evr i386": {
+   "evr": "open"
+  },
+  "explorerframe x86_64": {
+   "nstc": "open",
+   "taskbarlist": "matching"
+  },
+  "explorerframe i386": {
+   "nstc": "open",
+   "taskbarlist": "matching"
+  },
+  "faultrep x86_64": {
+   "faultrep": "matching"
+  },
+  "faultrep i386": {
+   "faultrep": "matching"
+  },
+  "fc.exe x86_64": {
+   "fc": "matching"
+  },
+  "fc.exe i386": {
+   "fc": "matching"
+  },
+  "find.exe x86_64": {
+   "find": "matching"
+  },
+  "find.exe i386": {
+   "find": "matching"
+  },
+  "findstr.exe x86_64": {
+   "findstr": "matching"
+  },
+  "findstr.exe i386": {
+   "findstr": "matching"
+  },
+  "fsutil.exe x86_64": {
+   "fsutil": "open"
+  },
+  "fsutil.exe i386": {
+   "fsutil": "open"
+  },
+  "fusion x86_64": {
+   "asmcache": "matching",
+   "asmenum": "matching",
+   "asmname": "matching",
+   "fusion": "matching"
+  },
+  "fusion i386": {
+   "asmcache": "matching",
+   "asmenum": "matching",
+   "asmname": "matching",
+   "fusion": "matching"
+  },
+  "gameux x86_64": {
+   "gameexplorer": "matching",
+   "gamestatistics": "matching"
+  },
+  "gameux i386": {
+   "gameexplorer": "matching",
+   "gamestatistics": "matching"
+  },
+  "geolocation x86_64": {
+   "geolocator": "matching"
+  },
+  "geolocation i386": {
+   "geolocator": "matching"
+  },
+  "glu32 x86_64": {
+   "glu": "matching"
+  },
+  "glu32 i386": {
+   "glu": "matching"
+  },
+  "graphicscapture x86_64": {
+   "graphicscapture": "matching"
+  },
+  "graphicscapture i386": {
+   "graphicscapture": "matching"
+  },
+  "hlink x86_64": {
+   "browse_ctx": "matching",
+   "hlink": "matching"
+  },
+  "hlink i386": {
+   "browse_ctx": "matching",
+   "hlink": "matching"
+  },
+  "hnetcfg x86_64": {
+   "policy": "matching"
+  },
+  "hnetcfg i386": {
+   "policy": "matching"
+  },
+  "httpapi x86_64": {
+   "httpapi": "matching"
+  },
+  "httpapi i386": {
+   "httpapi": "open"
+  },
+  "hvsimanagementapi x86_64": {
+   "isolation": "matching"
+  },
+  "hvsimanagementapi i386": {
+   "isolation": "matching"
+  },
+  "icmui x86_64": {
+   "icmui": "matching"
+  },
+  "icmui i386": {
+   "icmui": "matching"
+  },
+  "iertutil x86_64": {
+   "iertutil": "matching"
+  },
+  "iertutil i386": {
+   "iertutil": "matching"
+  },
+  "inetmib1 x86_64": {
+   "main": "matching"
+  },
+  "inetmib1 i386": {
+   "main": "matching"
+  },
+  "infosoft x86_64": {
+   "infosoft": "matching"
+  },
+  "infosoft i386": {
+   "infosoft": "matching"
+  },
+  "itss x86_64": {
+   "protocol": "matching"
+  },
+  "itss i386": {
+   "protocol": "matching"
+  },
+  "iyuv_32 x86_64": {
+   "iyuv_32": "matching"
+  },
+  "iyuv_32 i386": {
+   "iyuv_32": "matching"
+  },
+  "jsproxy x86_64": {
+   "jsproxy": "matching"
+  },
+  "jsproxy i386": {
+   "jsproxy": "matching"
+  },
+  "lz32 x86_64": {
+   "lzexpand_main": "matching"
+  },
+  "lz32 i386": {
+   "lzexpand_main": "matching"
+  },
+  "mfmediaengine x86_64": {
+   "mfmediaengine": "open"
+  },
+  "mfmediaengine i386": {
+   "mfmediaengine": "open"
+  },
+  "mfplay x86_64": {
+   "mfplay": "open"
+  },
+  "mfplay i386": {
+   "mfplay": "open"
+  },
+  "mfsrcsnk x86_64": {
+   "mfsrcsnk": "open"
+  },
+  "mfsrcsnk i386": {
+   "mfsrcsnk": "open"
+  },
+  "mlang x86_64": {
+   "mlang": "matching"
+  },
+  "mlang i386": {
+   "mlang": "matching"
+  },
+  "mmcndmgr x86_64": {
+   "mmcndmgr": "matching"
+  },
+  "mmcndmgr i386": {
+   "mmcndmgr": "matching"
+  },
+  "mp3dmod x86_64": {
+   "mp3dmod": "matching"
+  },
+  "mp3dmod i386": {
+   "mp3dmod": "matching"
+  },
+  "mpr x86_64": {
+   "mpr": "matching"
+  },
+  "mpr i386": {
+   "mpr": "matching"
+  },
+  "msado15 x86_64": {
+   "msado15": "matching"
+  },
+  "msado15 i386": {
+   "msado15": "matching"
+  },
+  "msasn1 x86_64": {
+   "asn1": "matching"
+  },
+  "msasn1 i386": {
+   "asn1": "matching"
+  },
+  "mscms x86_64": {
+   "profile": "matching"
+  },
+  "mscms i386": {
+   "profile": "matching"
+  },
+  "mscoree x86_64": {
+   "comtest": "matching",
+   "debugging": "matching",
+   "metahost": "matching",
+   "mscoree": "matching"
+  },
+  "mscoree i386": {
+   "comtest": "matching",
+   "debugging": "matching",
+   "metahost": "matching",
+   "mscoree": "matching"
+  },
+  "msdasql x86_64": {
+   "provider": "matching"
+  },
+  "msdasql i386": {
+   "provider": "matching"
+  },
+  "msdmo x86_64": {
+   "msdmo": "matching"
+  },
+  "msdmo i386": {
+   "msdmo": "matching"
+  },
+  "mspatcha x86_64": {
+   "apply_patch": "matching"
+  },
+  "mspatcha i386": {
+   "apply_patch": "matching"
+  },
+  "msscript.ocx x86_64": {
+   "msscript": "matching"
+  },
+  "msscript.ocx i386": {
+   "msscript": "matching"
+  },
+  "mstask x86_64": {
+   "task": "matching",
+   "task_scheduler": "open",
+   "task_trigger": "matching"
+  },
+  "mstask i386": {
+   "task": "matching",
+   "task_scheduler": "open",
+   "task_trigger": "matching"
+  },
+  "msvcirt x86_64": {
+   "msvcirt": "matching"
+  },
+  "msvcirt i386": {
+   "msvcirt": "matching"
+  },
+  "msvcp140_1 x86_64": {
+   "msvcp140_1": "matching"
+  },
+  "msvcp140_1 i386": {
+   "msvcp140_1": "matching"
+  },
+  "msvcp140_2 x86_64": {
+   "math": "matching"
+  },
+  "msvcp140_2 i386": {
+   "math": "matching"
+  },
+  "msvcp140_atomic_wait x86_64": {
+   "msvcp140_atomic_wait": "matching"
+  },
+  "msvcp140_atomic_wait i386": {
+   "msvcp140_atomic_wait": "matching"
+  },
+  "msvcp60 x86_64": {
+   "ios": "matching",
+   "string": "matching"
+  },
+  "msvcp60 i386": {
+   "ios": "matching",
+   "string": "matching"
+  },
+  "msvcr110 x86_64": {
+   "msvcr110": "matching"
+  },
+  "msvcr110 i386": {
+   "msvcr110": "matching"
+  },
+  "msvcr70 x86_64": {
+   "msvcr70": "matching"
+  },
+  "msvcr70 i386": {
+   "msvcr70": "matching"
+  },
+  "msvcr71 x86_64": {
+   "msvcr71": "matching"
+  },
+  "msvcr71 i386": {
+   "msvcr71": "matching"
+  },
+  "msvcr80 x86_64": {
+   "msvcr80": "matching"
+  },
+  "msvcr80 i386": {
+   "msvcr80": "matching"
+  },
+  "msvcrtd x86_64": {
+   "debug": "matching"
+  },
+  "msvcrtd i386": {
+   "debug": "matching"
+  },
+  "msxml4 x86_64": {
+   "domdoc": "matching",
+   "schema": "matching"
+  },
+  "msxml4 i386": {
+   "domdoc": "matching",
+   "schema": "matching"
+  },
+  "ndis.sys x86_64": {
+   "ndis": "matching"
+  },
+  "ndis.sys i386": {
+   "ndis": "matching"
+  },
+  "net.exe x86_64": {
+   "net": "matching"
+  },
+  "net.exe i386": {
+   "net": "matching"
+  },
+  "netcfgx x86_64": {
+   "netcfgx": "matching"
+  },
+  "netcfgx i386": {
+   "netcfgx": "matching"
+  },
+  "netprofm x86_64": {
+   "list": "matching"
+  },
+  "netprofm i386": {
+   "list": "matching"
+  },
+  "ninput x86_64": {
+   "ninput": "matching"
+  },
+  "ninput i386": {
+   "ninput": "matching"
+  },
+  "nsi x86_64": {
+   "nsi": "open"
+  },
+  "nsi i386": {
+   "nsi": "open"
+  },
+  "ntdsapi x86_64": {
+   "ntdsapi": "matching"
+  },
+  "ntdsapi i386": {
+   "ntdsapi": "matching"
+  },
+  "ntoskrnl.exe x86_64": {
+   "ntoskrnl": "open"
+  },
+  "ntoskrnl.exe i386": {
+   "ntoskrnl": "matching"
+  },
+  "ntprint x86_64": {
+   "ntprint": "open"
+  },
+  "ntprint i386": {
+   "ntprint": "open"
+  },
+  "odbc32 x86_64": {
+   "odbc32": "matching"
+  },
+  "odbc32 i386": {
+   "odbc32": "matching"
+  },
+  "odbccp32 x86_64": {
+   "misc": "open"
+  },
+  "odbccp32 i386": {
+   "misc": "open"
+  },
+  "oleacc x86_64": {
+   "main": "matching"
+  },
+  "oleacc i386": {
+   "main": "matching"
+  },
+  "oledb32 x86_64": {
+   "convert": "matching",
+   "database": "matching",
+   "marshal": "matching"
+  },
+  "oledb32 i386": {
+   "convert": "matching",
+   "database": "matching",
+   "marshal": "matching"
+  },
+  "oledlg x86_64": {
+   "main": "matching"
+  },
+  "oledlg i386": {
+   "main": "matching"
+  },
+  "opcservices x86_64": {
+   "opcservices": "matching"
+  },
+  "opcservices i386": {
+   "opcservices": "matching"
+  },
+  "packager x86_64": {
+   "oleobj": "matching"
+  },
+  "packager i386": {
+   "oleobj": "matching"
+  },
+  "prntvpt x86_64": {
+   "prntvpt": "matching"
+  },
+  "prntvpt i386": {
+   "prntvpt": "matching"
+  },
+  "pstorec x86_64": {
+   "pstorec": "matching"
+  },
+  "pstorec i386": {
+   "pstorec": "matching"
+  },
+  "qasf x86_64": {
+   "asfreader": "open",
+   "dmowrapper": "open"
+  },
+  "qasf i386": {
+   "asfreader": "open",
+   "dmowrapper": "open"
+  },
+  "qcap x86_64": {
+   "audiorecord": "matching",
+   "avico": "matching",
+   "avimux": "matching",
+   "capturegraph": "open",
+   "filewriter": "matching",
+   "inftee": "matching",
+   "qcap": "matching",
+   "smartteefilter": "matching",
+   "videocapture": "matching"
+  },
+  "qcap i386": {
+   "audiorecord": "matching",
+   "avico": "matching",
+   "avimux": "matching",
+   "capturegraph": "open",
+   "filewriter": "matching",
+   "inftee": "matching",
+   "qcap": "matching",
+   "smartteefilter": "matching",
+   "videocapture": "matching"
+  },
+  "qdvd x86_64": {
+   "graph": "matching",
+   "navigator": "matching"
+  },
+  "qdvd i386": {
+   "graph": "matching",
+   "navigator": "matching"
+  },
+  "qedit x86_64": {
+   "mediadet": "open",
+   "nullrenderer": "open",
+   "samplegrabber": "matching",
+   "timeline": "matching"
+  },
+  "qedit i386": {
+   "mediadet": "open",
+   "nullrenderer": "open",
+   "samplegrabber": "matching",
+   "timeline": "matching"
+  },
+  "qmgr x86_64": {
+   "enum_files": "matching",
+   "enum_jobs": "matching",
+   "file": "matching",
+   "job": "matching",
+   "qmgr": "matching"
+  },
+  "qmgr i386": {
+   "enum_files": "matching",
+   "enum_jobs": "matching",
+   "file": "matching",
+   "job": "matching",
+   "qmgr": "matching"
+  },
+  "qwave x86_64": {
+   "qos": "matching"
+  },
+  "qwave i386": {
+   "qos": "matching"
+  },
+  "rasapi32 x86_64": {
+   "rasapi": "matching"
+  },
+  "rasapi32 i386": {
+   "rasapi": "matching"
+  },
+  "rometadata x86_64": {
+   "rometadata": "matching"
+  },
+  "rometadata i386": {
+   "rometadata": "matching"
+  },
+  "rsaenh x86_64": {
+   "rsaenh": "matching"
+  },
+  "rsaenh i386": {
+   "rsaenh": "matching"
+  },
+  "rtworkq x86_64": {
+   "rtworkq": "matching"
+  },
+  "rtworkq i386": {
+   "rtworkq": "matching"
+  },
+  "sapi x86_64": {
+   "automation": "matching",
+   "mmaudio": "matching",
+   "resource": "matching",
+   "stream": "matching",
+   "token": "matching",
+   "tts": "open"
+  },
+  "sapi i386": {
+   "automation": "matching",
+   "mmaudio": "matching",
+   "resource": "matching",
+   "stream": "matching",
+   "token": "open",
+   "tts": "open"
+  },
+  "sc.exe x86_64": {
+   "sc": "matching"
+  },
+  "sc.exe i386": {
+   "sc": "matching"
+  },
+  "schedsvc x86_64": {
+   "atsvcapi": "matching",
+   "rpcapi": "matching"
+  },
+  "schedsvc i386": {
+   "atsvcapi": "matching",
+   "rpcapi": "matching"
+  },
+  "schtasks.exe x86_64": {
+   "schtasks": "matching"
+  },
+  "schtasks.exe i386": {
+   "schtasks": "matching"
+  },
+  "scrobj x86_64": {
+   "scrobj": "matching"
+  },
+  "scrobj i386": {
+   "scrobj": "matching"
+  },
+  "scrrun x86_64": {
+   "dictionary": "matching",
+   "filesystem": "matching"
+  },
+  "scrrun i386": {
+   "dictionary": "matching",
+   "filesystem": "matching"
+  },
+  "serialui x86_64": {
+   "confdlg": "matching"
+  },
+  "serialui i386": {
+   "confdlg": "matching"
+  },
+  "services.exe x86_64": {
+   "service": "matching"
+  },
+  "services.exe i386": {
+   "service": "matching"
+  },
+  "shdocvw x86_64": {
+   "shortcut": "matching"
+  },
+  "shdocvw i386": {
+   "shortcut": "matching"
+  },
+  "slc x86_64": {
+   "slc": "matching"
+  },
+  "slc i386": {
+   "slc": "matching"
+  },
+  "snmpapi x86_64": {
+   "util": "matching"
+  },
+  "snmpapi i386": {
+   "util": "matching"
+  },
+  "sti x86_64": {
+   "sti": "matching"
+  },
+  "sti i386": {
+   "sti": "matching"
+  },
+  "sxs x86_64": {
+   "cache": "matching",
+   "name": "matching",
+   "sxs": "matching"
+  },
+  "sxs i386": {
+   "cache": "matching",
+   "name": "matching",
+   "sxs": "matching"
+  },
+  "t2embed x86_64": {
+   "t2embed": "matching"
+  },
+  "t2embed i386": {
+   "t2embed": "matching"
+  },
+  "tapi32 x86_64": {
+   "tapi": "matching"
+  },
+  "tapi32 i386": {
+   "tapi": "matching"
+  },
+  "tasklist.exe x86_64": {
+   "tasklist": "matching"
+  },
+  "tasklist.exe i386": {
+   "tasklist": "matching"
+  },
+  "tdh x86_64": {
+   "tdh": "matching"
+  },
+  "tdh i386": {
+   "tdh": "matching"
+  },
+  "threadpoolwinrt x86_64": {
+   "threadpool": "matching"
+  },
+  "threadpoolwinrt i386": {
+   "threadpool": "matching"
+  },
+  "timeout.exe x86_64": {
+   "timeout": "matching"
+  },
+  "timeout.exe i386": {
+   "timeout": "matching"
+  },
+  "twain_32 x86_64": {
+   "dsm": "matching"
+  },
+  "twain_32 i386": {
+   "dsm": "matching"
+  },
+  "twinapi.appcore x86_64": {
+   "twinapi": "matching"
+  },
+  "twinapi.appcore i386": {
+   "twinapi": "matching"
+  },
+  "uianimation x86_64": {
+   "uianimation": "matching"
+  },
+  "uianimation i386": {
+   "uianimation": "matching"
+  },
+  "uiautomationcore x86_64": {
+   "uiautomation": "matching"
+  },
+  "uiautomationcore i386": {
+   "uiautomation": "matching"
+  },
+  "uxtheme x86_64": {
+   "system": "open"
+  },
+  "uxtheme i386": {
+   "system": "open"
+  },
+  "vccorlib140 x86_64": {
+   "vccorlib": "matching"
+  },
+  "vccorlib140 i386": {
+   "vccorlib": "matching"
+  },
+  "vcomp110 x86_64": {
+   "vcomp110": "matching"
+  },
+  "vcomp110 i386": {
+   "vcomp110": "matching"
+  },
+  "virtdisk x86_64": {
+   "virtdisk": "matching"
+  },
+  "virtdisk i386": {
+   "virtdisk": "matching"
+  },
+  "wbemdisp x86_64": {
+   "wbemdisp": "matching"
+  },
+  "wbemdisp i386": {
+   "wbemdisp": "matching"
+  },
+  "webservices x86_64": {
+   "channel": "matching",
+   "msg": "matching",
+   "proxy": "matching",
+   "reader": "matching",
+   "url": "matching",
+   "writer": "open"
+  },
+  "webservices i386": {
+   "channel": "matching",
+   "msg": "matching",
+   "proxy": "matching",
+   "reader": "matching",
+   "url": "matching",
+   "writer": "open"
+  },
+  "wer x86_64": {
+   "main": "matching"
+  },
+  "wer i386": {
+   "main": "matching"
+  },
+  "wevtapi x86_64": {
+   "wevtapi": "matching"
+  },
+  "wevtapi i386": {
+   "wevtapi": "matching"
+  },
+  "wiaservc x86_64": {
+   "wia": "matching"
+  },
+  "wiaservc i386": {
+   "wia": "matching"
+  },
+  "win32u x86_64": {
+   "d3dkmt": "open",
+   "win32u": "open"
+  },
+  "win32u i386": {
+   "d3dkmt": "open",
+   "win32u": "open"
+  },
+  "windows.applicationmodel x86_64": {
+   "model": "matching"
+  },
+  "windows.applicationmodel i386": {
+   "model": "matching"
+  },
+  "windows.devices.bluetooth x86_64": {
+   "bluetooth": "matching"
+  },
+  "windows.devices.bluetooth i386": {
+   "bluetooth": "matching"
+  },
+  "windows.devices.enumeration x86_64": {
+   "devices": "matching"
+  },
+  "windows.devices.enumeration i386": {
+   "devices": "matching"
+  },
+  "windows.devices.usb x86_64": {
+   "usb": "matching"
+  },
+  "windows.devices.usb i386": {
+   "usb": "matching"
+  },
+  "windows.gaming.ui.gamebar x86_64": {
+   "gamebar": "matching"
+  },
+  "windows.gaming.ui.gamebar i386": {
+   "gamebar": "matching"
+  },
+  "windows.globalization x86_64": {
+   "globalization": "matching"
+  },
+  "windows.globalization i386": {
+   "globalization": "matching"
+  },
+  "windows.media x86_64": {
+   "media": "matching"
+  },
+  "windows.media i386": {
+   "media": "matching"
+  },
+  "windows.media.devices x86_64": {
+   "devices": "matching"
+  },
+  "windows.media.devices i386": {
+   "devices": "matching"
+  },
+  "windows.media.mediacontrol x86_64": {
+   "mediacontrol": "matching"
+  },
+  "windows.media.mediacontrol i386": {
+   "mediacontrol": "matching"
+  },
+  "windows.media.playback.backgroundmediaplayer x86_64": {
+   "playback": "matching"
+  },
+  "windows.media.playback.backgroundmediaplayer i386": {
+   "playback": "matching"
+  },
+  "windows.media.playback.mediaplayer x86_64": {
+   "mediaplayer": "matching"
+  },
+  "windows.media.playback.mediaplayer i386": {
+   "mediaplayer": "matching"
+  },
+  "windows.media.speech x86_64": {
+   "speech": "matching"
+  },
+  "windows.media.speech i386": {
+   "speech": "matching"
+  },
+  "windows.networking.connectivity x86_64": {
+   "connectivity": "matching"
+  },
+  "windows.networking.connectivity i386": {
+   "connectivity": "matching"
+  },
+  "windows.networking.hostname x86_64": {
+   "hostname": "matching"
+  },
+  "windows.networking.hostname i386": {
+   "hostname": "matching"
+  },
+  "windows.perception.stub x86_64": {
+   "perception": "matching"
+  },
+  "windows.perception.stub i386": {
+   "perception": "matching"
+  },
+  "windows.security.authentication.onlineid x86_64": {
+   "onlineid": "matching"
+  },
+  "windows.security.authentication.onlineid i386": {
+   "onlineid": "matching"
+  },
+  "windows.security.credentials.ui.userconsentverifier x86_64": {
+   "verifier": "matching"
+  },
+  "windows.security.credentials.ui.userconsentverifier i386": {
+   "verifier": "matching"
+  },
+  "windows.storage x86_64": {
+   "storage": "matching"
+  },
+  "windows.storage i386": {
+   "storage": "matching"
+  },
+  "windows.storage.applicationdata x86_64": {
+   "data": "matching"
+  },
+  "windows.storage.applicationdata i386": {
+   "data": "matching"
+  },
+  "windows.system.profile.systemid x86_64": {
+   "systemid": "matching"
+  },
+  "windows.system.profile.systemid i386": {
+   "systemid": "matching"
+  },
+  "windows.system.profile.systemmanufacturers x86_64": {
+   "smbios": "matching"
+  },
+  "windows.system.profile.systemmanufacturers i386": {
+   "smbios": "matching"
+  },
+  "windows.ui x86_64": {
+   "uisettings": "matching"
+  },
+  "windows.ui i386": {
+   "uisettings": "matching"
+  },
+  "windows.ui.core.textinput x86_64": {
+   "textinput": "matching"
+  },
+  "windows.ui.core.textinput i386": {
+   "textinput": "matching"
+  },
+  "windows.ui.xaml x86_64": {
+   "xaml": "matching"
+  },
+  "windows.ui.xaml i386": {
+   "xaml": "matching"
+  },
+  "windows.web x86_64": {
+   "web": "matching"
+  },
+  "windows.web i386": {
+   "web": "matching"
+  },
+  "windowscodecsext x86_64": {
+   "transform": "matching"
+  },
+  "windowscodecsext i386": {
+   "transform": "matching"
+  },
+  "wing32 x86_64": {
+   "wing32": "matching"
+  },
+  "wing32 i386": {
+   "wing32": "matching"
+  },
+  "winscard x86_64": {
+   "winscard": "open"
+  },
+  "winscard i386": {
+   "winscard": "open"
+  },
+  "winsqlite3 x86_64": {
+   "winsqlite3": "matching"
+  },
+  "winsqlite3 i386": {
+   "winsqlite3": "matching"
+  },
+  "wintab32 x86_64": {
+   "context": "matching"
+  },
+  "wintab32 i386": {
+   "context": "matching"
+  },
+  "wintypes x86_64": {
+   "wintypes": "matching"
+  },
+  "wintypes i386": {
+   "wintypes": "matching"
+  },
+  "wlanapi x86_64": {
+   "wlanapi": "matching"
+  },
+  "wlanapi i386": {
+   "wlanapi": "matching"
+  },
+  "wldap32 x86_64": {
+   "ber": "matching",
+   "parse": "matching"
+  },
+  "wldap32 i386": {
+   "ber": "matching",
+   "parse": "matching"
+  },
+  "wldp x86_64": {
+   "wldp": "matching"
+  },
+  "wldp i386": {
+   "wldp": "matching"
+  },
+  "wmp x86_64": {
+   "media": "matching",
+   "oleobj": "matching"
+  },
+  "wmp i386": {
+   "media": "matching",
+   "oleobj": "matching"
+  },
+  "wmvcore x86_64": {
+   "wmvcore": "open"
+  },
+  "wmvcore i386": {
+   "wmvcore": "open"
+  },
+  "wpc x86_64": {
+   "wpc": "matching"
+  },
+  "wpc i386": {
+   "wpc": "matching"
+  },
+  "wpcap x86_64": {
+   "wpcap": "open"
+  },
+  "wpcap i386": {
+   "wpcap": "open"
+  },
+  "wscript.exe x86_64": {
+   "run": "matching"
+  },
+  "wscript.exe i386": {
+   "run": "matching"
+  },
+  "wsdapi x86_64": {
+   "address": "matching",
+   "discovery": "open",
+   "memory": "matching",
+   "msgparams": "matching",
+   "xml": "matching"
+  },
+  "wsdapi i386": {
+   "address": "matching",
+   "discovery": "open",
+   "memory": "matching",
+   "msgparams": "matching",
+   "xml": "matching"
+  },
+  "wshom.ocx x86_64": {
+   "wshom": "open"
+  },
+  "wshom.ocx i386": {
+   "wshom": "open"
+  },
+  "wsnmp32 x86_64": {
+   "wsnmp": "matching"
+  },
+  "wsnmp32 i386": {
+   "wsnmp": "matching"
+  },
+  "xcopy.exe x86_64": {
+   "xcopy": "matching"
+  },
+  "xcopy.exe i386": {
+   "xcopy": "matching"
+  },
+  "xmllite x86_64": {
+   "reader": "matching",
+   "writer": "matching"
+  },
+  "xmllite i386": {
+   "reader": "matching",
+   "writer": "matching"
+  }
+ }
+}

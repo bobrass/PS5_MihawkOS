@@ -1,0 +1,46 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.157,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.144,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": null,
+  "title": "PPSA99170",
+  "identity": "499a6054d64e43e7a697828aa4c1664a",
+  "frames_requested": 150,
+  "eboot_sha256": "b18bd3a32ad397d47bf45a1729b231dc2259aabe6656658131ee697554ef0875",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 150 frames in 2.86 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)"
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.48,
+    "elevation": 0.48,
+    "library": 0.52,
+    "ui": 0.57
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": null,
+  "passed": true,
+  "capture": "klog/steam-default-2026-10-24-02",
+  "forced_close": false,
+  "storage_errors": 0
+}

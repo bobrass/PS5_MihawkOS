@@ -231,10 +231,18 @@ int __wrap_fchdir(int fd)
     if (!S_ISDIR(by_fd.st_mode)) { errno = ENOTDIR; return -1; }
     /* Another module may have closed and reused the number: the path must
      * still name the descriptor's directory. */
-    if (pw_cwd_fd_path(fd, path, sizeof(path)) || __real_stat(path, &by_path) ||
-        by_path.st_dev != by_fd.st_dev || by_path.st_ino != by_fd.st_ino) {
-        errno = EACCES;
-        return -1;
+    {
+        const int unknown = pw_cwd_fd_path(fd, path, sizeof(path)) != 0;
+        const int gone = !unknown && __real_stat(path, &by_path) != 0;
+        if (unknown || gone || by_path.st_dev != by_fd.st_dev || by_path.st_ino != by_fd.st_ino) {
+            /* Rare, and the cause of a .NET game's "access denied" on a directory listing (2026-10-24): say which. */
+            fprintf(stderr, "wine-ps5: fchdir(%d) refused: %s path=%s fd dev/ino %llu/%llu path dev/ino %llu/%llu\n", fd,
+                    unknown ? "no recorded path" : gone ? "the recorded path is gone" : "the recorded path names another directory",
+                    unknown ? "-" : path, (unsigned long long)by_fd.st_dev, (unsigned long long)by_fd.st_ino,
+                    unknown || gone ? 0ull : (unsigned long long)by_path.st_dev, unknown || gone ? 0ull : (unsigned long long)by_path.st_ino);
+            errno = EACCES;
+            return -1;
+        }
     }
     return pw_cwd_set(path);
 }

@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 10:00:00 -0400
+Subject: [PATCH] ntdll: a thread's guard follows a stack that ran past it.
+
+Patch 1120 put a new thread's guard page below its committed top, as Windows does, and left the pages below committed.
+Code that runs past the guard without touching it then lands below StackLimit with no fault: ntdll's __chkstk does not
+probe, and a frame larger than a page skips it (kernel32 heap's test_GlobalAlloc has 512 KiB of locals). An exception
+there could not be dispatched: every handler frame was below the limit ("Exception frame is not in stack limits") and
+the process ended, kernel32 heap in both builds, where the pinned Linux Wine (its whole stack committed, its guard at the
+bottom) catches the access violation GlobalSize(0xdeadbee0) raises (2026-10-26). When an exception's frame lies below
+StackLimit on a committed page that is not a guard, the old guard is cleared and grow_thread_stack moves the guard and
+the limit down to it, as a probe would have; inside the guaranteed space it still raises STATUS_STACK_OVERFLOW.
+---
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index 5a5cf36..b9b0a31 100644
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -6435,8 +6435,25 @@ void *virtual_setup_exception( void *stack_ptr, size_t size, EXCEPTION_RECORD *r
+     else if (stack < stack_info.limit)
+     {
+         char *page = ROUND_ADDR( stack, host_page_mask );
++        BYTE vprot;
+         mutex_lock( &virtual_mutex );  /* no need for signal masking inside signal handler */
+-        if ((get_host_page_vprot( page ) & VPROT_GUARD) && grow_thread_stack( page, &stack_info ))
++        vprot = get_host_page_vprot( page );
++        if (!(vprot & VPROT_GUARD) && (vprot & VPROT_COMMITTED))
++        {
++            /* The pages below a thread's guard stay committed (patch 1120), so code that runs past the guard without
++             * touching it lands below StackLimit with no fault: ntdll's __chkstk does not probe, and kernel32 heap's
++             * test_GlobalAlloc has 512 KiB of locals. The dispatcher then refused every handler frame there ("not in
++             * stack limits") and the process ended (kernel32 heap, both builds, 2026-10-26). The guard follows the stack
++             * down here, as a probe would have moved it. */
++            char *guard = (char *)stack_info.limit - host_page_size;
++            if (guard > page && (get_host_page_vprot( guard ) & VPROT_GUARD))
++            {
++                set_page_vprot_bits( guard, host_page_size, 0, VPROT_GUARD );
++                mprotect_range( guard, host_page_size, 0, 0 );
++            }
++            vprot |= VPROT_GUARD;
++        }
++        if ((vprot & VPROT_GUARD) && grow_thread_stack( page, &stack_info ))
+         {
+             rec->ExceptionCode = STATUS_STACK_OVERFLOW;
+             rec->NumberParameters = 0;

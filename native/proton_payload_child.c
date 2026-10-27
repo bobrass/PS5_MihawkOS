@@ -94,6 +94,7 @@ static int payload_allocate_direct(size_t bytes, size_t alignment, int type, int
  * memory is what hangs the console ("unwire timeout"). A segment that cannot be wired is counted and logged, not
  * refused: it stays evictable as before. */
 static unsigned payload_text_unwired;
+void pw_malloc_trace_module(const char *name,const PwPrxSegment *segments,uint32_t count);
 static int payload_prepare_module(int32_t handle)
 {
     unsigned char info[PW_PRX_MODULE_INFO_BYTES]={0};
@@ -116,6 +117,7 @@ static int payload_prepare_module(int32_t handle)
                           :__atomic_add_fetch(&payload_text_unwired,1,__ATOMIC_RELAXED));
         stage(line);
     }
+    pw_malloc_trace_module(name,segments,count);
     if(!text_unwired)__atomic_add_fetch(&payload_modules,1,__ATOMIC_RELAXED);
     struct rlimit limit={0};
     const long long most=getrlimit(RLIMIT_MEMLOCK,&limit) ? -2 : limit.rlim_cur==RLIM_INFINITY ? -1 : (long long)limit.rlim_cur;

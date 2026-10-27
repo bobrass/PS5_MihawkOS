@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     MSI fixture of the installer slice (tests/installer-slice-probe.c), per machine and 64-bit:
+     wixl -a x64 -D APPDIR=... -o fixture.msi fixture.wxs -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="PwFixture MSI" Language="1033" Version="1.0.0" Manufacturer="PS5 Proton tests"
+           UpgradeCode="6B0F5C1E-2E4A-4C61-9D2B-8B4E3C1A7F10">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Platform="x64"/>
+    <Media Id="1" Cabinet="fixture.cab" EmbedCab="yes"/>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="PwFixture MSI">
+          <Component Id="App" Guid="3C7D2A90-5B1E-4F86-A4C2-71E09D5B6A21" Win64="yes">
+            <File Id="pwapp64" Source="$(var.APPDIR)/pwapp64.exe" KeyPath="yes"/>
+            <File Id="pwapp32" Source="$(var.APPDIR)/pwapp32.exe"/>
+            <File Id="pwappdat" Source="$(var.APPDIR)/pwapp.dat"/>
+            <RegistryValue Root="HKLM" Key="Software\PwFixture\MSI" Name="InstallDir" Type="string" Value="[INSTALLDIR]"/>
+          </Component>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Component Id="StartMenu" Guid="9A41E6B2-0C3D-4E7F-8B15-D26F4A03C9E8" Win64="yes">
+          <Shortcut Id="StartMenuShortcut" Name="PwFixture MSI" Target="[INSTALLDIR]pwapp64.exe" WorkingDirectory="INSTALLDIR"/>
+          <RegistryValue Root="HKLM" Key="Software\PwFixture\MSI" Name="StartMenu" Type="integer" Value="1" KeyPath="yes"/>
+        </Component>
+      </Directory>
+      <Directory Id="DesktopFolder">
+        <Component Id="Desktop" Guid="E5B0C7D4-61A9-4F23-9E8C-0B7A2D5F14C6" Win64="yes">
+          <Shortcut Id="DesktopShortcut" Name="PwFixture MSI" Target="[INSTALLDIR]pwapp64.exe" WorkingDirectory="INSTALLDIR"/>
+          <RegistryValue Root="HKLM" Key="Software\PwFixture\MSI" Name="Desktop" Type="integer" Value="1" KeyPath="yes"/>
+        </Component>
+      </Directory>
+    </Directory>
+    <Feature Id="Main" Level="1">
+      <ComponentRef Id="App"/>
+      <ComponentRef Id="StartMenu"/>
+      <ComponentRef Id="Desktop"/>
+    </Feature>
+  </Product>
+</Wix>

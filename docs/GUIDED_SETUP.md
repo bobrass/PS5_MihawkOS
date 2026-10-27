@@ -39,11 +39,15 @@ owner's prefix, runtime and saves are never touched.
 | --- | --- | --- |
 | Welcome | "Welcome to MihawkOS", ten minutes, the First Light theme (low, this step only) | Get started, Skip setup |
 | Language | Flag tiles with each language's own name; only languages with complete text | ✕ chooses and goes on; ○ back |
-| How to install | USB drive; Internet "Coming soon"; the QR code; "already installed" + Continue when it is | USB, Continue |
+| How to install | Three tiles: USB drive, FTP, Internet "Coming soon"; the QR code; "already installed" + Continue when it is | USB, FTP, Continue |
 | Prepare a USB drive | Four numbered steps (exFAT + MBR, copy the folder, plug in, Check drive) and the QR code | Check drive, Install, Try again |
+| Copy the files over FTP | Four numbered steps (start an FTP server on the PS5, unzip usb-mihawkos on a computer, copy every file inside mihawkos into `/data/ps5proton/install`, Check files) and the QR code. Entering the step makes that folder | Check files, Install, Try again |
 | Installing | Percent, bar, "612 of 1,190 MB · 118 MB/s"; the bubbles calm down | Stop; on a failure Try again, Back |
 | Preparing Mihawk OS | What the first start does and how long; the controller note | Start |
 | Done | "You're all set" | Enter Mihawk OS |
+
+**The FTP step is numbered 7** (`PW_SETUP_FTP`, after Done) so every other step keeps its number in the logs and in
+`tools/run-launcher.py --setup`'s expected walk; the progress dots place it with USB.
 
 **Controls:**
 - Controller first: the D-pad moves to the nearest target in that direction, ✕ chooses, ○ goes back, △ skips.
@@ -77,9 +81,9 @@ reports is typed, so the tour says it in the chosen language with a way out:
 
 | Problem | Says (English) | Button |
 | --- | --- | --- |
-| `no_stick` | No USB drive found... the PS5 does not read GPT or NTFS drives. | Try again |
+| `no_stick` | No USB drive found... the PS5 does not read GPT or NTFS drives. On the FTP step: No runtime files in /data/ps5proton/install... (`no_folder` too) | Try again |
 | `no_folder` | The drive has no mihawkos folder at its top... | Try again |
-| `partial` | The folder is incomplete: it has {have} of {pieces} pieces... | Try again |
+| `partial` | The folder is incomplete: it has {have} of {pieces} pieces... On the FTP step: /data/ps5proton/install has {have} of {pieces} pieces... | Try again |
 | `no_space` | Your PS5 needs {needed} free and has {available}... | Try again |
 | `read_failed` | The USB drive could not be read... What is already installed is kept. | Try again, Back |
 | `damaged` | A file on the drive is damaged or from another version... | Try again, Back |
@@ -88,7 +92,9 @@ reports is typed, so the tour says it in the chosen language with a way out:
 | `no_manifest` | This copy of MihawkOS cannot install a Windows runtime. Reinstall MihawkOS. | Try again |
 
 **The engine** is the installer's (`ps5/src/proton_install.h`, SELF_INSTALL phase 5, on main since a2b5617).
-`InstallSetupEngine` reads it from the USB sticks alone (`proton_install_find("usb")`). The size it shows is the
+`InstallSetupEngine` reads it from the USB sticks alone on the USB step (`proton_install_find("usb")`), and from
+`/data/ps5proton/install` alone on the FTP step (`proton_install_find("install")`, which never falls back to a download).
+After a failed install, Try again and Back return to the step the pieces came from. The size it shows is the
 engine's `bytes`, the pinned manifest's size. A download's problems cannot come from a drive: they read as `read_failed`. The
 Internet route stays "Coming soon" until the owner publishes a release. `FakeSetupEngine` plays the install, writing
 nothing, in tests and in the simulated first run.
@@ -102,10 +108,11 @@ nothing, in tests and in the simulated first run.
 - `tests/test_pw_setup.c` refuses a language unless it has every key, the same placeholders as English, and only
   characters the launcher's fonts carry.
 
-**The languages,** in the owner's order (2026-10-18):
-- English (US), French, Spanish, German, Italian, Russian, Chinese (Simplified), Japanese and Portuguese (Brasil, the
-  flag set has no Portugal flag).
-- All nine have complete text, written by agents. Each needs a native speaker's review before a release.
+**The languages,** in the owner's order (2026-10-18; Polish added 2026-10-26):
+- English (US), French, Spanish, German, Italian, Russian, Chinese (Simplified), Japanese, Portuguese (Brasil, the
+  flag set has no Portugal flag) and Polish. Ten tiles, two rows of five.
+- All ten have complete text, written by agents, the Steam guide's included (docs/STEAM.md, "The guide"). Each needs a
+  native speaker's review before a release.
 - Mihawk OS's own shell stays English. The launcher around the tour stays English too, so the text names the
   launcher's English "Settings".
 
@@ -113,7 +120,7 @@ nothing, in tests and in the simulated first run.
 
 | Script | The kit's bakes (113 glyphs, ASCII) | What the setup draws with now |
 | --- | --- | --- |
-| French, Spanish, German, Italian, Portuguese | accents missing (é, ñ, ß, ç...) | the launcher's faces baked with the kit's `european` set (403 glyphs): all there |
+| French, Spanish, German, Italian, Portuguese, Polish | accents missing (é, ñ, ß, ç...) | the launcher's faces baked with the kit's `european` set (403 glyphs): all there |
 | Russian (Cyrillic) | missing | the same faces: there |
 | Chinese, Japanese | missing; Inter and Montserrat have no Han or kana | Noto Sans SC / JP Medium, baked by `tools/bake-huifont.cpp` with only the characters their text uses (318 and 291 glyphs, about 1.3 MB each) |
 | Vietnamese, Korean (not planned now) | missing | Vietnamese needs U+01A0-01B0 and U+1EA0-1EF9 added to a bake (Inter has them); Korean needs a Hangul face |
@@ -142,7 +149,7 @@ default to it. The design, still to be built and proven on the console:
 ## Look and sound
 
 - **Theme:** the Gloss theme (the launcher's default).
-- **The sky:** the desktop's Aero Meadow (`tools/make-mihawk-wallpaper.py`), alive and drawn lighter for a page with
+- **The sky:** Aero Meadow (`tools/make-mihawk-wallpaper.py`, the desktop's wallpaper until 2026-10-25), alive and drawn lighter for a page with
   text on it. One fragment shader draws it under the kit's layers, every frame from the clock, at the launcher's rate.
   - the sun's glow and rays, two drifting ribbons of light, the horizon haze;
   - the far and near hills, with the wallpaper's shapes and greens;
@@ -166,7 +173,7 @@ default to it. The design, still to be built and proven on the console:
 
 **Host:**
 - `tools/host-tests.sh`: 128 passed, `test_pw_setup` and `test_pw_wine_inherit` among them.
-- `tools/test-setup-ui.py`: every step and error state, in all nine languages, and the gate's walk. The QR code reads
+- `tools/test-setup-ui.py`: every step and error state, in all ten languages, and the gate's walk. The QR code reads
   back as the instructions' address with `zbarimg`.
 - `tools/test-launcher-ui.py --render`: the library, Settings and themes, unchanged.
 

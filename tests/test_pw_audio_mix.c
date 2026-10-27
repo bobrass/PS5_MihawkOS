@@ -28,7 +28,8 @@ static void test_format_check(void)
     for(uint16_t bits=8;bits<=32;bits+=8){f=pcm(44100,1,bits);assert(pw_audio_mix_format_check(&f)==PW_OK);}
     f=pcm(48000,2,12);assert(pw_audio_mix_format_check(&f)==PW_ERR_UNSUPPORTED);
     f=pcm(48000,0,16);assert(pw_audio_mix_format_check(&f)==PW_ERR_UNSUPPORTED);
-    f=pcm(48000,9,16);assert(pw_audio_mix_format_check(&f)==PW_ERR_UNSUPPORTED);
+    f=pcm(48000,19,16);assert(pw_audio_mix_format_check(&f)==PW_ERR_UNSUPPORTED);
+    f=pcm(48000,12,32);f.encoding=PW_AUDIO_MIX_FLOAT;assert(pw_audio_mix_format_check(&f)==PW_OK);
     f=pcm(999,2,16);assert(pw_audio_mix_format_check(&f)==PW_ERR_UNSUPPORTED);
     f=pcm(384001,2,16);assert(pw_audio_mix_format_check(&f)==PW_ERR_UNSUPPORTED);
     f=pcm(1000,2,16);assert(pw_audio_mix_format_check(&f)==PW_OK);
@@ -41,7 +42,7 @@ static void test_format_check(void)
 
 static void test_init_errors(void)
 {
-    PwAudioMixStream s;uint8_t ring[16];
+    PwAudioMixStream s;uint8_t ring[16]={0};
     PwAudioMixFormat f=pcm(48000,2,16),bad=pcm(48000,2,12);
     assert(pw_audio_mix_stream_init(NULL,&f,ring,4)==PW_ERR_PRECONDITION);
     assert(pw_audio_mix_stream_init(&s,&f,NULL,4)==PW_ERR_PRECONDITION);
@@ -169,6 +170,13 @@ static void test_channel_folding(void)
     assert(pw_audio_mix_stream_init(&s,&f,(const uint8_t *)wide,2)==PW_OK);s.held=2;
     assert(mix(&s,2)==2);
     assert(near(mixed[2],0.5f*side) && near(mixed[3],0.5f*side*2));
+
+    /* 7.1.4, spatial audio's bed: FL FR FC LFE BL BR SL SR TFL TFR TBL TBR; the top left speakers fold left */
+    int16_t bed[2*12]={0,0,0,0,0,0,0,0,16384,0,16384,0, 0};
+    f=pcm(48000,12,16);f.channel_mask=0x3f|0x200|0x400|0x1000|0x4000|0x8000|0x20000;
+    assert(pw_audio_mix_stream_init(&s,&f,(const uint8_t *)bed,2)==PW_OK);s.held=2;
+    assert(mix(&s,2)==2);
+    assert(near(mixed[2],0.5f*side*2) && mixed[3]==0);
 
     /* an unknown speaker bit plays nowhere */
     int16_t odd[2*2]={16384,16384, 0,0};

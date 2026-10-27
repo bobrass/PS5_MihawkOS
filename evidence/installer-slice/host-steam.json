@@ -1,0 +1,146 @@
+{
+ "where": "host",
+ "kind": "steam",
+ "wine": ".deps/wine-host-display/build/wine",
+ "prefix_seconds": 6.5,
+ "seconds": 9.1,
+ "timed_out": false,
+ "verdict": {
+  "passed": true,
+  "summary": "steam, 23 checks, 0 failed, 1760 ms in all"
+ },
+ "checks": [
+  {
+   "step": "snapshot",
+   "verdict": "N/A",
+   "ms": 9,
+   "detail": "entries 1711"
+  },
+  {
+   "step": "install",
+   "verdict": "PASS",
+   "ms": 13,
+   "detail": "installscript runner: processes run 1, skipped by HasRunKey 0, failures 0"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp32.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp64.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp.dat"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\redist.done"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) Software\\PwFixture\\Steam"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) Software\\PwFixture\\SteamRedist"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 12,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp32.exe"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 6,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "installscript runner: processes run 0, skipped by HasRunKey 1, failures 0"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp.dat"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "present: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\redist.done"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "HKLM (32-bit view) Software\\PwFixture\\Steam"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "HKLM (32-bit view) Software\\PwFixture\\SteamRedist"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 10,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 7,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture\\pwapp64.exe"
+  },
+  {
+   "step": "uninstall",
+   "verdict": "PASS",
+   "ms": 11,
+   "detail": "installscript runner: processes run 1, skipped by HasRunKey 0, failures 0"
+  },
+  {
+   "step": "uninstall-removed",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "folder gone: %ProgramFiles(x86)%\\Steam\\steamapps\\common\\PwFixture"
+  },
+  {
+   "step": "clean",
+   "verdict": "PASS",
+   "ms": 1677,
+   "detail": "added or changed 0, removed 0 (of the snapshot's entries)"
+  }
+ ]
+}

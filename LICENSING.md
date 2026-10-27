@@ -36,8 +36,10 @@ project's author on 2026-10-15, replacing the LGPL-2.1-or-later proposal.
   in [`NOTICE.md`](NOTICE.md).
 - **Fonts and artwork keep their licences.** Proton UI fonts are OFL-1.1, Microsoft Fluent command glyphs MIT, the
   Wine theme, the fourteen original icons in `themes/windows11/icons/original/`, the Mihawk mark
-  (`themes/windows11/start.svg`, the Start button's glyph) and the Aero Meadow wallpaper with the script that draws it
-  (`tools/make-mihawk-wallpaper.py`) LGPL-2.1-or-later; no proprietary Microsoft fonts or
+  (`themes/windows11/start.svg`, the Start button's glyph) the Bubble Earth, Glass City and Aqua World wallpapers and the Aero Meadow one with the scripts that draw
+  them (`tools/make-aero-wallpapers.py`, `tools/make-mihawk-wallpaper.py`), and the README's banner, dividers and heading
+  orbs in `docs/media/readme/` (they draw the mark and those icons; `docs/README_ART.md`) LGPL-2.1-or-later; the README's
+  badges in `docs/media/readme/badges/` hold no third-party art and are GPL-3.0-or-later; no proprietary Microsoft fonts or
   Windows icon resources are bundled, and no Windows logo is shown.
 - **Source ships with binaries.** Any binary release comes with the corresponding source, including the patch series
   and pins that produce the runtime.

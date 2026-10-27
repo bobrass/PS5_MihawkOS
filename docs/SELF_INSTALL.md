@@ -39,8 +39,8 @@ Status lives in [PLAN.md](PLAN.md); this file is the design.
   - the Mono and Gecko MSIs: 192 MB of that, incompressible;
   - the probe prefix: 787 MB, needed only by the PC tools and the gate.
 - **A Microsoft image shipped in every runtime built on this PC** until 2026-10-18: `tools/build-wine-theme.py` turned the
-  local Windows 11 "Bloom" JPEG into `proton.bmp`. It now draws the project's own Aero Meadow instead
-  (`tools/make-mihawk-wallpaper.py`), and `tools/publication-check.py` fails a build whose `proton.bmp` is anything else.
+  local Windows 11 "Bloom" JPEG into `proton.bmp`. It now draws the project's own wallpaper instead
+  (Aero Meadow from 2026-10-18, Bubble Earth from 2026-10-25: `tools/make-aero-wallpapers.py`), and `tools/publication-check.py` fails a build whose `proton.bmp` is anything else.
 
 ## The owner's decisions (2026-10-18)
 
@@ -50,7 +50,7 @@ Status lives in [PLAN.md](PLAN.md); this file is the design.
 | How a user without a PC starts the first install | Copy the MihawkOS folder to `/data/homebrew` (FTP from a phone or a PC, or a file manager on the console), then open the tile. The title sets itself up (phase 7). This replaced, later on 2026-10-18, a setup program started from pldmgr or a USB stick: "the title can set itself up", as probe 3 proved. |
 | How MihawkOS is updated | MihawkOS updates itself, on request, from a signed manifest (phase 8). This replaced version 1's "run the newest setup program again". |
 | ShadowMountPlus | **Never shipped** (the owner, 2026-10-18): "we will not be shipping a patched shadowmountplus and instead wait for it to be fixed upstream. The user themselves must use their own SM+". Nothing MihawkOS ships carries or installs it. Stock 1.7beta4 can leave other homebrew unable to start after MihawkOS closes, a known issue: restart the PS5. |
-| The desktop in a public build | Aero Meadow, the project's own wallpaper (`tools/make-mihawk-wallpaper.py`), in every build; it replaced Bloom and the plain colour (the owner, 2026-10-18). |
+| The desktop in a public build | Bubble Earth, the project's own wallpaper (`tools/make-aero-wallpapers.py`), in every build (the owner, 2026-10-25); Aero Meadow before it replaced Bloom and the plain colour (the owner, 2026-10-18). |
 
 Defaults the plan takes unless the owner says otherwise:
 - **The download starts on request:** the launcher asks once and shows the size and the free space needed.

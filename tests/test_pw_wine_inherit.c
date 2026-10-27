@@ -31,8 +31,21 @@ int main(void)
                    strlen("DXVK_HUD=fps") + 4 && block[used] == 0);
     /* The loader's CPU placement switch reaches every helper and its descendants (src/pw_cpu_placement.c). */
     assert(pw_wine_inherited("WINE_PS5_HELPER_CPUS_WIDEN=1"));
+    /* The helper's census budgets and its once-a-second early memory line (native/proton_wine_child.c). */
+    assert(pw_wine_inherited("WINE_PS5_CENSUS_MS=400:100:300") && pw_wine_inherited("WINE_PS5_EARLY=1") && pw_wine_inherited("WINE_PS5_VMMAP=1") && pw_wine_inherited("WINE_PS5_MAPLOG_MIB=8") && pw_wine_inherited("WINE_PS5_SAMPLE=1"));
+    /* The code cache reaches the helpers a program starts, not only the first (fmem-steam-b32-2026-10-25-01: the web helper ran without it). */
+    assert(pw_wine_inherited("WINE_PS5_CODE_BUDGET_MIB=32") && pw_wine_inherited("WINE_PS5_CODE_BUDGET_START_MIB=16"));
+    assert(pw_wine_inherited("WINE_PS5_DSECTION_MIN_MIB=16") && pw_wine_inherited("WINE_PS5_TITLE_PROCESS=game.exe"));
     /* The setup's language, for every Windows program (patch 1230); never the C library's own LC_ variables. */
     assert(pw_wine_inherited("WINE_PS5_LOCALE=fr_FR.UTF-8") && !pw_wine_inherited("LC_MESSAGES=fr_FR.UTF-8"));
+    /* A game's own controller and Game Mode reach the game its launcher starts (src/pw_window_direct.h). */
+    assert(pw_wine_inherited("WINE_PS5_GAME_MODE=0") && pw_wine_inherited("WINE_PS5_CONTROLLER=dualsense") &&
+           pw_wine_inherited("WINE_PS5_HID=1"));
+    static const char settings[] = "SDL_X=1\0WINE_PS5_GAME_MODE=1\0WINE_PS5_GAME_MODES=7\0WINE_PS5_GAME_MODE=0\0\0";
+    assert(!strcmp(pw_wine_block_value(settings, sizeof(settings), "WINE_PS5_GAME_MODE"), "0"));   /* the last wins */
+    assert(!pw_wine_block_value(settings, sizeof(settings), "WINE_PS5_GAME") && !pw_wine_block_value(settings, 0, "SDL_X"));
+    assert(!strcmp(pw_wine_block_value(settings, 8, "SDL_X"), "1"));   /* a block cut short ends at its size */
+    assert(pw_wine_inherited("WINE_PS5_CONTROLLER=dualsense"));
 
     /* A block too small for the last switch: the entries that fit stay whole, the one that does not is left out. */
     char small[sizeof("WINE_PS5_ASYNC_PRESENT=1") + 8];

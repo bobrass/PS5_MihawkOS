@@ -1,0 +1,88 @@
+{
+ "inno": {
+  "passed": true,
+  "console": "inno, 25 checks, 0 failed, 12192 ms in all",
+  "host": "inno, 25 checks, 0 failed, 3332 ms in all",
+  "console_only_failures": [],
+  "failing_on_both": [],
+  "timing": {
+   "install": {
+    "console_ms": 2739,
+    "host_ms": 322
+   },
+   "reinstall": {
+    "console_ms": 2597,
+    "host_ms": 326
+   },
+   "uninstall": {
+    "console_ms": 1881,
+    "host_ms": 180
+   }
+  }
+ },
+ "steam": {
+  "passed": true,
+  "console": "steam, 23 checks, 0 failed, 5315 ms in all",
+  "host": "steam, 23 checks, 0 failed, 1760 ms in all",
+  "console_only_failures": [],
+  "failing_on_both": [],
+  "timing": {
+   "install": {
+    "console_ms": 625,
+    "host_ms": 13
+   },
+   "reinstall": {
+    "console_ms": 2,
+    "host_ms": 0
+   },
+   "uninstall": {
+    "console_ms": 548,
+    "host_ms": 11
+   }
+  }
+ },
+ "vcredist": {
+  "passed": true,
+  "console": "vcredist, 22 checks, 1 failed, 33770 ms in all",
+  "host": "vcredist, 22 checks, 1 failed, 5150 ms in all",
+  "console_only_failures": [],
+  "failing_on_both": [
+   "clean: added or changed 0, removed 24 (of the snapshot's entries)"
+  ],
+  "timing": {
+   "install": {
+    "console_ms": 11264,
+    "host_ms": 1274
+   },
+   "reinstall": {
+    "console_ms": 8834,
+    "host_ms": 1085
+   },
+   "uninstall": {
+    "console_ms": 9477,
+    "host_ms": 1070
+   }
+  }
+ },
+ "dxsetup": {
+  "passed": true,
+  "console": "dxsetup, 18 checks, 0 failed, 200177 ms in all",
+  "host": "dxsetup, 18 checks, 0 failed, 24001 ms in all",
+  "console_only_failures": [],
+  "failing_on_both": [],
+  "timing": {
+   "install": {
+    "console_ms": 102138,
+    "host_ms": 11977
+   },
+   "reinstall": {
+    "console_ms": 95916,
+    "host_ms": 11833
+   },
+   "uninstall": {
+    "console_ms": 0,
+    "host_ms": 0
+   }
+  }
+ }
+}

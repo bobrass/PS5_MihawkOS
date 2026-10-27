@@ -16,8 +16,8 @@
  * prefix made on a PC carries, and resolving that name made GTA IV believe it
  * was online and wait forever on "Starting a new game" (measured), while the
  * failure Wine reports for it (one "Failed to resolve your host name IP" line
- * per lookup) is what lets the game carry on offline. There is no services database, so a service must be a port
- * number. gethostname, inet_pton and inet_ntop are the title's own.
+ * per lookup) is what lets the game carry on offline. There is no services database: a service is a port number or
+ * one of the well-known names pw_port knows. gethostname, inet_pton and inet_ntop are the title's own.
  *
  * The host test builds this file with these names prefixed (Makefile), so
  * glibc's stay in place (tools/host-tests.sh).
@@ -163,11 +163,21 @@ static int pw_lookup(const char *node, int family, int flags, struct pw_address 
     return 0;
 }
 
-/* A port number, the only kind of service there is. */
+/* A port number, or one of the well-known service names (IANA): the console has no services database, and Windows
+ * programs connect by name (WSAConnectByNameA(..., "http"): WSATYPE_NOT_FOUND on the console, ws2_32 sock.c:3957,
+ * 2026-10-25). The names are the same for TCP and UDP here. */
+static const struct pw_service { const char *name; unsigned short port; } pw_services[] = {
+    { "ftp-data", 20 }, { "ftp", 21 }, { "ssh", 22 }, { "telnet", 23 }, { "smtp", 25 }, { "domain", 53 },
+    { "tftp", 69 }, { "http", 80 }, { "www", 80 }, { "www-http", 80 }, { "pop3", 110 }, { "nntp", 119 },
+    { "ntp", 123 }, { "imap", 143 }, { "snmp", 161 }, { "ldap", 389 }, { "https", 443 }, { "submission", 587 },
+    { "ldaps", 636 }, { "imaps", 993 }, { "pop3s", 995 }, { "socks", 1080 }, { "http-alt", 8080 },
+};
+
 static int pw_port(const char *service, int flags, unsigned short *port)
 {
     char *end;
     unsigned long value;
+    size_t i;
 
     *port = 0;
     if (!service)
@@ -179,7 +189,14 @@ static int pw_port(const char *service, int flags, unsigned short *port)
             return 0;
         }
     }
-    return flags & AI_NUMERICSERV ? EAI_NONAME : EAI_SERVICE;
+    if (flags & AI_NUMERICSERV)
+        return EAI_NONAME;
+    for (i = 0; i < sizeof(pw_services) / sizeof(pw_services[0]); i++)
+        if (!strcasecmp(service, pw_services[i].name)) {
+            *port = pw_services[i].port;
+            return 0;
+        }
+    return EAI_SERVICE;
 }
 
 void freeaddrinfo(struct addrinfo *info)

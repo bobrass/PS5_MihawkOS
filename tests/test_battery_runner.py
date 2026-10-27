@@ -127,7 +127,7 @@ class BatteryTests(unittest.TestCase):
                 battery.sequence_entry(name, cases[name])
 
     def test_grouped_gate_runs_each_group_in_one_launch_with_its_own_verdicts(self):
-        status, calls, record = self.run_fake(extra=('--grouped',), fail='dnsapi32')
+        status, calls, record = self.run_fake(extra=('--grouped-launches',), fail='dnsapi32')
         grouped = {name for names in battery.GROUPS.values() for name in names}
         self.assertEqual(sorted(calls), sorted(set(battery.GATE_CASES) - grouped | set(battery.GROUPS)))
         self.assertEqual(status, 1)
@@ -142,6 +142,38 @@ class BatteryTests(unittest.TestCase):
         self.assertEqual((owner['probe_verdict'], owner['passed'], len(owner['helpers'])), ('PASS', True, 1))
         self.assertIn('== Test 9/', self.output)
         self.assertIn('probes, one launch (host-test-probes)', self.output)
+
+    def test_grouped_gate_runs_in_one_session_by_default(self):
+        seen = {}
+        def fake_session(run, members, entries):
+            seen['run'], seen['members'] = run, [n for n, _ in members]
+            (battery.ROOT / 'evidence' / (run + '.json')).write_text(json.dumps(
+                {'passed': True, 'result': 'finished', 'returned_to_launcher': True, 'seconds': 1}))
+            return {n: battery.session_verdict(entries[n][1], 1 if n == 'dnsapi32' else 0, 1000, 'exited',
+                                               '' if n == 'dnsapi32' else f'{entries[n][1]} PASS\n') for n, _ in members}
+        with patch.object(battery, 'session_outcomes', side_effect=fake_session):
+            status, calls, record = self.run_fake(extra=('--grouped',), fail='dnsapi32')
+        grouped = {name for names in battery.GROUPS.values() for name in names}
+        self.assertEqual(sorted(calls), sorted(set(battery.GATE_CASES) - grouped))   # the groups made no launch of their own
+        self.assertEqual(sorted(seen['members']), sorted(grouped & set(battery.GATE_CASES)))
+        self.assertEqual(seen['run'], 'host-test-session')
+        self.assertEqual(status, 1)
+        self.assertTrue(record['complete'])
+        self.assertEqual([c['case'] for c in record['cases'] if not c['passed']], ['dnsapi32'])
+        self.assertIn('one session, 4 at a time (host-test-session)', self.output)
+
+    def test_a_launch_on_exhausted_pipe_memory_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for folder in ('evidence', 'klog'): (root / folder).mkdir()
+            (root / 'evidence/run.json').write_text(json.dumps({'passed': True, 'result': 'finished'}))
+            (root / 'klog/run.log').write_text('kern.ipc.maxpipekva exceeded; see tuning(7)\n')
+            with patch.object(battery, 'ROOT', root):
+                outcome = battery.launch_outcome('run', SimpleNamespace(returncode=0), 0)
+                self.assertEqual(outcome['pipe_memory_exhausted'], 1)
+                self.assertFalse(outcome['passed'])
+                (root / 'klog/run.log').write_text('[MihawkOS] Wine: alive\n')
+                self.assertTrue(battery.launch_outcome('run', SimpleNamespace(returncode=0), 0)['passed'])
 
     def test_sequence_outcomes_read_each_window(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -237,6 +269,34 @@ def fake_sequence(root, name, sequence, fail):
         at += 1
     (root / 'klog' / f'{name}-wine-child-100.log').write_text(''.join(
         f'{t:.3f}:0020:0024:warn:debugstr:OutputDebugStringA "PS5_PROTON_GATE_SEQUENCE {line}\\n"\n' for t, line in lines))
+
+
+class SessionVerdict(unittest.TestCase):
+    """--session judges each case by its own output: its marker's first verdict line, or the owner's exit status."""
+
+    def test_marker_and_exit(self):
+        v = battery.session_verdict('PS5_PROTON_DNSAPI', 0, 1200, 'exited', 'x\nPS5_PROTON_DNSAPI PASS: 12 checks\n')
+        self.assertTrue(v['probe_passed']) ; self.assertEqual(v['seconds'], 1.2)
+        self.assertFalse(battery.session_verdict('PS5_PROTON_DNSAPI', 0, 1, 'exited', 'PS5_PROTON_DNSAPI FAIL: x\n')['probe_passed'])
+        self.assertFalse(battery.session_verdict('PS5_PROTON_DNSAPI', 0, 1, 'exited', 'no verdict\n')['probe_passed'])
+        self.assertFalse(battery.session_verdict('PS5_PROTON_DNSAPI', 1, 1, 'exited', 'PS5_PROTON_DNSAPI PASS\n')['probe_passed'])
+        self.assertFalse(battery.session_verdict('PS5_PROTON_DNSAPI', 0, 1, 'killed', 'PS5_PROTON_DNSAPI PASS\n')['probe_passed'])
+        self.assertTrue(battery.session_verdict(battery.OWNER, 0, 1, 'exited', '')['probe_passed'])
+        self.assertFalse(battery.session_verdict(battery.OWNER, 3, 1, 'exited', '')['probe_passed'])
+        self.assertFalse(battery.session_verdict('M', None, None, 'no result', '')['probe_passed'])
+
+    def test_twins_share_a_group(self):
+        self.assertEqual(battery.session_id('file-write32'), '32-file-write')
+        self.assertEqual(battery.session_id('file-write64'), '64-file-write')
+        self.assertEqual(battery.session_id('payload-vm'), 'x-payload-vm')
+        group = lambda ident: ident.split('-', 1)[1]   # tests/wt-session.c group_of
+        self.assertEqual(group(battery.session_id('dnsapi32')), group(battery.session_id('dnsapi64')))
+        ids = [battery.session_id(n) for names in battery.GROUPS.values() for n in names]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_serial_cases_are_group_members(self):
+        members = {n for names in battery.GROUPS.values() for n in names}
+        self.assertLessEqual(battery.SESSION_SERIAL, members)
 
 
 if __name__ == '__main__': unittest.main()

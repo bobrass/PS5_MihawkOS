@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 13:00:00 -0400
+Subject: [PATCH] ntdll: PS5: a cancel runs its own results before it returns.
+
+The server ends a thread's own asyncs at once when it cancels them and queues their results to the thread as system
+APCs. On the console the signal that runs them reaches a helper's thread through its agent (pw_ps5_remote_signal, a
+socket message), after the server's reply, so NtCancelIoFileEx returned with the cancelled read's status block still
+unwritten: ntdll pipe.c:654, 0x55555555, both builds (2026-10-25), where the signal on Linux interrupts the thread before
+the reply. After a cancel that ended its asyncs at once, the thread now runs its pending system APCs, with the
+zero-timeout select NtTerminateThread already uses, one server call per such cancel.
+---
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index 275d7d7..2919274 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -8352,6 +8352,12 @@ static NTSTATUS cancel_io( HANDLE handle, IO_STATUS_BLOCK *io, IO_STATUS_BLOCK *
+         NtWaitForSingleObject( cancel_handle, TRUE, NULL );
+         NtClose( cancel_handle );
+     }
++#ifdef __PROSPERO__
++    /* The server ended this thread's own asyncs at once and queued their results to it as system APCs. The signal that
++     * runs them reaches a helper's thread through its agent, after the reply, so the cancelled read's status block was
++     * still unwritten when NtCancelIoFileEx returned (ntdll pipe.c:654, 0x55555555, 2026-10-25); run them now. */
++    else if (!status) server_select( NULL, 0, SELECT_INTERRUPTIBLE, 0, NULL, NULL );
++#endif
+     else if (status == STATUS_INVALID_HANDLE)
+     {
+         return status;

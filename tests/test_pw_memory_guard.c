@@ -133,12 +133,29 @@ int main(void)
     /* Firmware 12.00 and later has its own limit, whatever the first census was (the base PS5's read 731 to 1223 MiB at
      * the start of launches, a Wine start took ten helpers and the census to 1237-1537 MiB: all of it is under the marks,
      * and a climb past the end mark still ends the game). The Pro's firmware 10.01, and none known, keep theirs. */
-    assert(pw_memory_guard_default_limit_mib(0x13400002u) == 1600 && pw_memory_guard_default_limit_mib(0x12000000u) == 1600);
-    assert(pw_memory_guard_default_limit_mib(0x10010001u) == 870 && pw_memory_guard_default_limit_mib(0x11000000u) == 870);
-    assert(pw_memory_guard_default_limit_mib(0) == 870);
+    assert(pw_memory_guard_default_limit_mib(0x13400002u) == 1800 && pw_memory_guard_default_limit_mib(0x12000000u) == 1800);
+    assert(pw_memory_guard_default_limit_mib(0x10010001u) == 990 && pw_memory_guard_default_limit_mib(0x11000000u) == 990);
+    assert(pw_memory_guard_default_limit_mib(0) == 990);
+    /* The soft notice sits under the last resort and above where an idle console reads (165-270 MiB). */
+    assert(PW_MEMORY_GUARD_SWAP_NOTICE_MIB == 800 && PW_MEMORY_GUARD_SWAP_NOTICE_MIB < PW_MEMORY_GUARD_LAST_RESORT_MIB);
+    assert(pw_memory_guard_swap_notice_mib(0x10010001u) == 800 && pw_memory_guard_swap_notice_mib(0) == 800);
+    assert(pw_memory_guard_swap_notice_mib(0x13600000u) == 1700 && pw_memory_guard_swap_notice_mib(0x12000000u) == 1700);
+    /* said before the guard acts on either generation */
+    assert(pw_memory_guard_swap_notice_mib(0x13600000u) < pw_memory_guard_default_limit_mib(0x13600000u));
+    assert(pw_memory_guard_swap_notice_mib(0x10010001u) < pw_memory_guard_default_limit_mib(0x10010001u));
+    assert(pw_memory_guard_default_end_mib(990) == 1010 && pw_memory_guard_default_end_mib(1800) == 1870 && pw_memory_guard_default_end_mib(870) == 940);
+    /* The last resort: the signed-in client window of 2026-10-24 (about 725 MiB of kernel RSS, census 743-862) is left alone, a
+     * climb to the end mark is ended, and the steep rule stays armed under it. */
+    pw_memory_guard_init(&guard, 990, pw_memory_guard_default_end_mib(990));
+    assert(guard.limit == MIB(990) && guard.end == MIB(1010));
+    now = 1000;
+    assert(feed(&guard, &now, 20, 250, NULL) == PW_MEMORY_FINE);
+    assert(feed(&guard, &now, 90, 880, NULL) == PW_MEMORY_FINE);        /* a window that swaps but is under the last resort */
+    assert(pw_memory_guard_pressure_ms(&guard) == 0);
+    assert(feed(&guard, &now, 4, 1015, NULL) == PW_MEMORY_END);        /* a jump of 135 MiB to the end mark: the steep rule */
     for (unsigned idle = 731; idle <= 1223; idle += 164) {
         pw_memory_guard_init(&guard, pw_memory_guard_default_limit_mib(0x13400002u), 0);
-        assert(guard.limit == MIB(1600) && guard.end == MIB(1670));
+        assert(guard.limit == MIB(1800) && guard.end == MIB(1870));
         now = 1000;
         assert(feed(&guard, &now, 20, idle, NULL) == PW_MEMORY_FINE);
         assert(feed(&guard, &now, 8, idle + 250, NULL) == PW_MEMORY_FINE);

@@ -1,0 +1,108 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PS5_Proton
+Subject: [PATCH] wineboot: No Bluetooth or USB root devices, and no plug-and-play or event-log
+ service, on the PS5.
+
+Every session on the PS5 Pro started two driver hosts (winedevice.exe) for
+winebth.sys and wineusb.sys (measured 2026-10-24 from the helpers' own module
+lists: one winedevice process each, 14 to 15 MiB counted apiece). A Windows
+program cannot use either here: there is no host Bluetooth stack behind winebth
+and no libusb behind wineusb. The console's flexible memory is 1 GiB and the
+game store's client plus a game already come close to it, so the 29 MiB is taken back.
+
+wineboot no longer makes the two root devices (the third, winebus, is kept: it
+is the controllers), and deletes their Enum entries from a prefix that already
+has them, before the services start, so the plug-and-play manager finds nothing
+to load. It also sets the plug-and-play service's and the event log's start type to
+disabled before the services start (14 to 19 MiB each: plugplay.exe, and the
+svchost that hosts the event log; the PS5 port starts the controller bus itself).
+WINE_PS5_ROOT_DEVICES=all in the application's environment keeps all of it as upstream.
+For the two drivers, setting their services' start type to disabled did not stop
+them: the manager loads a root device's driver whatever the service's start type
+says (measured), so the devices themselves are removed.
+
+diff --git a/programs/wineboot/wineboot.c b/programs/wineboot/wineboot.c
+--- a/programs/wineboot/wineboot.c
++++ b/programs/wineboot/wineboot.c
+@@ -1533,6 +1533,65 @@
+     return pi.hProcess;
+ }
+ 
++/* PS5: neither a Bluetooth radio nor raw USB devices reach a Windows program here (no host stack behind winebth, no libusb
++ * behind wineusb), and each driver's host process (winedevice) costs about 15 MiB of the console's 1 GiB of flexible
++ * memory in every session. Their root devices are not made, and a prefix that has them loses them before the services
++ * start (WINE_PS5_ROOT_DEVICES=all keeps them, and the services below). */
++static BOOL ps5_unused_root_device( const char *name, BOOL remove )
++{
++    static const struct { const char *name; const WCHAR *key; } unused[] =
++    {
++        {"root\\wine\\winebth", L"System\\CurrentControlSet\\Enum\\ROOT\\WINE\\WINEBTH"},
++        {"root\\wine\\wineusb", L"System\\CurrentControlSet\\Enum\\ROOT\\WINE\\WINEUSB"},
++    };
++    WCHAR keep[8] = {0};
++    DWORD length;
++    unsigned int i;
++
++    length = GetEnvironmentVariableW( L"WINE_PS5_ROOT_DEVICES", keep, ARRAY_SIZE(keep) );
++    if (length && length < ARRAY_SIZE(keep) && !wcscmp( keep, L"all" )) return FALSE;
++    for (i = 0; i < ARRAY_SIZE(unused); i++)
++    {
++        if (strcmp( name, unused[i].name )) continue;
++        if (remove) RegDeleteTreeW( HKEY_LOCAL_MACHINE, unused[i].key );
++        return TRUE;
++    }
++    return FALSE;
++}
++
++/* The plug-and-play service and the event log (svchost) are not used on the PS5 either: the PS5 port starts the controller
++ * bus itself and no program here depends on a device notification service, and each process costs 14 to 19 MiB. Their
++ * start type is disabled before the services start; wine.inf puts it back whenever the prefix is updated, and it is taken
++ * off again at the next start. */
++static void ps5_disable_unused_services(void)
++{
++    static const WCHAR *const keys[] =
++    {
++        L"System\\CurrentControlSet\\Services\\PlugPlay",
++        L"System\\CurrentControlSet\\Services\\Eventlog",
++    };
++    WCHAR keep[8] = {0};
++    DWORD length = GetEnvironmentVariableW( L"WINE_PS5_ROOT_DEVICES", keep, ARRAY_SIZE(keep) );
++    DWORD start = SERVICE_DISABLED;
++    unsigned int i;
++    HKEY key;
++
++    if (length && length < ARRAY_SIZE(keep) && !wcscmp( keep, L"all" )) return;
++    for (i = 0; i < ARRAY_SIZE(keys); i++)
++    {
++        if (RegOpenKeyExW( HKEY_LOCAL_MACHINE, keys[i], 0, KEY_SET_VALUE, &key )) continue;
++        RegSetValueExW( key, L"Start", 0, REG_DWORD, (const BYTE *)&start, sizeof(start) );
++        RegCloseKey( key );
++    }
++}
++
++static void ps5_remove_unused_root_devices(void)
++{
++    ps5_unused_root_device( "root\\wine\\winebth", TRUE );
++    ps5_unused_root_device( "root\\wine\\wineusb", TRUE );
++    ps5_disable_unused_services();
++}
++
+ static void install_root_pnp_devices(void)
+ {
+     static const struct
+@@ -1559,6 +1618,7 @@
+ 
+     for (i = 0; i < ARRAY_SIZE(root_devices); ++i)
+     {
++        if (ps5_unused_root_device( root_devices[i].name, FALSE )) continue;
+         if (!SetupDiCreateDeviceInfoA( set, root_devices[i].name, &GUID_NULL, NULL, NULL, 0, &device))
+         {
+             if (GetLastError() != ERROR_DEVINST_ALREADY_EXISTS)
+@@ -1975,6 +2035,7 @@
+     create_computer_name_keys();
+     wininit();
+     pendingRename();
++    ps5_remove_unused_root_devices();
+ 
+     ProcessWindowsFileProtection();
+     ProcessRunKeys( HKEY_LOCAL_MACHINE, L"RunServicesOnce", TRUE, FALSE );

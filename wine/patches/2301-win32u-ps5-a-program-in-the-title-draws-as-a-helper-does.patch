@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 08:00:00 -0400
+Subject: [PATCH] win32u: PS5: a program in the title draws as a helper does.
+
+One Windows program can run inside the title beside the GPU broker that serves the helpers (PS5_Proton
+docs/TITLE_CLIENT.md), its code and memory in the title's own partition. Its windows must reach the broker's
+compositor as a helper's do: WINE_PS5_TITLE_CLIENT, which the title sets for that program, selects the helper's window
+surfaces and cursor rule as WINE_PS5_CHILD does.
+---
+--- a/dlls/win32u/ps5drv.c
++++ b/dlls/win32u/ps5drv.c
+@@ -1243,7 +1243,9 @@
+     }
+     present_frame = dlsym( RTLD_DEFAULT, "pw_wine_present" );
+     present_origin = dlsym( RTLD_DEFAULT, "pw_wine_present_origin" );
+-    helper_process = getenv( "WINE_PS5_CHILD" ) != NULL;
++    /* A Windows program the title runs itself beside the broker draws as a helper does (WINE_PS5_TITLE_CLIENT,
++     * docs/TITLE_CLIENT.md): its windows go to the broker's compositor. */
++    helper_process = getenv( "WINE_PS5_CHILD" ) != NULL || getenv( "WINE_PS5_TITLE_CLIENT" ) != NULL;
+     present_window = dlsym( RTLD_DEFAULT, "pw_wine_window_present_surface" );
+     drop_window = dlsym( RTLD_DEFAULT, "pw_wine_window_drop" );
+     window_surfaces = helper_process && present_window && drop_window &&

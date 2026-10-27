@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 01:30:00 -0400
+Subject: [PATCH] dbghelp: a live process without a Unix loader address is still live.
+
+check_live_target reads the Unix loader's image address that ntdll puts in the PEB (CloudFileFlags) and refused a
+process where it is 0. On the console it is always 0: ntdll's get_image_address has no getauxval there, and no ELF
+loader maps the modules. So SymInitialize with fInvadeProcess failed for every live process ("failed to initialize
+process"), and with it every MiniDumpWriteDump, which a game's crash handler calls: dbghelp minidump.c:91 in both
+builds, and the test then read the empty dump and crashed (minidump-trace, 2026-10-27). With no address the process
+is now live with its Windows modules only, which dbghelp already does when the address cannot be read.
+---
+--- a/dlls/dbghelp/dbghelp.c	2026-10-27 00:41:23.015182826 -0400
++++ b/dlls/dbghelp/dbghelp.c	2026-10-27 00:41:23.032182993 -0400
+@@ -414,7 +414,13 @@
+         free(buf);
+     }
+ 
+-    if (!base) return FALSE;
++    /* no Unix loader address (the console's ntdll has no getauxval and no ELF loader to point at): the process is
++     * still live, with its Windows modules only, as when the address cannot be read below */
++    if (!base)
++    {
++        pcs->loader = &empty_loader_ops;
++        return TRUE;
++    }
+ 
+     TRACE("got debug info address %#I64x from PEB %p\n", base, pbi.PebBaseAddress);
+     if (base != (ULONG_PTR)base || (!elf_read_wine_loader_dbg_info(pcs, base) && !macho_read_wine_loader_dbg_info(pcs, base)))

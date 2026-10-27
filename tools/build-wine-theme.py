@@ -343,20 +343,24 @@ def main():
     record = {'resources':len(actual),'bitmap_references':len(refs),'variants':['Blue','Dark'],
               'target':appearance['target'],'sha256':hashlib.sha256(theme.read_bytes()).hexdigest(),'passed':True,'runtime_qualified':False, 'appearance_revision':appearance_revision}
     (OUTPUT/'build.json').write_text(json.dumps(record,indent=1)+'\n')
-    # The desktop's wallpaper is the project's own Aero Meadow (tools/make-mihawk-wallpaper.py, original artwork; it
-    # replaced the owner's local copy of Windows 11's Bloom on 2026-10-18), drawn again only when its generator or its
-    # corner note changed. The note, top right, is the release's version (VERSION) and the community link (the owner's
-    # choice, 2026-10-20).
+    # The desktop's wallpaper is the project's own Bubble Earth (tools/make-aero-wallpapers.py, original artwork; the
+    # owner's choice on 2026-10-25, replacing Aero Meadow, which had replaced the owner's local copy of Windows 11's
+    # Bloom on 2026-10-18), drawn again only when its generators or its corner note changed. The note, top right, is the
+    # release's version (VERSION) and the community link (the owner's choice, 2026-10-20), stamped by Aero Meadow's
+    # stamp(); Bubble Earth's bubbles are Aero Meadow's too, so both generators are in the stamp.
     destination = OUTPUT / 'proton.bmp'
     stamp = OUTPUT / 'proton.bmp.sha256'
-    generator = ROOT / 'tools/make-mihawk-wallpaper.py'
+    generators = [ROOT / 'tools/make-aero-wallpapers.py', ROOT / 'tools/make-mihawk-wallpaper.py']
     note = [f'MihawkOS v{(ROOT / "VERSION").read_text().strip()}', 'https://discord.gg/mihawk']
-    want = hashlib.sha256(generator.read_bytes() + '\n'.join(note).encode()).hexdigest()
+    want = hashlib.sha256(b''.join(g.read_bytes() for g in generators) + '\n'.join(note).encode()).hexdigest()
     if not destination.is_file() or not stamp.is_file() or stamp.read_text().strip() != want:
-        spec = importlib.util.spec_from_file_location('mihawk_wallpaper', generator)
-        wallpaper = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(wallpaper)
-        wallpaper.stamp(wallpaper.wallpaper(1920, 1080), note).save(destination)
+        modules = []
+        for name, path in (('aero_wallpapers', generators[0]), ('mihawk_wallpaper', generators[1])):
+            spec = importlib.util.spec_from_file_location(name, path)
+            modules.append(importlib.util.module_from_spec(spec))
+            spec.loader.exec_module(modules[-1])
+        aero, meadow = modules
+        meadow.stamp(aero.render('bubble-earth', 1920, 1080), note).save(destination)
         stamp.write_text(want + '\n')
     print(json.dumps(record,indent=1))
 

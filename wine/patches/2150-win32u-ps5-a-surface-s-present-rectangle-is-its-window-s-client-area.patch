@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 14:00:00 -0400
+Subject: [PATCH] win32u: PS5: a surface's present rectangle is its window's client area.
+
+Every PS5 Vulkan surface is a surface on the display plane (patch 0460), so the host answers
+vkGetPhysicalDevicePresentRectanglesKHR with the whole display: 1920x1080 for an ordinary 200x200 window, where Windows
+reports the window's client area. Wine's vulkan-1 test checks it (vulkan.c:767, in the created, resized and hidden
+contexts, both builds; vulkan-present-mode-122115 on the Pro, 2026-10-27), and it was that test's one console-only
+line left. The surface capabilities already report the client area (adjust_surface_capabilities); the present
+rectangle now does the same, with the same DPI.
+---
+--- a/dlls/win32u/vulkan.c
++++ b/dlls/win32u/vulkan.c
+@@ -2410,8 +2410,27 @@
+         return VK_SUCCESS;
+     }
+ 
++#ifdef __PROSPERO__
++    {
++        /* Every PS5 surface is a display-plane surface (ps5drv.c), so the host's rectangle is the whole display; Windows
++         * reports the window's client area, as the surface capabilities already do (adjust_surface_capabilities). */
++        VkResult res = instance->p_vkGetPhysicalDevicePresentRectanglesKHR( physical_device->host.physical_device,
++                                                                            surface->obj.host.surface, rect_count, rects );
++        RECT client;
++        if (res >= VK_SUCCESS && rects && *rect_count &&
++            get_surface_rect( surface->hwnd, &client, NtUserGetDpiForWindow( surface->hwnd ) ))
++        {
++            rects[0].offset.x = rects[0].offset.y = 0;
++            rects[0].extent.width = client.right - client.left;
++            rects[0].extent.height = client.bottom - client.top;
++            *rect_count = 1;
++        }
++        return res;
++    }
++#else
+     return instance->p_vkGetPhysicalDevicePresentRectanglesKHR( physical_device->host.physical_device,
+                                                                    surface->obj.host.surface, rect_count, rects );
++#endif
+ }
+ 
+ static void *find_vk_struct( void *s, VkStructureType t )

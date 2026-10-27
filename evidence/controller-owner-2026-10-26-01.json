@@ -1,0 +1,29 @@
+{
+  "run": "controller-owner-2026-10-26-01",
+  "console": "base PS5, firmware 13.60",
+  "build": "6c54dca6b57d278e",
+  "who": "the owner, at the controller; the harness only followed klog (15:22:58-15:27:46)",
+  "owner_report": "Steam's glyphs were right for each choice and no longer swapped",
+  "sessions_in_klog": [
+    {
+      "at": "15:25:43",
+      "controller": "dualsense",
+      "what": "Big Picture, after Settings > Controller: xbox-one, then dualsense"
+    },
+    {
+      "at": "15:26:48",
+      "controller": "xbox-one",
+      "what": "Big Picture, after Settings > Controller: xbox-360, then xbox-one"
+    }
+  ],
+  "not_in_klog": "no Big Picture session with xbox-360 fell inside the followed window; xbox-360 rests on the owner's report and controller-xinput-360-2026-10-26-01",
+  "probe_runs": {
+    "controller-xinput-360-2026-10-26-01": "PASS: controller 0 connected (default xbox-360)",
+    "controller-xinput-ds-2026-10-26-01": "FAIL as designed: no XInput controller; xinput: \"hidden: the DualSense is chosen\"",
+    "controller-hid32-ds-2026-10-26-01": "PASS: DualSense 054c:0ce6 over HID",
+    "controller-hid32-360-2026-10-26-01": "FAIL as designed: DualSense not enumerated",
+    "cover-held-2026-10-26-01": "PASS: the English guide screens over d3d11-probe.exe, gpu-cover ended flips=188 held=522, 5 of 5 captures show the cover"
+  },
+  "klog_exhaustion_lines": 0,
+  "passed": true
+}

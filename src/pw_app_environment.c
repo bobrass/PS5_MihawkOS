@@ -68,12 +68,24 @@ int pw_app_environment_block(const PwAppEntry *entry, char *out, size_t capacity
     const char *words[PW_APP_ENVIRONMENT_MAX_WORDS];
     size_t count = 0, packed = 0;
     if (!entry || !out || !bytes || (entry->env_count && !entry->env)) return EINVAL;
+    const char *controller = NULL;   /* the entry's own, the last one named */
+    int hid = 0;
     for (size_t i = 0; i < entry->env_count; ++i) {
         const char *equals = entry->env[i] ? strchr(entry->env[i], '=') : NULL;
         if (!equals || equals == entry->env[i]) return EINVAL;      /* a broken catalog entry shows, never vanishes */
+        if (!strncmp(entry->env[i], "WINE_PS5_CONTROLLER=", 20)) controller = equals + 1;
+        if (!strncmp(entry->env[i], "WINE_PS5_HID=", 13)) hid = 1;
+    }
+    const int dualsense = controller && !strcmp(controller, "dualsense");
+    for (size_t i = 0; i < entry->env_count; ++i) {
         if (!pw_app_environment_per_app(entry->env[i])) continue;
+        if (controller && !dualsense && !strcmp(entry->env[i], "SDL_XINPUT_ENABLED=0")) continue;
         if (count == PW_APP_ENVIRONMENT_MAX_WORDS) return E2BIG;
         words[count++] = entry->env[i];
+    }
+    if (controller && !hid) {
+        if (count == PW_APP_ENVIRONMENT_MAX_WORDS) return E2BIG;
+        words[count++] = dualsense ? "WINE_PS5_HID=1" : "WINE_PS5_HID=0";
     }
     if (pw_environment_pack(out, capacity, words, count, &packed)) return errno ? errno : EINVAL;
     *bytes = (uint32_t)packed;

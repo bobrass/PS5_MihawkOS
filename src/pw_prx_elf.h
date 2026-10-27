@@ -3,9 +3,12 @@
 #define PW_PRX_ELF_H
 /*
  * User-space loader for the unsigned Wine module ELFs (the staged
- * "<name>.prx.elf" files). On firmware 13.59 a payload cannot load a
- * fake-signed SELF PRX through sceKernelLoadStartModule, so the payload maps
- * the unsigned ELF itself and registers the result with ntdll.
+ * "<name>.prx.elf" files). A payload helper runs in a system carrier process,
+ * and whether sceKernelLoadStartModule can load a fake-signed SELF PRX there
+ * is up to the console's jailbreak tools, not the firmware: the kernel stopped
+ * helpers at ntdll.prx's text (pager error, errno 92) on 11.00, 12.40, 13.40
+ * and 13.59 while the title loaded the same files. So every helper maps the
+ * unsigned ELF itself and registers the result with ntdll (pw_prx_elf_wanted).
  *
  * The core is pure: it parses an ELF64 little-endian image from a
  * caller-supplied buffer (the converter emits type 0xFE18, SCE's dynamic
@@ -66,6 +69,8 @@ enum {
     PW_PRX_ELF_ERR_UNSUPPORTED = -11  /* DT_REL, or a relocation type we do not apply */
 };
 
+/* bytes of memory at address (or anywhere, the bias then applies to every segment) that reads as zero: a fresh
+ * anonymous mapping. The loader writes only a segment's file bytes, never its zero-filled tail. */
 typedef void *(*PwPrxElfMap)(void *opaque, uintptr_t address, size_t bytes, int prot);
 typedef int (*PwPrxElfProtect)(void *opaque, uintptr_t address, size_t bytes, int prot);
 typedef uintptr_t (*PwPrxElfResolve)(void *opaque, const char *name, const char *library);
@@ -86,4 +91,10 @@ int pw_prx_elf_load(const void *bytes, size_t size, uintptr_t preferred_base,
                     const PwPrxElfMap map, const PwPrxElfProtect protect,
                     const PwPrxElfResolve resolve, void *opaque,
                     PwPrxElfImage *out);
+
+/* Whether a payload helper loads Wine's modules with this loader (1) or the kernel's (0), from its environment block
+ * ("NAME=VALUE" strings, each NUL-ended, an empty one or `bytes` ending it). This loader on every firmware;
+ * WINE_PS5_PRX_LOADER=0 asks for the kernel's, for an A/B on a console whose tools allow it. `reason`, when not NULL,
+ * gets "default", "WINE_PS5_PRX_LOADER=0" or "WINE_PS5_PRX_LOADER=<value>" for the helper's log. */
+int pw_prx_elf_wanted(const char *environment, size_t bytes, const char **reason);
 #endif

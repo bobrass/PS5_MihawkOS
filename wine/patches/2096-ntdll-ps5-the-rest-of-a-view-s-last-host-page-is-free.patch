@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 12:00:00 -0400
+Subject: [PATCH] ntdll: PS5: the rest of a view's last host page is free.
+
+A view that ends inside a 16 KiB host page (an image whose size is not a multiple of 16 KiB) has the rest of that host
+page mapped with it. VirtualQuery just past the view asked the native query (__wine_ps5_vm_gap), found it taken and
+reported it reserved (AllocationBase that address, MEM_PRIVATE), where Windows reports MEM_FREE: kernel32 loader.c:942-946,
+14 images, 4 checks, both builds, 112 lines (docs/HOST_PAGES.md, group A). Nothing can be allocated there on Windows
+either, as it lies below the next 64 KiB boundary, so the space up to the end of that host page is now reported free.
+---
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index b9b0a31..7db630a 100644
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -7570,6 +7570,17 @@ static struct file_view *get_memory_region_size( char *base, char **region_start
+         void *start, *end;
+         int status;
+ 
++        /* The rest of the last host page of a view that ends inside one (an image's tail) is mapped with the view, so the
++         * native query below finds it taken and called it reserved; Windows calls it free, and nothing can be allocated
++         * there on Windows either: it lies below the next 64 KiB boundary (kernel32 loader.c:942-946, 112 lines). */
++        if (*region_start && ((UINT_PTR)*region_start & host_page_mask) &&
++            base < (char *)ROUND_ADDR( *region_start, host_page_mask ) + host_page_size)
++        {
++            char *host_end = (char *)ROUND_ADDR( *region_start, host_page_mask ) + host_page_size;
++            if (host_end < *region_end) *region_end = host_end;
++            return NULL;
++        }
++
+         /* Fixed allocations already reject this range. Do not advertise it
+          * as free to Windows address-space scanners. Existing views above
+          * the measured host limit were handled by the tree lookup first. */

@@ -1,0 +1,16 @@
+{
+ "run": "stream-pool-raise-2026-10-21-01",
+ "what": "profile steam-e2e program C:\\Program Files (x86)\\Steam\\steam.exe",
+ "env": [
+  "PROTON_SYSTEM_MEMORY_LIMIT=0",
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "no launch: the console dropped off the network (ps5vkctl was pid 102 this boot and is now pid 148: it was gone and was loaded again, 2026-10-21 14:58:09). It must be restarted by hand, then: tools/console_guard.py new-boot",
+ "loaded": false,
+ "probe_verdict": null,
+ "stop_requested": null,
+ "cleanup_verified": false,
+ "hooks_removed": true
+}

@@ -18,7 +18,9 @@ virtual_handle_fault, under the virtual mutex, now:
 (b) on an execute fault Wine allows in a private or image view, converts the faulting host page and its neighbours
     with the same host protection, within the view and a 16 KiB window, into one JIT object of exactly that size
     (__wine_ps5_exec_convert, wine/ps5/pw_wine_dmem_ps5.c), and runs the instruction again, also when another piece
-    of the cluster failed after the faulting page's own became JIT memory (counted as convert_failed);
+    of the cluster failed after the faulting page's own became JIT memory (counted as convert_failed); an image
+    view's code goes through __wine_ps5_exec_convert_image, which maps a copy another helper made of the same bytes
+    when the title's registry has one (shared code copies, wine/ps5/pw_wine_codeshare.h);
 (c) counts an execute fault Wine allows that is still an access violation (a section view, which must stay coherent
     with its other views, or a failed conversion: __wine_ps5_exec_refused), one log line rate-limited.
 Wine's host-protection cache follows the kernel: a conversion records what the kernel now holds over the cluster, and a
@@ -52,18 +54,19 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
 index 4626be1..900d4a3 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -214,7 +214,9 @@ static BOOL host_prot_unchanged( const void *addr, size_t len, int prot )
+@@ -214,7 +214,10 @@ static BOOL host_prot_unchanged( const void *addr, size_t len, int prot )
   * reserved areas comes from the console's direct memory instead of its
   * ~440 MiB of flexible memory; every other call passes through. */
  extern void *__wine_ps5_mmap( void *addr, size_t len, int prot, int flags, int fd, off_t off );
 -extern int __wine_ps5_exec_fault_retry( unsigned int *seen );
 +extern int __wine_ps5_exec_convert( void *address, size_t bytes, int unix_prot );
++extern int __wine_ps5_exec_convert_image( void *address, size_t bytes, int unix_prot );
 +extern int __wine_ps5_host_allows( const void *address, int access );
 +extern void __wine_ps5_exec_refused( const void *address );
  extern int __wine_ps5_munmap( void *addr, size_t len );
  extern int __wine_ps5_mprotect( void *addr, size_t len, int prot );
  extern int __wine_ps5_dmem_region( void *base, size_t size );
-@@ -5726,6 +5728,88 @@ static NTSTATUS grow_thread_stack( char *page, struct thread_stack_info *stack_i
+@@ -5726,6 +5729,90 @@ static NTSTATUS grow_thread_stack( char *page, struct thread_stack_info *stack_i
  }
  
  
@@ -133,7 +136,9 @@ index 4626be1..900d4a3 100644
 +    low = max( low, (char *)view->base );
 +    while (start - host_page_size >= low && ps5_host_prot( start - host_page_size ) == prot) start -= host_page_size;
 +    while (end + host_page_size <= high && ps5_host_prot( end ) == prot) end += host_page_size;
-+    failed = __wine_ps5_exec_convert( start, end - start, prot );
++    /* An image's code is shared with other helpers whose bytes are the same (wine/ps5/pw_wine_codeshare.h). */
++    failed = view->protect & SEC_IMAGE ? __wine_ps5_exec_convert_image( start, end - start, prot )
++                                       : __wine_ps5_exec_convert( start, end - start, prot );
 +    ps5_conversions++;
 +    /* A host page another thread opened for a 4 KiB step (patch 1122) is cached as what that thread asked; the kernel
 +     * now holds prot, or after a failure something not known, so the next change of it reaches the kernel. */
@@ -152,7 +157,7 @@ index 4626be1..900d4a3 100644
  /***********************************************************************
   *           virtual_handle_fault
   */
-@@ -5737,17 +5821,16 @@ NTSTATUS virtual_handle_fault( EXCEPTION_RECORD *rec, void *stack )
+@@ -5737,17 +5824,16 @@ NTSTATUS virtual_handle_fault( EXCEPTION_RECORD *rec, void *stack )
      char *page = ROUND_ADDR( addr, host_page_mask );
      BYTE vprot;
  
@@ -177,7 +182,7 @@ index 4626be1..900d4a3 100644
  
  #ifdef __APPLE__
      /* Rosetta on Apple Silicon misreports certain write faults as read faults. */
-@@ -5845,6 +5928,10 @@ NTSTATUS virtual_handle_fault( EXCEPTION_RECORD *rec, void *stack )
+@@ -5845,6 +5931,10 @@ NTSTATUS virtual_handle_fault( EXCEPTION_RECORD *rec, void *stack )
              ret = STATUS_SUCCESS;
          }
      }

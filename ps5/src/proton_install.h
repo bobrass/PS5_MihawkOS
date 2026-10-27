@@ -49,7 +49,8 @@ struct ProtonInstall {
 };
 
 /* Look again for the pieces and the free space (not while an install runs). Needs /data. `only` "usb": the sticks'
- * mihawkos folders alone, not /data/ps5proton/install. */
+ * mihawkos folders alone, not /data/ps5proton/install; "install": that folder alone (copied there over FTP), with no
+ * download in its place when it is empty. */
 ProtonInstall proton_install_find(const char *only = nullptr);
 /* Start the install proton_install_find found ready; returns at once. */
 void proton_install_start();

@@ -1,0 +1,140 @@
+{
+ "where": "host",
+ "kind": "dxsetup",
+ "wine": ".deps/wine-host-display/build/wine",
+ "prefix_seconds": 5.8,
+ "seconds": 30.6,
+ "timed_out": false,
+ "verdict": {
+  "passed": true,
+  "summary": "dxsetup, 18 checks, 0 failed, 24001 ms in all"
+ },
+ "checks": [
+  {
+   "step": "snapshot",
+   "verdict": "N/A",
+   "ms": 9,
+   "detail": "entries 1711"
+  },
+  {
+   "step": "install",
+   "verdict": "PASS",
+   "ms": 11977,
+   "detail": "exit codes 0 0"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\d3dx9_43.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\d3dx11_43.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\d3dcompiler_43.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\d3dx9_43.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\d3dx11_43.dll"
+  },
+  {
+   "step": "install-native",
+   "verdict": "PASS",
+   "ms": 1,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\d3dcompiler_43.dll"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 48,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp32.exe\" /load d3dx9_43.dll D3DXCheckVersion"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 43,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp64.exe\" /load d3dx9_43.dll D3DXCheckVersion"
+  },
+  {
+   "step": "reinstall",
+   "verdict": "PASS",
+   "ms": 11833,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\d3dx9_43.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\d3dx11_43.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\system32\\d3dcompiler_43.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\d3dx9_43.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\d3dx11_43.dll"
+  },
+  {
+   "step": "reinstall-native",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "not Wine's own: %SystemRoot%\\syswow64\\d3dcompiler_43.dll"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 47,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp32.exe\" /load d3dx9_43.dll D3DXCheckVersion"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 43,
+   "detail": "exit code 77 \"%FIX%\\steam-app\\pwapp64.exe\" /load d3dx9_43.dll D3DXCheckVersion"
+  },
+  {
+   "step": "uninstall",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "the DirectX redistributable has no uninstaller"
+  },
+  {
+   "step": "clean",
+   "verdict": "N/A",
+   "ms": 0,
+   "detail": "not applicable without an uninstaller"
+  }
+ ]
+}

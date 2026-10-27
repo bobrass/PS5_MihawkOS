@@ -13,6 +13,7 @@
 #define _WIN64 1
 #include "fake_ps5_kernel.h"
 #include "../wine/ps5/pw_wine_alias.h"
+#include "../wine/ps5/pw_wine_codeshare.h"
 #include "../wine/ps5/pw_wine_mmu4k.h"
 #include "../wine/ps5/pw_wine_heap.h"
 #include "../wine/ps5/pw_wine_pages.h"
@@ -49,6 +50,9 @@ void *__wine_ps5_mmap(void *, size_t, int, int, int, off_t);
 int __wine_ps5_munmap(void *, size_t);
 int __wine_ps5_mprotect(void *, size_t, int);
 int __wine_ps5_exec_convert(void *, size_t, int);
+int __wine_ps5_exec_convert_image(void *, size_t, int);
+unsigned int __wine_ps5_code_cache_stats(uint64_t *, unsigned int);
+unsigned int __wine_ps5_code_share_stats(uint64_t *, unsigned int);
 int __wine_ps5_host_allows(const void *, int);
 void __wine_ps5_exec_refused(const void *);
 int __wine_ps5_dmem_keep(void *, size_t);
@@ -451,7 +455,7 @@ static void late_library_release(void)
 static const unsigned char code[] = { 0xb8, 42, 0, 0, 0, 0xc3 };   /* mov eax, 42; ret */
 static void commit_over_foreign(void)
 {
-    const uintptr_t region = 0x1000000000, f = region + GIB, heap = 0x2000000000;
+    const uintptr_t region = 0x1000000000, f = region + GIB, heap = 0x5000000000;
     const int file = memfd_create("section", 0);
     struct file_view *view, *placeholder, *got = NULL;
     uintptr_t outside;
@@ -602,7 +606,7 @@ static void host_protection_leaf(void)
     placed = mmap(NULL, 4 * PAGE, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     assert(placed != MAP_FAILED && ((uintptr_t)placed >= region + GIB || (uintptr_t)placed + 4 * PAGE <= region));
     /* The heap's area has no room for the block (a mapping not Wine's halves it): no mapping of the heap's own. */
-    fk_plant(FK_DIRECT, 0x2000000000 + ((size_t)3 << 30), PAGE, 0x33, "gpu-client", 0);
+    fk_plant(FK_DIRECT, 0x5000000000 + ((size_t)3 << 30), PAGE, 0x33, "gpu-client", 0);
     mmaps = fk_calls(FK_OP_MMAP);
     assert(!pw_wine_heap_malloc((size_t)7 << 29) && fk_calls(FK_OP_MMAP) == mmaps);
     host_prot_record((void *)view, 64 * MIB, PROT_READ | HOST_PROT_KNOWN);
@@ -630,9 +634,9 @@ static void heap_signals_blocked(void)
     void *block;
 
     payload(1);
-    wine_reserve(0x900000000, GIB);   /* the first region brings up the heap's area (0x2000000000) */
+    wine_reserve(0x900000000, GIB);   /* the first region brings up the heap's area (0x5000000000) */
     fk_on_next(FK_OP_MAP_DIRECT, heap_call_seen);
-    assert((block = pw_wine_heap_malloc(4 * MIB)) && (uintptr_t)block >= 0x2000000000);   /* a large block: heap_map */
+    assert((block = pw_wine_heap_malloc(4 * MIB)) && (uintptr_t)block >= 0x5000000000);   /* a large block: heap_map */
     assert(heap_calls_blocked == 1 && !blocked(SIGUSR1) && !blocked(SIGQUIT) && !blocked(SIGINT));
     fk_on_next(FK_OP_RESERVE_FIXED, heap_call_seen);   /* heap_unmap lays the reservation back, then releases */
     pw_wine_heap_free(block);
@@ -985,6 +989,30 @@ static void gpu_client_ranges(void)
     fk_set_floor(PW_GPU_HOST_HIGH_BASE);
     assert(fk_place(FK_ANON, PW_GPU_HOST_HIGH_BASE, PAGE, 3, "wine") == PW_GPU_HOST_HIGH_BASE);
     assert(!radv_ps5_memory_alloc(4 * PAGE, 0, false, &memory) && entry_kind(PW_GPU_HOST_HIGH_BASE) == FK_ANON);
+    done();
+}
+
+/* A client in the owner's own process (a program run inside the title, graphics patch 0031): the owner has the buffer
+ * mapped at the address it answers, so the client maps nothing and reserves nothing there, and its free leaves the
+ * owner's mapping alone; FREE still reaches the owner. */
+static void gpu_client_in_owner(void)
+{
+    struct radv_ps5_memory memory;
+
+    payload(1);
+    ps5_gpu_client_in_owner();
+    client(0);
+    owner_address = PW_GPU_HOST_HIGH_BASE;
+    fk_plant(FK_DIRECT, PW_GPU_HOST_HIGH_BASE, 4 * PAGE, 0x33, "gpu-owner", 0);
+    fk_clear_calls();
+    fk_as("gpu-client");
+    assert(radv_ps5_memory_alloc(4 * PAGE, 0, false, &memory) && memory.cpu == (void *)PW_GPU_HOST_HIGH_BASE);
+    assert(!fk_calls(FK_OP_RESERVE) && !fk_calls(FK_OP_RESERVE_FIXED) && !fk_calls(FK_OP_MAP_DIRECT) &&
+           !fk_calls(FK_OP_MMAP) && !fk_calls(FK_OP_MUNMAP));
+    radv_ps5_memory_free(&memory);
+    assert(owner_frees == 1 && !fk_calls(FK_OP_RESERVE_FIXED) && !fk_calls(FK_OP_MUNMAP));
+    assert(entry_kind(PW_GPU_HOST_HIGH_BASE) == FK_DIRECT && kernel_protection(PW_GPU_HOST_HIGH_BASE) == 0x33);
+    fk_as("wine");
     done();
 }
 
@@ -1437,6 +1465,279 @@ static void mmu4k_classify(void)
 }
 
 /* Every case runs, so one run names every replay that fails. */
+/* Shared code copies (wine/ps5/pw_wine_codeshare.h; docs/PLAN.md "Shared code copies"): not a past crash but the
+ * guard against the one sharing could make, a helper's write reaching code another helper runs. The title's registry is
+ * the real one, asked directly (the channel, pw_wine_process.c, is not run here); a second helper is a fork, which
+ * inherits the first one's mapping of the object as another process would map it. */
+static unsigned code_holder, code_asks, code_wrong;
+static int code_wrong_fd = -1;
+int pw_ps5_code_ask(uint64_t hash, uint64_t bytes, int *fd)
+{
+    code_asks++;
+    if (code_wrong) {   /* an object whose bytes are not the asker's: a collision, or a page the asker patched */
+        *fd = dup(code_wrong_fd);
+        return 0;
+    }
+    return pw_wine_codeshare_find(hash, bytes, code_holder, fd);
+}
+int pw_ps5_code_offer(uint64_t hash, uint64_t bytes, int fd)
+{
+    (void)pw_wine_codeshare_offer(hash, bytes, code_holder, dup(fd));   /* as SCM_RIGHTS: the title's own descriptor */
+    return 0;
+}
+enum { SHARE_HITS, SHARE_KIB, SHARE_OFFERS, SHARE_MISMATCHES, SHARE_FAILURES, PRIVATE_WRITES, PRIVATE_KIB };
+static uint64_t share_stat(unsigned which)
+{
+    uint64_t values[7];
+    assert(__wine_ps5_code_share_stats(values, 7) == 7);
+    return values[which];
+}
+/* An image's code as Wine leaves it before its first execute: committed, written, read-execute (the kernel holds R). */
+static void image_code(uintptr_t at, size_t bytes)
+{
+    assert(__wine_ps5_mmap((void *)at, bytes, RW, FIXED_ANON, -1, 0) == (void *)at);
+    for (size_t off = 0; off < bytes; off += PAGE) memcpy((void *)(at + off), code, sizeof(code));
+    assert(!__wine_ps5_mprotect((void *)at, bytes, RX) && kernel_protection(at) == PROT_READ);
+}
+/* The registry's object of [at, +bytes) as the helper's bytes hash, mapped read-write by the test where the fake puts it. */
+static unsigned char *registry_view(uintptr_t at, size_t bytes)
+{
+    int fd;
+    assert(!pw_wine_codeshare_find(pw_wine_codeshare_hash((const void *)at, bytes), bytes, 31, &fd));
+    void *view = mmap(NULL, bytes, RW, MAP_SHARED, fd, 0);
+    assert(view != MAP_FAILED);
+    close(fd);
+    return view;
+}
+static void wait_ok(pid_t pid)
+{
+    int status = 0;
+    assert(pid > 0 && waitpid(pid, &status, 0) == pid && WIFEXITED(status) && !WEXITSTATUS(status));
+}
+
+/* Helper A runs an image's code first: no copy yet, so its own, given to the registry. Helper B, with the same bytes at
+ * the same address, maps that object (no copy made) and runs it; a write grant gives B a copy of its own first, so A
+ * never sees B's write; then the same for A. Private code (a JIT engine's) and writable image code never ask. */
+static void shared_code_copy(void)
+{
+    const uintptr_t region = 0x900000000, page = region + 4 * PAGE, heap = region + 32 * PAGE;
+    unsigned char *object;
+    pid_t pid;
+
+    payload(1);
+    wine_reserve(region, 64 * MIB);
+    image_code(page, PAGE);
+    assert(!__wine_ps5_exec_convert_image((void *)page, PAGE, RX) && entry_kind(page) == FK_JIT &&
+           kernel_protection(page) == RX && run((void *)page) == 42);
+    assert(code_asks == 1 && share_stat(SHARE_OFFERS) == 1 && !share_stat(SHARE_HITS));
+    object = registry_view(page, PAGE);
+    assert(!memcmp(object, (void *)page, PAGE));
+    object[PAGE - 1] = 0x11;   /* A maps that very object */
+    assert(((volatile unsigned char *)page)[PAGE - 1] == 0x11);
+    object[PAGE - 1] = 0;
+
+    if (!(pid = __real_fork())) {
+        code_holder = 1;
+        image_code(page, PAGE);   /* B's own image at the same address: A's mapping is not B's */
+        assert(!__wine_ps5_exec_convert_image((void *)page, PAGE, RX) && run((void *)page) == 42);
+        assert(share_stat(SHARE_HITS) == 1 && share_stat(SHARE_KIB) == PAGE >> 10 && share_stat(SHARE_OFFERS) == 1);
+        object[PAGE - 2] = 0x22;
+        assert(((volatile unsigned char *)page)[PAGE - 2] == 0x22);   /* B maps the registry's object */
+        object[PAGE - 2] = 0;
+        /* VirtualProtect to read-write-execute, then a store: into a copy of B's own. */
+        assert(!__wine_ps5_mprotect((void *)page, PAGE, RW | PROT_EXEC));
+        ((volatile unsigned char *)page)[PAGE - 1] = 0x5a;
+        assert(object[PAGE - 1] == 0 && run((void *)page) == 42 && share_stat(PRIVATE_WRITES) == 1);
+        /* A second grant finds nothing shared there any more. */
+        assert(!__wine_ps5_mprotect((void *)page, PAGE, RW) && share_stat(PRIVATE_WRITES) == 1);
+        done();
+        _exit(0);
+    }
+    wait_ok(pid);
+    assert(((volatile unsigned char *)page)[PAGE - 1] == 0 && object[PAGE - 1] == 0);   /* B's store reached neither */
+    assert(!__wine_ps5_mprotect((void *)page, PAGE, RW | PROT_EXEC));
+    ((volatile unsigned char *)page)[PAGE - 1] = 0x77;
+    assert(object[PAGE - 1] == 0 && share_stat(PRIVATE_WRITES) == 1);
+
+    /* Private code and writable image code are copied as before and never offered or asked about. */
+    code_asks = 0;
+    image_code(heap, PAGE);
+    assert(!__wine_ps5_exec_convert((void *)heap, PAGE, RX) && run((void *)heap) == 42);
+    assert(__wine_ps5_mmap((void *)heap, PAGE, RW, FIXED_ANON, -1, 0) == (void *)heap);
+    memcpy((void *)heap, code, sizeof(code));
+    assert(!__wine_ps5_exec_convert_image((void *)heap, PAGE, RW | PROT_EXEC) && run((void *)heap) == 42);
+    assert(!code_asks && share_stat(SHARE_OFFERS) == 1);
+    done();
+}
+
+/* A copy is mapped only when its bytes are the helper's, whatever the registry answers; a range freed and committed again
+ * is plain memory, which a write grant leaves alone; and a write grant whose copy fails is refused, the object untouched. */
+/* The code cache (docs/FLEXIBLE_MEMORY.md, WINE_PS5_CODE_BUDGET_MIB): past the budget the oldest converted clusters go
+ * back to direct memory holding the same bytes, without execute, and run again after their next conversion; no direct
+ * memory is released while mapped (the fake kernel's hazards). */
+static void code_cache(void)
+{
+    const uintptr_t region = 0x900000000;
+    uint64_t stats[10];
+
+    setenv("WINE_PS5_CODE_BUDGET_MIB", "1", 1);   /* 64 clusters of 16 KiB */
+    payload(1);
+    wine_reserve(region, 64 * MIB);
+    for (unsigned i = 0; i < 80; i++) {
+        const uintptr_t page = region + i * PAGE;
+        assert(__wine_ps5_mmap((void *)page, PAGE, RW, FIXED_ANON, -1, 0) == (void *)page);
+        memcpy((void *)page, code, sizeof(code));
+        ((volatile unsigned char *)page)[100] = (unsigned char)i;
+        assert(!__wine_ps5_mprotect((void *)page, PAGE, RX) && !__wine_ps5_exec_convert((void *)page, PAGE, RX));
+    }
+    for (unsigned i = 0; i < 80; i++) {
+        const uintptr_t page = region + i * PAGE;
+        const int evicted = i < 16;
+        assert((entry_kind(page) == FK_JIT) == !evicted);
+        assert(kernel_protection(page) == (evicted ? PROT_READ : RX));
+        assert(!memcmp((const void *)page, code, sizeof(code)) && ((const unsigned char *)page)[100] == i);
+    }
+    assert(run((void *)(region + 16 * PAGE)) == 42);
+    /* The next execute of an evicted cluster converts it again; the oldest still held makes room. */
+    assert(!__wine_ps5_exec_convert((void *)region, PAGE, RX) && entry_kind(region) == FK_JIT && run((void *)region) == 42);
+    assert(entry_kind(region + 16 * PAGE) != FK_JIT && kernel_protection(region + 16 * PAGE) == PROT_READ);
+    /* One freed since its conversion is found stale and dropped, not touched. */
+    assert(!__wine_ps5_munmap((void *)(region + 17 * PAGE), PAGE));
+    for (unsigned i = 80; i < 82; i++) {
+        const uintptr_t page = region + i * PAGE;
+        assert(__wine_ps5_mmap((void *)page, PAGE, RW, FIXED_ANON, -1, 0) == (void *)page);
+        memcpy((void *)page, code, sizeof(code));
+        assert(!__wine_ps5_mprotect((void *)page, PAGE, RX) && !__wine_ps5_exec_convert((void *)page, PAGE, RX));
+    }
+    assert(__wine_ps5_code_cache_stats(stats, 10) == 10);
+    /* The budget held, every eviction kept its bytes, the freed one was only dropped (an entry the kernel no longer
+     * shows as executable code is never touched, so the count can only overstate what the cache holds). */
+    assert(stats[0] == 1 && stats[1] <= 1024 && stats[2] >= 17 && stats[3] == stats[2] * 16 && stats[4] >= 1);
+    assert(!stats[5] && !stats[6] && stats[9] == 1);   /* a budget the user set: never raised */
+    assert(!stats[7]);
+    done();
+}
+
+/* The code cache's default (the owner, 2026-10-25): on at 64 MiB unless WINE_PS5_CODE_BUDGET_MIB says otherwise; 0 is off,
+ * and an off cache evicts nothing past any total. */
+static void code_cache_default(void)
+{
+    const uintptr_t region = 0x900000000;
+    uint64_t stats[10];
+
+    unsetenv("WINE_PS5_CODE_BUDGET_MIB");
+    payload(1);
+    wine_reserve(region, 64 * MIB);
+    assert(__wine_ps5_mmap((void *)region, PAGE, RW, FIXED_ANON, -1, 0) == (void *)region);
+    memcpy((void *)region, code, sizeof(code));
+    assert(!__wine_ps5_mprotect((void *)region, PAGE, RX) && !__wine_ps5_exec_convert((void *)region, PAGE, RX));
+    assert(__wine_ps5_code_cache_stats(stats, 10) == 10);
+    /* The engine's self-check converted a page of its own first: an entry the cache finds stale and skips. */
+    assert(stats[0] == 64 && stats[1] >= 16 && !stats[2] && stats[9] == 3);   /* no program name in a host test: adaptive */
+    done();
+}
+static void code_cache_off(void)
+{
+    const uintptr_t region = 0x900000000;
+    uint64_t stats[10];
+
+    setenv("WINE_PS5_CODE_BUDGET_MIB", "0", 1);
+    payload(1);
+    wine_reserve(region, 64 * MIB);
+    for (unsigned i = 0; i < 80; i++) {
+        const uintptr_t page = region + i * PAGE;
+        assert(__wine_ps5_mmap((void *)page, PAGE, RW, FIXED_ANON, -1, 0) == (void *)page);
+        memcpy((void *)page, code, sizeof(code));
+        assert(!__wine_ps5_mprotect((void *)page, PAGE, RX) && !__wine_ps5_exec_convert((void *)page, PAGE, RX));
+    }
+    for (unsigned i = 0; i < 80; i++) assert(entry_kind(region + i * PAGE) == FK_JIT);
+    assert(__wine_ps5_code_cache_stats(stats, 10) == 10 && !stats[0] && !stats[1] && !stats[2] && !stats[9]);
+    done();
+}
+
+/* The raise, through the real cache (pw_wine_code_budget.h): a program whose evicted clusters come back a second time, 1 MiB
+ * within 10 s, gets 32 MiB more, once; code coming back once (a phase change) raises nothing. The evicted clusters come
+ * back as JIT memory that runs. */
+static void code_cache_raise(void)
+{
+    const uintptr_t region = 0x900000000;
+    const unsigned pages = 64 * 64 + 64;   /* 65 MiB: the oldest 64 clusters go back to direct memory */
+    uint64_t stats[10];
+
+    unsetenv("WINE_PS5_CODE_BUDGET_MIB");
+    payload(1);
+    wine_reserve(region, 128 * MIB);
+    for (unsigned i = 0; i < pages; i++) {
+        const uintptr_t page = region + i * PAGE;
+        assert(__wine_ps5_mmap((void *)page, PAGE, RW, FIXED_ANON, -1, 0) == (void *)page);
+        memcpy((void *)page, code, sizeof(code));
+        assert(!__wine_ps5_mprotect((void *)page, PAGE, RX) && !__wine_ps5_exec_convert((void *)page, PAGE, RX));
+    }
+    assert(__wine_ps5_code_cache_stats(stats, 10) == 10 && stats[0] == 64 && stats[2] >= 64 && !stats[7]);
+    assert(entry_kind(region) != FK_JIT && kernel_protection(region) == PROT_READ);
+    for (unsigned i = 0; i < 64; i++)
+        assert(!__wine_ps5_exec_convert((void *)(region + i * PAGE), PAGE, RX) && run((void *)(region + i * PAGE)) == 42);
+    assert(__wine_ps5_code_cache_stats(stats, 10) == 10 && stats[0] == 64 && !stats[7] && stats[8] >= 1024);
+    /* In order, the 65 MiB cycles through the 64 MiB cache: the first pass brings every cluster back once (no raise),
+     * the second brings them back again, which raises; it stops there, before the clusters still out come back in a
+     * window of their own. A page that is JIT memory already is left as it is. */
+    for (unsigned i = 0; i < pages; i++)
+        assert(!__wine_ps5_exec_convert((void *)(region + i * PAGE), PAGE, RX) && run((void *)(region + i * PAGE)) == 42);
+    assert(__wine_ps5_code_cache_stats(stats, 10) == 10 && stats[0] == 64 && !stats[7] && stats[8] >= 64 * 1024);
+    for (unsigned i = 0; i < pages && !stats[7]; i++) {
+        assert(!__wine_ps5_exec_convert((void *)(region + i * PAGE), PAGE, RX) && run((void *)(region + i * PAGE)) == 42);
+        assert(__wine_ps5_code_cache_stats(stats, 10) == 10);
+    }
+    assert(stats[0] == 96 && stats[7] == 1 && !stats[5] && !stats[6] && stats[9] == 3);
+    done();
+}
+
+static void shared_code_guards(void)
+{
+    const uintptr_t region = 0x900000000, page = region + 4 * PAGE, pair = region + 8 * PAGE;
+    unsigned char *object;
+    int other;
+
+    payload(1);
+    wine_reserve(region, 64 * MIB);
+    assert((other = memfd_create("other-code", 0)) >= 0 && !ftruncate(other, PAGE));
+    code_wrong = 1;
+    code_wrong_fd = other;
+    image_code(page, PAGE);
+    assert(!__wine_ps5_exec_convert_image((void *)page, PAGE, RX) && run((void *)page) == 42);
+    assert(share_stat(SHARE_MISMATCHES) == 1 && !share_stat(SHARE_HITS));
+    code_wrong = 0;
+
+    /* Freed (Wine's release maps the range PROT_NONE), committed again and run as private code (a JIT engine's): the
+     * release forgot the shared copy, so a write grant there copies nothing. */
+    assert(__wine_ps5_mmap((void *)page, PAGE, PROT_NONE, FIXED_ANON, -1, 0) == (void *)page);
+    image_code(page, PAGE);
+    assert(entry_kind(page) == FK_DIRECT);
+    assert(!__wine_ps5_exec_convert((void *)page, PAGE, RX) && run((void *)page) == 42);
+    assert(!__wine_ps5_mprotect((void *)page, PAGE, RW | PROT_EXEC) && !share_stat(PRIVATE_WRITES));
+
+    /* Two pages, one object: a write grant on the second copies that page only; the first still maps the object. */
+    image_code(pair, 2 * PAGE);
+    assert(!__wine_ps5_exec_convert_image((void *)pair, 2 * PAGE, RX) && run((void *)(pair + PAGE)) == 42);
+    object = registry_view(pair, 2 * PAGE);
+    assert(!__wine_ps5_mprotect((void *)(pair + PAGE), PAGE, RW | PROT_EXEC));
+    ((volatile unsigned char *)pair)[2 * PAGE - 1] = 0x5a;
+    assert(object[2 * PAGE - 1] == 0 && share_stat(PRIVATE_WRITES) == 1 && share_stat(PRIVATE_KIB) == PAGE >> 10);
+    object[PAGE - 1] = 0x33;
+    assert(((volatile unsigned char *)pair)[PAGE - 1] == 0x33);
+    object[PAGE - 1] = 0;
+
+    /* The copy before a write grant fails (its scratch mapping): the grant is refused and the object never writable. */
+    fk_fail_next(FK_OP_MMAP);
+    assert(__wine_ps5_mprotect((void *)pair, PAGE, RW | PROT_EXEC) == -1);
+    assert(!(kernel_protection(pair) & PROT_WRITE) && share_stat(PRIVATE_WRITES) == 1);
+    assert(!__wine_ps5_mprotect((void *)pair, PAGE, RW | PROT_EXEC) && share_stat(PRIVATE_WRITES) == 2);
+    ((volatile unsigned char *)pair)[PAGE - 1] = 0x44;
+    assert(object[PAGE - 1] == 0);
+    close(other);
+    done();
+}
+
 static int failed;
 static void in_child(void (*test)(void), const char *name)
 {
@@ -1473,6 +1774,7 @@ int main(void)
     in_child(laid_not_replacing, "laid reservation that does not replace");
     in_child(placed_gpu_map, "placed GPU map");
     in_child(gpu_client_unreserved, "GPU client without host ranges");
+    in_child(gpu_client_in_owner, "GPU client in the owner's own process");
     in_child(gpu_client_ranges, "GPU client host ranges");
     in_child(gpu_client_free_order, "GPU client free order");
     in_child(placed_shared_memory, "placed shared memory");
@@ -1490,6 +1792,12 @@ int main(void)
     in_child(alias_placed_range, "alias outlives its memory: placed GPU range");
     in_child(alias_evicted, "alias evicted");
     in_child(mmu4k_classify, "4 KiB MMU classify");
+    in_child(shared_code_copy, "shared code copy: two helpers, one object, a write gets its own");
+    in_child(shared_code_guards, "shared code copy: other bytes, a freed range, one page of two, a failed copy");
+    in_child(code_cache, "code cache: evicted to direct memory, converted again");
+    in_child(code_cache_default, "code cache: on at 64 MiB by default");
+    in_child(code_cache_raise, "code cache: code back once raises nothing, 1 MiB back again in 10 s raises a program's budget 32 MiB");
+    in_child(code_cache_off, "code cache: WINE_PS5_CODE_BUDGET_MIB=0 keeps every cluster");
     if (failed) return 1;
     puts("crash replays: every past console crash of a helper's memory code replayed against the fake kernel, no "
          "hazard, passed");

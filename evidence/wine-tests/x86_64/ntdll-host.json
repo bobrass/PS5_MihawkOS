@@ -1,18 +1,702 @@
 {
- "thread": {
+ "atom": {
   "context": {
    "arch": "x86_64",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "host_wine_sha256": "ddaea569e3f97724ccae7bbc063aed6dbec0549eb67f5a70559d6babf4f8a5d1",
-   "test_sha256": "c2e71af335ea435cb969d1436290b45cde8717d46a6e5f1696ca70e80cb8d936",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
   "exit_code": 0,
   "failure_count": 0,
   "failures": [],
   "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
   "last_line": "winetest-batch: done",
-  "log": "klog/wt-host-x86_64-ntdll-thread-1791424212373681867.log",
+  "log": "klog/wt-host-x86_64-ntdll-atom-1792940924558276429.log",
+  "seconds": 0.9,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 164064,
+   "todo": 1
+  },
+  "todo_lines": 1
+ },
+ "change": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 1,
+  "failure_count": 1,
+  "failures": [
+   {
+    "file": "change.c",
+    "line": 241,
+    "text": "should be ready"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-change-1792940924981085948.log",
+  "seconds": 0.4,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 1,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 82,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "directory": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-directory-1792940925599592359.log",
+  "seconds": 0.6,
+  "skipped_lines": [
+   "directory.c:1243: Tests skipped: Wow64 redirection not supported"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 7885,
+   "todo": 34
+  },
+  "todo_lines": 34
+ },
+ "env": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-env-1792940925666586336.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 603,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "error": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-error-1792940925733500045.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1448,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "exception": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 2,
+  "failure_count": 1,
+  "failures": [
+   {
+    "file": "exception.c",
+    "line": 2654,
+    "text": "flags = 40000201"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-exception-1792940928204848955.log",
+  "seconds": 2.5,
+  "skipped_lines": [
+   "exception.c:11694: Tests skipped: avx512 is not available, skipping test.",
+   "exception.c:11852: Tests skipped: avx512 is not available, skipping test."
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 2,
+   "flaky": 0,
+   "skipped": 2,
+   "tests": 5488,
+   "todo": 63
+  },
+  "todo_lines": 95
+ },
+ "file": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 1,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-file-1792940928423198588.log",
+  "seconds": 0.2,
+  "skipped_lines": [
+   "file.c:4075: Tests skipped: Not running on WoW64, skipping test.",
+   "file.c:4209: Tests skipped: Not running on WoW64, skipping test."
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 1,
+   "flaky": 0,
+   "skipped": 2,
+   "tests": 2931,
+   "todo": 116
+  },
+  "todo_lines": 116
+ },
+ "generated": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-generated-1792940928489732047.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 0,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "info": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 5,
+  "failure_count": 14,
+  "failures": [
+   {
+    "file": "info.c",
+    "line": 4726,
+    "text": "got 0x2."
+   },
+   {
+    "file": "info.c",
+    "line": 4727,
+    "text": "got 0000000000143B40."
+   },
+   {
+    "file": "info.c",
+    "line": 4733,
+    "text": "got 0xc000000d."
+   },
+   {
+    "file": "info.c",
+    "line": 4735,
+    "text": "wrong vector."
+   },
+   {
+    "file": "info.c",
+    "line": 4736,
+    "text": "got 0x210."
+   },
+   {
+    "file": "info.c",
+    "line": 4737,
+    "text": "got 0000000000143B40."
+   },
+   {
+    "file": "info.c",
+    "line": 4770,
+    "text": "got 0xc0000005."
+   },
+   {
+    "file": "info.c",
+    "line": 4779,
+    "text": "got 0x210."
+   },
+   {
+    "file": "info.c",
+    "line": 4780,
+    "text": "got 000000000010BDB0."
+   },
+   {
+    "file": "info.c",
+    "line": 4812,
+    "text": "got 0x2."
+   },
+   {
+    "file": "info.c",
+    "line": 4814,
+    "text": "got 0x210."
+   },
+   {
+    "file": "info.c",
+    "line": 4844,
+    "text": "got 0000000000000003."
+   },
+   {
+    "file": "info.c",
+    "line": 4847,
+    "text": "got 0x2."
+   },
+   {
+    "file": "info.c",
+    "line": 4849,
+    "text": "got 0000000000000002."
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "0208:info: 3907 tests executed (19 marked as todo, 0 as flaky, 18 failures), 1 skipped.",
+  "log": "klog/wt-host-x86_64-ntdll-info-1792940929258962402.log",
+  "seconds": 0.8,
+  "skipped_lines": [
+   "info.c:2960: Tests skipped: Unable to turn off noexec"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 18,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 3907,
+   "todo": 19
+  },
+  "todo_lines": 19
+ },
+ "large_int": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-large_int-1792940929325997203.log",
+  "seconds": 0.1,
+  "skipped_lines": [
+   "large_int.c:311: Tests skipped: Value ffffffff80000001 broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value fffffffffffffffe broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value ffffffffffffffff broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value fffffffffffffffe broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value ffffffffffffffff broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value ffffffff80000001 broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value fffffffffffffffe broken on 64-bit windows",
+   "large_int.c:311: Tests skipped: Value ffffffffffffffff broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value ffffffff80000001 broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value fffffffffffffffe broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value ffffffffffffffff broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value fffffffffffffffe broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value ffffffffffffffff broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value ffffffff80000001 broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value fffffffffffffffe broken on 64-bit windows",
+   "large_int.c:398: Tests skipped: Value ffffffffffffffff broken on 64-bit windows"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 16,
+   "tests": 612,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "om": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 6,
+  "failure_count": 6,
+  "failures": [
+   {
+    "file": "om.c",
+    "line": 2597,
+    "text": "expected STATUS_SUCCESS, got c0000033"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "NtQueryObject failed c0000008"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "unexpected len 0"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "unexpected len 0"
+   },
+   {
+    "file": "om.c",
+    "line": 2600,
+    "text": "wrong name (null)"
+   },
+   {
+    "file": "om.c",
+    "line": 3663,
+    "text": "got 0."
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-om-1792940929442762113.log",
+  "seconds": 0.1,
+  "skipped_lines": [
+   "om.c:3328: Tests skipped: no privileges, tests may be limited"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 6,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 7729,
+   "todo": 30
+  },
+  "todo_lines": 30
+ },
+ "path": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-path-1792940929559548728.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1011,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "pipe": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-pipe-1792940933432879519.log",
+  "seconds": 3.9,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2431,
+   "todo": 36
+  },
+  "todo_lines": 36
+ },
+ "port": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-port-1792940933501419226.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1,
+   "todo": 1
+  },
+  "todo_lines": 1
+ },
+ "reg": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-reg-1792940933618460435.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 4114,
+   "todo": 16
+  },
+  "todo_lines": 16
+ },
+ "rtl": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-rtl-1792940934186680975.log",
+  "seconds": 0.6,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 600072,
+   "todo": 54
+  },
+  "todo_lines": 54
+ },
+ "rtlbitmap": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-rtlbitmap-1792940934255033311.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 378,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "rtlstr": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-rtlstr-1792940934572495434.log",
+  "seconds": 0.3,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 2178627,
+   "todo": 3
+  },
+  "todo_lines": 3
+ },
+ "string": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-string-1792940934789832010.log",
+  "seconds": 0.2,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 1974183,
+   "todo": 0
+  },
+  "todo_lines": 0
+ },
+ "sync": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-sync-1792940936810987103.log",
+  "seconds": 2.0,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 429,
+   "todo": 1
+  },
+  "todo_lines": 1
+ },
+ "thread": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-thread-1792940936928049759.log",
   "seconds": 0.1,
   "skipped_lines": [],
   "status": "complete",
@@ -25,21 +709,109 @@
   },
   "todo_lines": 0
  },
- "virtual": {
+ "threadpool": {
   "context": {
    "arch": "x86_64",
-   "batch_header_sha256": "29b29d960f4c6cb1517812814c85353c99197bbeb068470d44d62fefefbf3dd1",
-   "host_wine_sha256": "ddaea569e3f97724ccae7bbc063aed6dbec0549eb67f5a70559d6babf4f8a5d1",
-   "test_sha256": "c2e71af335ea435cb969d1436290b45cde8717d46a6e5f1696ca70e80cb8d936",
-   "wine_revision": "7e893751d256bfe062fd1d159375f024dedfa696"
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
   },
   "exit_code": 0,
   "failure_count": 0,
   "failures": [],
   "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
   "last_line": "winetest-batch: done",
-  "log": "klog/wt-host-x86_64-ntdll-virtual-1791424212257495779.log",
-  "seconds": 9.6,
+  "log": "klog/wt-host-x86_64-ntdll-threadpool-1792940946158736868.log",
+  "seconds": 9.2,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 4721,
+   "todo": 2
+  },
+  "todo_lines": 2
+ },
+ "time": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 1,
+  "failure_count": 1,
+  "failures": [
+   {
+    "file": "time.c",
+    "line": 458,
+    "text": "USD SystemTime / NtQuerySystemTime are out of order 1dd6492c7438210 1dd6492c74374b4"
+   }
+  ],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-time-1792940946225654591.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 1,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 10657,
+   "todo": 1
+  },
+  "todo_lines": 1
+ },
+ "unwind": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-unwind-1792940946342777487.log",
+  "seconds": 0.1,
+  "skipped_lines": [],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 0,
+   "tests": 455178,
+   "todo": 2
+  },
+  "todo_lines": 2
+ },
+ "virtual": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-virtual-1792940946459695335.log",
+  "seconds": 0.1,
   "skipped_lines": [],
   "status": "complete",
   "summary": {
@@ -50,5 +822,34 @@
    "todo": 104
   },
   "todo_lines": 104
+ },
+ "wow64": {
+  "context": {
+   "arch": "x86_64",
+   "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+   "host_wine_sha256": "e263fa6ef4a4b72df3b5164b4fb28f2e46b10e509512c6fa49c2b06c68dc5102",
+   "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+   "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+  },
+  "exit_code": 0,
+  "failure_count": 0,
+  "failures": [],
+  "guarded": null,
+  "host_wine": ".deps/wine-host-display/build/tools/wine/wine",
+  "last_line": "winetest-batch: done",
+  "log": "klog/wt-host-x86_64-ntdll-wow64-1792940946676573551.log",
+  "seconds": 0.2,
+  "skipped_lines": [
+   "wow64.c:1335: Tests skipped: NtSetLdtEntries not supported"
+  ],
+  "status": "complete",
+  "summary": {
+   "failures": 0,
+   "flaky": 0,
+   "skipped": 1,
+   "tests": 1084,
+   "todo": 0
+  },
+  "todo_lines": 0
  }
 }

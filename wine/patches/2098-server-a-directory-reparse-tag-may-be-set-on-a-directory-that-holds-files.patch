@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 14:00:00 -0400
+Subject: [PATCH] server: a directory reparse tag may be set on a directory that holds files.
+
+FSCTL_SET_REPARSE_POINT refused every directory that held a file with STATUS_DIRECTORY_NOT_EMPTY. Windows 10 1607 and
+later accept a tag with the directory bit (IsReparseTagDirectory) there and refuse the others: ntdll file.c:6694
+expects the first and 6655 the second. On the console 6694 failed in both builds (2026-10-26, B13). The PC's Wine
+passes it by accident: is_dir_empty() reads a dup() of the directory's descriptor, which shares its offset, so after
+6655's call has read the directory a later call on the same handle starts at its end and finds it empty (a host test
+of the function: first call 0, second 1, the file still there); the console's libc reads it again from the start. A
+tag with the directory bit is now accepted on a directory that is not empty, as on Windows.
+---
+diff --git a/server/fd.c b/server/fd.c
+index 20d5991..27eb726 100644
+--- a/server/fd.c
++++ b/server/fd.c
+@@ -2762,7 +2762,10 @@ static void set_reparse_point( struct fd *fd, struct async *async )
+         return;
+     }
+ 
+-    if (S_ISDIR(st.st_mode) && !is_dir_empty( fd->unix_fd ))
++    /* a tag with the directory bit may be set on a directory that holds files, as on Windows 10 1607 and later
++     * (ntdll file.c:6694; the PC's Wine passes it only because is_dir_empty's dup() shares the descriptor's offset) */
++    if (S_ISDIR(st.st_mode) && !(get_req_data_size() >= sizeof(ULONG) && IsReparseTagDirectory( *(const ULONG *)get_req_data() )) &&
++        !is_dir_empty( fd->unix_fd ))
+     {
+         set_error( STATUS_DIRECTORY_NOT_EMPTY );
+         return;

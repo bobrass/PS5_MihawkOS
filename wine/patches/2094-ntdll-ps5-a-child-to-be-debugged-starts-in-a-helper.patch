@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 13:00:00 -0400
+Subject: [PATCH] ntdll: PS5: a child to be debugged starts in a helper.
+
+NtCreateUserProcess refused a child with a debug object (DEBUG_PROCESS) with STATUS_NOT_SUPPORTED, a refusal the
+first experimental child loader made and nothing measured since. Wine's debug events (a new process, its threads and
+modules, its exceptions) come from the server and the debuggee's own ntdll, not from ptrace, and the debuggee's
+thread contexts and memory already go through the console's own paths (patch 1172, the memory service). kernel32
+process test_DebuggingFlag created such a child, then waited in WaitForDebugEvent(INFINITE) for a debuggee that
+never existed, and the file ended at its 900 s budget in both builds (2026-10-25); ntdll exception's debuggee tests
+answered error 50 (exception.c:9809, 1295). The child now starts, with the debug object passed to the server.
+---
+diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
+index 6fdc1ed..c75da08 100644
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -868,10 +868,11 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
+         goto done;
+     }
+ #ifdef __PROSPERO__
+-    /* Experimental Sony service loader: PE64 and, under WoW64, PE32, explicitly enabled. */
++    /* Experimental Sony service loader: PE64 and, under WoW64, PE32, explicitly enabled. A child to be debugged
++     * starts too: Wine's debug events come from the server and the debuggee's own ntdll, not from ptrace (patch 2094). */
+     if (!getenv("WINE_PS5_CHILDREN") || strcmp(getenv("WINE_PS5_CHILDREN"), "1") ||
+         (getenv("WINE_PS5_CHILD") && !getenv("WINE_PS5_INITIAL_CLIENT") &&
+-         !ps5_descendants_enabled( &params->ImagePathName )) || debug ||
++         !ps5_descendants_enabled( &params->ImagePathName )) ||
+         !ps5_child_machine( pe_info.machine ) || (machine && !ps5_child_machine( machine )))
+     {
+         status = STATUS_NOT_SUPPORTED;

@@ -75,10 +75,11 @@ The PRX conversion tool is built from the GPL-3.0-or-later fork
 SHA-256-pinned upstream tarball (FreeType License/GPLv2); the build script records
 the hash. RADV is linked by PS5_Vulkan's recipe from its recorded PS5_Mesa pin.
 
-The retained title-layout OpenGL backend statically links [PS5 OpenGL SDK 1.0.0](https://github.com/blackbearreloaded/ps5-opengl)
-from runtime source `dce74910af7f4274c48d05e0ae001b3038462588`.
+The retained title-layout OpenGL backend statically links [PS5 OpenGL SDK 1.0.2](https://github.com/darkxex/ps5-opengl)
+by BlackBearReloaded, from runtime source `a519561626933257213d64a4a8bd5e02b55dceb2`. The original repository
+(blackbearreloaded/ps5-opengl) is gone; the release is fetched from darkxex's mirror of it.
 `tools/fetch-opengl-sdk.sh` verifies release archive SHA-256
-`f93643c04c843d56143b00951df1f8042ea7706ae9f19e4e9abf158e1ead77c5`
+`30d8e51dd062739b629346102be5932728ba714bc50b1bdcdf08306c8843d9a4`
 and its SDK manifest. The package includes corresponding source archives,
 `LICENSE` (GPL-3.0-or-later), `THIRD_PARTY_NOTICES.md`, component `LICENSES/`,
 and provenance. Mesa/OpenGNM and other components retain their own notices.
@@ -181,8 +182,18 @@ project's own source (GPL-3.0-or-later since 2026-10-15).
 | Monocypher 4.0.2, Ed25519 signature checks only (`external/monocypher`: `monocypher.c`, `monocypher.h`, `monocypher-ed25519.c`, `monocypher-ed25519.h`), built into the title for its updates (`src/pw_release.c`) | [monocypher.org](https://monocypher.org/download/monocypher-4.0.2.tar.gz) and the [GitHub release](https://github.com/LoupVaillant/Monocypher/releases/tag/4.0.2), the same `monocypher-4.0.2.tar.gz`, SHA-256 `38d07179738c0c90677dba3ceb7a7b8496bcfea758ba1a53e803fed30ae0879c`; files unchanged (`external/monocypher/README.md`) | BSD-2-Clause (`external/monocypher/LICENCE.md`), the BSD side of its BSD-2-Clause-or-CC0-1.0 choice |
 | Chromium Embedded Framework 150.0.22 (CEF commit `c1a097eaa7738483abe2ea9d6297a937d6a884c0`, Chromium 150.0.7871.256), unmodified Windows x64 binaries in `runtime/ge11-7/lib/mihawk-browser/` (MihawkBrowser, below) | [cef-builds.spotifycdn.com](https://cef-builds.spotifycdn.com/index.json) `cef_binary_150.0.22+gc1a097e+chromium-150.0.7871.256_windows64_minimal.tar.bz2`, SHA-1 `01011e3f5b05caacb3b724c7965b047ffd33fd18`, SHA-256 `a6afba8ee3d1cc9ef64318a734dfeb5ceafc0384a46df2af37b857e7d76c0544`, fetched by `tools/fetch-cef.py` | BSD-3-Clause (CEF, Chromium); third-party components under their own licences in `CREDITS.html`, FFmpeg's parts LGPL-2.1-or-later |
 | Country flags (`ps5/assets/flags`, 20 SVGs of the 4x3 set; the guided setup's language tiles, rasterized at build time) | [lipis/flag-icons](https://github.com/lipis/flag-icons) `086f7e97d657358203916dbe84f61c2bccaa81eb`, each file's SHA-256 in `ps5/assets/flags/SOURCE.json`, checked byte for byte against that revision | MIT (`ps5/assets/flags/LICENSE`) |
-| Noto Sans SC and Noto Sans JP at the Medium weight (the guided setup's Chinese and Japanese; only the characters its text uses are baked, by `tools/bake-huifont.cpp`) | [google/fonts](https://github.com/google/fonts) `47d54ca1ebb14fd864695f1d39dc734f39017c33`, `ofl/notosanssc` and `ofl/notosansjp` (variable TrueType), SHA-256 in `ps5/tools/generate_assets.py` | OFL-1.1 (`ps5/licenses/NotoSansCJK-OFL.txt`, Google Fonts' copy) |
+| Noto Sans SC and Noto Sans JP at the Medium weight (the guided setup's and the Steam guide's Chinese and Japanese; cut to the characters their text uses, shipped as TrueType for the title's own screens and baked by `tools/bake-huifont.cpp` for the launcher) | [google/fonts](https://github.com/google/fonts) `47d54ca1ebb14fd864695f1d39dc734f39017c33`, `ofl/notosanssc` and `ofl/notosansjp` (variable TrueType), SHA-256 in `ps5/tools/generate_assets.py` | OFL-1.1 (`ps5/licenses/NotoSansCJK-OFL.txt`, Google Fonts' copy) |
 | ImageMagick 7.1.2-32 Q16-HDRI, a build-time tool only: it renders the Mihawk OS icons (`tools/build-mihawk-icons.py`); nothing of it is shipped | Arch Linux's package [imagemagick-7.1.2.32-1-x86_64](https://archive.archlinux.org/packages/i/imagemagick/), SHA-256 `8eb08d75d74071afee8b70161bbed4e06a8a041281a1f0cb43aefa78061ec4e5`, fetched by `tools/fetch-all.sh` | ImageMagick License (Apache-2.0 style) |
+| Aurelia 0.1.40, the headless Steam client the launcher drives as a backend (`tools/fetch-aurelia.sh`, the pinned `aurelia_windows_x86_64.exe`, SHA-256 `477f3d7b70866c5103a0ae17f5a95fb753067d7e376704220db8b125a126a806`; run under Wine, nothing of it rebuilt) | [Drackrath/Aurelia](https://github.com/Drackrath/Aurelia) release `v0.1.40` | GPL-3.0 (`LICENSE` in the release's source) |
+| jsmn, the JSON tokenizer of the Aurelia client (`src/pw_jsmn.h`, unchanged apart from its header) | [zserge/jsmn](https://github.com/zserge/jsmn), commit `6e4b1d3`, fetched 2026-10-22 | MIT |
+| GNU libmicrohttpd 1.0.10, the WebUI's HTTP server (static in `eboot.bin`, built without TLS by `tools/build-webui-http.sh` with PS5_RetroArch's recipe; `src/pw_webui_http.cpp` is its only user) | [ftp.gnu.org](https://ftp.gnu.org/gnu/libmicrohttpd/libmicrohttpd-1.0.10.tar.gz), SHA-256 `04bfe8ef75db7d629a33de767599765cecadc56274a39822d5d081030d577685` | LGPL-2.1-or-later (`COPYING`, staged beside the title as `licenses/libmicrohttpd/COPYING`), the LGPL side of its LGPL-or-eCos choice; the pin and build script here rebuild it from source, as LGPL-2.1 section 6 asks of a static link |
+| QR Code generator (Nayuki) 1.8.0, the sign-in QR of the Aurelia overlay (`src/pw_qrcodegen.{c,h}`, unchanged apart from their headers and file names) | [nayuki/QR-Code-generator](https://github.com/nayuki/QR-Code-generator), `c/qrcodegen.c` and `c/qrcodegen.h` at 2026-10-22 | MIT |
+
+## The Aurelia library's covers
+
+The shelf's cover pictures are not part of this repository: `tools/fetch-aurelia-covers.py` downloads the store capsules
+the client's `list --json` names and uploads them to the user's own console at run time. The artwork remains the games'
+publishers'; only the path and the fetching tool are ours.
 
 The isolated GPU broker probe's eight-word completion packet in
 `native/proton_gpu_broker_probe.h` follows Mesa's MIT-licensed
@@ -244,9 +255,11 @@ license are under `themes/windows11/fonts/upstream/`, pinned from
 `tools/build-proton-ui-font.py` contains the complete modification. Neither Segoe
 UI nor Segoe UI Variable is bundled or used to build this derivative.
 
-The desktop wallpaper, Aero Meadow (a sky with a sun glow, soap bubbles and green hills), is original artwork drawn
-only by `tools/make-mihawk-wallpaper.py` (LGPL-2.1-or-later, seeded: the same pixels on every run), with no
-photograph or third-party image as input; `tools/build-wine-theme.py` stages it as `proton.bmp`. Its top-right note
+The desktop wallpaper, Bubble Earth (a glossy Earth on a meadow among soap bubbles, a glass skyline behind), is original
+artwork drawn only by `tools/make-aero-wallpapers.py` (LGPL-2.1-or-later, seeded: the same pixels on every run; it also
+draws Glass City and Aqua World), with no photograph or third-party image as input; its soap bubbles are those of the
+earlier wallpaper, Aero Meadow (a sky with a sun glow, soap bubbles and green hills, `tools/make-mihawk-wallpaper.py`,
+the same licence). `tools/build-wine-theme.py` stages Bubble Earth as `proton.bmp`. Its top-right note
 (MihawkOS v<VERSION> and the community link) is set in Selawik Semibold and Regular from
 `themes/windows11/fonts/upstream/` (OFL-1.1, listed with the fonts); the OFL does not extend to images made with the
 font. It replaced Windows
@@ -362,11 +375,21 @@ notices. The toolchain's `share` licence files and Mesa's licence directory
 remain in their ignored source/toolchain trees. No implicit build-time download
 is performed. Console qualification is recorded separately from the build.
 
+## The WebUI and its game forwarders, from PS5_RetroArch
+
+The WebUI (`webui/`, `src/pw_webui*`) and the game forwarder (`forwarder/`, `tools/build-forwarder.sh`) follow
+[mihawk-99/PS5_RetroArch](https://github.com/mihawk-99/PS5_RetroArch)'s WebUI and forwarders, the same author's
+GPL-3.0-or-later project: its safety model (the console's own origin, a token on every write, a fixed list of page
+files), its resumable uploads, and its forwarder design (a tile app that stamps its title id into a launch payload sent
+to the ELF loader, registered through ShadowMountPlus). `forwarder/tile.c` and `forwarder/launch.c` are adapted from
+its `forwarder/`, the rest written here. The tiles use their own title ids (PPSA99300 to PPSA99399), clear of
+MihawkOS's PPSA99170, its memory probe's PPSA99171 and PS5_RetroArch's tiles.
+
 ## ShadowMountPlus
 
 ShadowMountPlus, which mounts the title's folder on the console, is a separate project
 ([drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus), GPL-3.0) that the user installs. MihawkOS
-neither ships nor modifies it.
+neither ships nor modifies it. The WebUI registers its home screen tiles through the user's copy (its local API).
 
 ## DNSAPI resolver
 
@@ -397,6 +420,15 @@ paths, with command foreground colours from the approved light/dark palette.
 Patch `0979-driver-retain-gdi-gpu-backing.patch` retains normal GDI backing
 beside brokered GPU clients in the opt-in HWND route (Wine LGPL-2.1-or-later).
 Its console qualification is pending.
+
+## The README's art
+
+`docs/media/readme/` holds the README's banner, section dividers and heading orbs, each in a day and a night version,
+and `docs/media/readme/badges/` its badges. All are SVG drawn for this project by the two scripts in
+[`docs/README_ART.md`](docs/README_ART.md); no photograph, font file or third-party image is in them. The banner draws the
+Mihawk mark (`themes/windows11/start.svg`) and each orb one of the original icons above, so those files are
+LGPL-2.1-or-later like them, each with its SPDX line. The badges hold no third-party art and are GPL-3.0-or-later like
+the rest of this repository; their text names system sans-serif faces, which the reader's browser supplies.
 
 ## Windows 11 prototype visual system: pointers, caption buttons, monospace face
 

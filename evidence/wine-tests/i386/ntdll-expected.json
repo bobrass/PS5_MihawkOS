@@ -1,0 +1,97 @@
+{
+ "context": {
+  "arch": "i386",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "458888b4d6e91476733e192666e029fc0200431f445dffd0da300aba2db26c85",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [
+  "change: change.c:241: should be ready (OPEN: deferred bug (owner, 2026-10-25): a change below a subtree watch's top directory is found only by polling (patch 0902), late and merged with others; the top directory is watched by kqueue (patch 2091); fix: a kqueue watch per subdirectory, within the descriptor budget)",
+  "exception: exception.c:10592: Got unexpected Mask 0x4. (OPEN: the AVX state set into a suspended 32-bit thread (NtSetContextThread with XSTATE) is lost on resume)",
+  "exception: exception.c:10744: Got unexpected data 0, i 4. (OPEN: the AVX state set into a suspended 32-bit thread (NtSetContextThread with XSTATE) is lost on resume)",
+  "exception: exception.c:10744: Got unexpected data 0, i 5. (OPEN: the AVX state set into a suspended 32-bit thread (NtSetContextThread with XSTATE) is lost on resume)",
+  "exception: exception.c:10744: Got unexpected data 0, i 6. (OPEN: the AVX state set into a suspended 32-bit thread (NtSetContextThread with XSTATE) is lost on resume)",
+  "exception: exception.c:10744: Got unexpected data 0, i 7. (OPEN: the AVX state set into a suspended 32-bit thread (NtSetContextThread with XSTATE) is lost on resume)",
+  "file: file.c:1520: access time mismatch, set: 200deadcafebeef get: 1dd6578fa409400 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: the console's file system has no extended attributes, where Wine keeps DOS attributes (hidden, system), reparse points and set access times; security descriptors have their own store (patch 1108); fix: DOS attributes in a store of the prefix, as patch 1108 does for descriptors)",
+  "file: file.c:6694: got 0xc0000101 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: the console's file system has no extended attributes, where Wine keeps DOS attributes (hidden, system), reparse points and set access times; security descriptors have their own store (patch 1108); fix: DOS attributes in a store of the prefix, as patch 1108 does for descriptors (reparse points))",
+  "virtual: virtual.c:2547: Unexpected status c0000018. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2550: Unexpected size 00000FFF. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2551: Got addr 01631001, addr1 01630000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2556: Unexpected status c0000018. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2558: Unexpected size 00000FFF. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2559: Got addr 01630001, addr1 01630000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2564: Unexpected status c0000018. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2570: Unexpected status 00000000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2574: Unexpected status 00000000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2589: Unexpected status c00000a0. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2593: Unexpected status c00000a0. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)"
+ ],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "directory": {
+   "directory.c:1350": "AWAITING OWNER (rests on our own choice): the probe prefix has 32-bit drivers in syswow64\\drivers (tools/stage-wine.py); a Wine-made prefix has none, so the WoW64 redirection test finds ndis.sys there",
+   "directory.c:1356": "AWAITING OWNER (rests on our own choice): the probe prefix has 32-bit drivers in syswow64\\drivers (tools/stage-wine.py); a Wine-made prefix has none, so the WoW64 redirection test finds ndis.sys there"
+  },
+  "exception": {
+   "exception.c:1175": "no debugger on the console: a process cannot ptrace, so hardware breakpoints never fire and DEBUG_PROCESS children cannot be created (ERROR_NOT_SUPPORTED)",
+   "exception.c:1222": "no debugger on the console: a process cannot ptrace, so hardware breakpoints never fire and DEBUG_PROCESS children cannot be created (ERROR_NOT_SUPPORTED)",
+   "exception.c:1234": "no debugger on the console: a process cannot ptrace, so hardware breakpoints never fire and DEBUG_PROCESS children cannot be created (ERROR_NOT_SUPPORTED)",
+   "exception.c:1295": "no debugger on the console: a process cannot ptrace, so hardware breakpoints never fire and DEBUG_PROCESS children cannot be created (ERROR_NOT_SUPPORTED)",
+   "exception.c:1721": "the console's FreeBSD kernel reports an x87 stack fault as FPE_FLTSUB, which Wine's FreeBSD signal path raises as EXCEPTION_ARRAY_BOUNDS_EXCEEDED, not EXCEPTION_FLT_STACK_CHECK",
+   "exception.c:1811": "AWAITING OWNER (rests on our own choice): a host page holding an executable and a non-executable 4 KiB page is mapped executable, so 32-bit code beside data runs at full speed and DEP faults only at host-page granularity; faulting per 4 KiB would need every instruction on such a page emulated (docs/HOST_PAGES.md, group E, option E2) (patch 2075: a no-access 4 KiB page leaves its host page executable)",
+   "exception.c:1812": "AWAITING OWNER (rests on our own choice): a host page holding an executable and a non-executable 4 KiB page is mapped executable, so 32-bit code beside data runs at full speed and DEP faults only at host-page granularity; faulting per 4 KiB would need every instruction on such a page emulated (docs/HOST_PAGES.md, group E, option E2) (patch 2075: a no-access 4 KiB page leaves its host page executable)",
+   "exception.c:1853": "AWAITING OWNER (rests on our own choice): a host page holding an executable and a non-executable 4 KiB page is mapped executable, so 32-bit code beside data runs at full speed and DEP faults only at host-page granularity; faulting per 4 KiB would need every instruction on such a page emulated (docs/HOST_PAGES.md, group E, option E2) (patch 2075: a no-access 4 KiB page leaves its host page executable)",
+   "exception.c:1854": "AWAITING OWNER (rests on our own choice): a host page holding an executable and a non-executable 4 KiB page is mapped executable, so 32-bit code beside data runs at full speed and DEP faults only at host-page granularity; faulting per 4 KiB would need every instruction on such a page emulated (docs/HOST_PAGES.md, group E, option E2) (patch 2075: a no-access 4 KiB page leaves its host page executable)",
+   "exception.c:2014": "segment selectors: Wine reports its Linux constants for %fs and %gs (0 and the data selector); the console's FreeBSD kernel gives user code fs 0x13 and gs 0x1b. Only a program comparing the numbers sees it",
+   "exception.c:318": "no debugger on the console: a process cannot ptrace, so hardware breakpoints never fire and DEBUG_PROCESS children cannot be created (ERROR_NOT_SUPPORTED)"
+  },
+  "file": {
+   "file.c:2489": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2490": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2494": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2557": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2558": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2562": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2588": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2589": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2593": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2597": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3111": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3112": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3116": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3282": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3283": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3287": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6913": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6917": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6919": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6920": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6922": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6924": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6927": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6928": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6932": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6933": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6939": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6941": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6949": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links"
+  },
+  "info": {
+   "info.c:688": "AWAITING OWNER (rests on our own choice): patch 0947 (docs/IA32_DESIGN.md, M4 step 1): a WoW64 thread's 32-bit TEB sits at the low half of its thread pointer, not 0x2000 above the 64-bit TEB, so 32-bit code needs no FS switch (system calls 2x cheaper)"
+  },
+  "virtual": {
+   "virtual.c:1078": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1088": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1090": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:445": "AWAITING OWNER (rests on our own choice): a first write to a write-watched 4 KiB page clears the watch on its whole 16 KiB host page, so GetWriteWatch reports a superset (four pages for one store), which a garbage collector, the user of write watches, only scans more; the exact count (patch 2089) hung and was withdrawn (docs/HOST_PAGES.md, group B, option B2)",
+   "virtual.c:446": "AWAITING OWNER (rests on our own choice): a first write to a write-watched 4 KiB page clears the watch on its whole 16 KiB host page, so GetWriteWatch reports a superset (four pages for one store), which a garbage collector, the user of write watches, only scans more; the exact count (patch 2089) hung and was withdrawn (docs/HOST_PAGES.md, group B, option B2)"
+  },
+  "wow64": {
+   "wow64.c:292": "AWAITING OWNER (rests on our own choice): a 32-bit image with a fixed base of 0x400000 is moved in a helper, where Sony's carrier eboot sits (memory note helper-0x400000-is-carrier-eboot); the image information keeps the preferred entry"
+  }
+ },
+ "unfinished_ok": {
+  "exception": "the console's kernel numbers its user code selectors its own way: 32-bit code is 0x33 and 64-bit 0x43 (docs/IA32_DESIGN.md), where Windows has 0x23 and 0x33. test_context_exception_request, the file's last test, enters 64-bit code with \"push $0x33; lret\" (call_func64), which on the console stays in 32-bit mode and runs the 64-bit bytes as 32-bit code; their access violation reaches the test's own vectored handler, which waits for a step the main thread never takes (trace b13-exc32-053728: AV at code_mem with cs 0x33, handler entered, no return until the 300 s timeout). A selector the kernel accepts raises nothing to catch: a platform limit for any 32-bit program that enters 64-bit code by a hard-coded selector"
+ }
+}

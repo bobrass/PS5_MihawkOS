@@ -17,7 +17,8 @@ int main(void)
  assert(pw_gpu_client_pid(0,42,1));
  assert(pw_gpu_client_pid(42,42,1));
  assert(!pw_gpu_client_pid(42,43,1));
- assert(!pw_gpu_client_pid(42,42,42));
+ /* The owner's own pid: only in the slot the owner opened for itself (graphics patch 0031). */
+ assert(pw_gpu_client_pid(42,42,42) && !pw_gpu_client_pid(0,42,42) && !pw_gpu_client_pid(43,42,42));
  assert(!pw_gpu_client_pid(0,0,1));
  assert(!pw_gpu_client_pid(-1,42,1));
  assert(!pw_gpu_client_pid(0,UINT64_MAX,1));

@@ -1,0 +1,17 @@
+{
+ "context": {
+  "arch": "i386",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "6b6ad2d6eb5937f6390789b1ec2438cc331698a045ddd5214ad80ff13d0ded3d",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "winhttp": {
+   "winhttp.c:3205": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401"
+  }
+ },
+ "unfinished_ok": {}
+}

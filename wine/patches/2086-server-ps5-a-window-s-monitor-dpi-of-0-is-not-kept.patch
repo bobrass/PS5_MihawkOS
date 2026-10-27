@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 18:30:00 -0400
+Subject: [PATCH] server: PS5: a window's monitor DPI of 0 is not kept.
+
+set_window_pos stored the monitor DPI the client sent. win32u sends 0 when it cannot find the window's monitor
+(get_win_monitor_dpi of a window it cannot resolve; no monitor holds the rectangle while the display mode changes),
+and the next DPI conversion of that window (map_dpi_point with a dpi of 0 falls back to it) divided by zero in
+scale_dpi. On the console the server runs inside the title, so it ended every program: SIGFPE, integer divide fault,
+in scale_dpi from call_req_handler, while dxgi's and d3d9ex's tests ran (B3c sweep, 2026-10-25). A DPI of 0 now keeps
+the window's previous one (USER_DEFAULT_SCREEN_DPI from create_window).
+---
+--- a/server/window.c
++++ b/server/window.c
+@@ -3206,6 +3206,11 @@
+     win->paint_flags = (win->paint_flags & ~PAINT_CLIENT_FLAGS) | (req->paint_flags & PAINT_CLIENT_FLAGS);
+     if (win->paint_flags & PAINT_HAS_PIXEL_FORMAT) update_pixel_format_flags( win );
+ 
++#ifdef __PROSPERO__
++    /* A client that could not find the window's monitor sends 0; kept, it divided by zero in scale_dpi at the next
++     * DPI conversion and ended the in-title server with every program (SIGFPE, dxgi and d3d9ex tests, 2026-10-25). */
++    if (req->monitor_dpi)
++#endif
+     win->monitor_dpi = req->monitor_dpi;
+     old_style = win->style;
+     old_window = win->window_rect;

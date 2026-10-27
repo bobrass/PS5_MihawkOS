@@ -1,0 +1,85 @@
+{
+ "context": {
+  "arch": "x86_64",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "f7e9ebcb5b41e08b87a05ad0d7d3b191ebfb9d61d26fc0287ee1173b19b9522e",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [
+  "file: file.c:1520: access time mismatch, set: 200deadcafebeef get: 1dd6578be0d3380 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: the console's file system has no extended attributes, where Wine keeps DOS attributes (hidden, system), reparse points and set access times; security descriptors have their own store (patch 1108); fix: DOS attributes in a store of the prefix, as patch 1108 does for descriptors)",
+  "file: file.c:6694: got 0xc0000101 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: the console's file system has no extended attributes, where Wine keeps DOS attributes (hidden, system), reparse points and set access times; security descriptors have their own store (patch 1108); fix: DOS attributes in a store of the prefix, as patch 1108 does for descriptors (reparse points))",
+  "virtual: virtual.c:2547: Unexpected status c0000018. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2550: Unexpected size 0000000000000FFF. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2551: Got addr 0000001001621001, addr1 0000001001620000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2556: Unexpected status c0000018. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2558: Unexpected size 0000000000000FFF. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2559: Got addr 0000001001620001, addr1 0000001001620000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2564: Unexpected status c0000018. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2570: Unexpected status 00000000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2574: Unexpected status 00000000. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2589: Unexpected status c00000a0. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)",
+  "virtual: virtual.c:2593: Unexpected status c00000a0. (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software)"
+ ],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "exception": {
+   "exception.c:3336": "no debugger on the console: a process cannot ptrace, so hardware breakpoints never fire and DEBUG_PROCESS children cannot be created (ERROR_NOT_SUPPORTED)",
+   "exception.c:3354": "the console runs a title with I/O privilege level 3: cli and sti do not fault in user mode, so no EXCEPTION_PRIV_INSTRUCTION is raised for them (exception.c's direction-flag test uses cli)",
+   "exception.c:3377": "segment selectors: Wine reports its Linux constants for %fs and %gs (0 and the data selector); the console's FreeBSD kernel gives user code fs 0x13 and gs 0x1b. Only a program comparing the numbers sees it",
+   "exception.c:3378": "segment selectors: Wine reports its Linux constants for %fs and %gs (0 and the data selector); the console's FreeBSD kernel gives user code fs 0x13 and gs 0x1b. Only a program comparing the numbers sees it",
+   "exception.c:3398": "segment selectors: Wine reports its Linux constants for %fs and %gs (0 and the data selector); the console's FreeBSD kernel gives user code fs 0x13 and gs 0x1b. Only a program comparing the numbers sees it",
+   "exception.c:3399": "segment selectors: Wine reports its Linux constants for %fs and %gs (0 and the data selector); the console's FreeBSD kernel gives user code fs 0x13 and gs 0x1b. Only a program comparing the numbers sees it"
+  },
+  "file": {
+   "file.c:2489": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2490": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2494": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2557": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2558": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2562": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2588": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2589": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2593": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:2597": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3111": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3112": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3116": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3282": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3283": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:3287": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6913": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6917": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6919": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6920": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6922": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6924": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6927": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6928": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6932": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6933": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6939": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6941": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links",
+   "file.c:6949": "the console refuses link() to a title (wine/ps5/pw_wine_cwd_libc.c __wrap_link: EPERM), so no hard links"
+  },
+  "info": {
+   "info.c:686": "AWAITING OWNER (rests on our own choice): patch 0947 (docs/IA32_DESIGN.md, M4 step 1): a WoW64 thread's 32-bit TEB sits at the low half of its thread pointer, not 0x2000 above the 64-bit TEB, so 32-bit code needs no FS switch (system calls 2x cheaper)"
+  },
+  "virtual": {
+   "virtual.c:1078": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1088": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1090": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1125": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1181": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:1187": "AWAITING OWNER (rests on our own choice): patch 1120: a new thread's guard page sits below its committed top, as on Windows (an emulator pre-growing its stack died without it); the pages under the guard stay committed, so the bottom-up layout differs",
+   "virtual.c:445": "AWAITING OWNER (rests on our own choice): a first write to a write-watched 4 KiB page clears the watch on its whole 16 KiB host page, so GetWriteWatch reports a superset (four pages for one store), which a garbage collector, the user of write watches, only scans more; the exact count (patch 2089) hung and was withdrawn (docs/HOST_PAGES.md, group B, option B2)",
+   "virtual.c:446": "AWAITING OWNER (rests on our own choice): a first write to a write-watched 4 KiB page clears the watch on its whole 16 KiB host page, so GetWriteWatch reports a superset (four pages for one store), which a garbage collector, the user of write watches, only scans more; the exact count (patch 2089) hung and was withdrawn (docs/HOST_PAGES.md, group B, option B2)"
+  },
+  "wow64": {
+   "wow64.c:292": "AWAITING OWNER (rests on our own choice): a 32-bit image with a fixed base of 0x400000 is moved in a helper, where Sony's carrier eboot sits (memory note helper-0x400000-is-carrier-eboot); the image information keeps the preferred entry",
+   "wow64.c:939": "AWAITING OWNER (rests on our own choice): patch 0947 (docs/IA32_DESIGN.md, M4 step 1): a WoW64 thread's 32-bit TEB sits at the low half of its thread pointer, not 0x2000 above the 64-bit TEB, so 32-bit code needs no FS switch (system calls 2x cheaper)",
+   "wow64.c:942": "AWAITING OWNER (rests on our own choice): patch 0947 (docs/IA32_DESIGN.md, M4 step 1): a WoW64 thread's 32-bit TEB sits at the low half of its thread pointer, not 0x2000 above the 64-bit TEB, so 32-bit code needs no FS switch (system calls 2x cheaper)"
+  }
+ },
+ "unfinished_ok": {}
+}

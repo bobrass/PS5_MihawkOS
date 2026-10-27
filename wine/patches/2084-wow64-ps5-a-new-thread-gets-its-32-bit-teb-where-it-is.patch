@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 11:05:00 -0400
+Subject: [PATCH] wow64: PS5: a new thread's 32-bit TEB address is where the TEB is.
+
+A 32-bit CreateThread activates the creating thread's activation context in the new thread's 32-bit TEB, at the
+address NtCreateThreadEx returns through PS_ATTRIBUTE_TEB_ADDRESS. wow64 gave it as the 64-bit TEB plus 0x2000. On
+the console patch 0947 moves a WoW64 thread's 32-bit TEB before the thread runs (no FS switch), and NtCreateThreadEx
+returns once it has moved, so the context went into the stale copy: the new thread had no active activation context
+(kernel32 thread.c:318, 2198 and 2209, PE32 console, 2026-10-25), and a manifested program's worker thread lost its
+comctl32 v6 and its other side-by-side assemblies. The address now follows the thread's WowTebOffset, as patch 0947
+already does for ThreadBasicInformation; on other hosts that offset is 0x2000.
+---
+--- a/dlls/wow64/process.c
++++ b/dlls/wow64/process.c
+@@ -241,7 +241,17 @@
+         case PS_ATTRIBUTE_TEB_ADDRESS:
+         {
+             TEB **teb = attr->Attributes[i].ValuePtr;
+-            ULONG teb32 = PtrToUlong( *teb ) + 0x2000;
++            ULONG teb32 = PtrToUlong( *teb ) + 0x2000, j;
++
++            /* A thread of this process may have its 32-bit TEB elsewhere (the PS5's ntdll moves it before the thread
++             * runs, signal_wow_alias_teb, and NtCreateThreadEx returns after): kernelbase activates the creator's
++             * activation context in it, which in the stale copy the new thread never saw (kernel32 thread.c:318,
++             * 2198, 2209, PE32 console). Its WowTebOffset says where it is; 0x2000 everywhere else. */
++            for (j = 0; j < attr->TotalLength / sizeof(attr->Attributes[0]) && *teb; j++)
++                if (attr->Attributes[j].Attribute == PS_ATTRIBUTE_CLIENT_ID &&
++                    ((CLIENT_ID *)attr->Attributes[j].ValuePtr)->UniqueProcess == ULongToHandle( GetCurrentProcessId() ) &&
++                    (*teb)->WowTebOffset)
++                    teb32 = PtrToUlong( (char *)*teb + (*teb)->WowTebOffset );
+             ULONG size = min( attr->Attributes[i].Size, sizeof(teb32) );
+             memcpy( ULongToPtr( attr32->Attributes[i].Value ), &teb32, size );
+             if (attr32->Attributes[i].ReturnLength)

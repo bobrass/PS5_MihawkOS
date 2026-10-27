@@ -71,6 +71,37 @@ spec = importlib.util.spec_from_file_location('run_title', TOOLS / 'run-title.py
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
 
+
+class TitleCrash:
+    """run-title's crash lines, for the title's own process only. A Windows program runs in a payload helper of its own,
+    and a test that crashes one (i386 quartz avisplit, 2026-10-25: 'mDBG: Sending signal(pid: <helper>') is that
+    program's result, which Wine reports; it ended the watch of a title that went on running 900 files. The kernel's
+    banner names its process a few lines later ('# proc ID: N'), so the banner waits for it."""
+
+    def __init__(self, crash):
+        self.crash, self.title, self.banner = crash, None, False
+
+    def search(self, line):
+        found = re.match(r'<(\d+)> EXEC /app0/', line)
+        if found:
+            self.title = found.group(1)
+        if self.title is None:
+            return self.crash.search(line)
+        if 'A user thread receives a fatal signal' in line:
+            self.banner = True
+            return None
+        found = re.match(r'# proc ID: (\d+)', line) if self.banner else None
+        if found:
+            self.banner = False
+            return found if found.group(1) == self.title else None
+        found = re.search(r'mDBG: Sending signal\(pid: (\d+)', line)
+        if found:
+            return found if found.group(1) == self.title else None
+        return self.crash.search(line)
+
+
+runner.CRASH = TitleCrash(runner.CRASH)
+
 TITLE = 'PPSA99170'
 BASE = f'/data/homebrew/{TITLE}'
 DATA = '/data/ps5proton'
@@ -86,7 +117,7 @@ MARKERS = {'wine-probe.exe': 'PS5_PROTON_PE64_PROBE', 'gate-sequence.exe': 'PS5_
            'vk32-probe.exe': 'PS5_PROTON_VK_PROBE', 'vk64-probe.exe': 'PS5_PROTON_VK_PROBE',
            'gl-vertex32-probe.exe': 'PS5_PROTON_GL_VERTEX_PROBE', 'd3d11-32-probe.exe': 'PS5_PROTON_D3D11_PROBE',
            'sync-probe.exe': 'PS5_PROTON_SYNC_PROBE', 'exit-probe.exe': 'PS5_PROTON_EXIT_PROBE',
-           'priority-probe.exe': 'PS5_PROTON_PRIORITY_PROBE', 'hang-probe.exe': 'PS5_PROTON_HANG_PROBE', 'window-probe.exe': 'PS5_PROTON_WINDOW_PROBE', 'fs-probe.exe': 'PS5_PROTON_FS_PROBE', 'stack-probe.exe': 'PS5_PROTON_STACK_PROBE', 'gl-exit-probe.exe': 'PS5_PROTON_GL_EXIT_PROBE', 'mem-probe.exe': 'PS5_PROTON_MEM_PROBE', 'gl-vertex-probe.exe': 'PS5_PROTON_GL_VERTEX_PROBE', 'gl-present-probe.exe': 'PS5_PROTON_GL_PRESENT_PROBE', 'gl-sprite-probe.exe': 'PS5_PROTON_GL_SPRITE_PROBE', 'vm-protect-probe.exe': 'PS5_PROTON_VM_PROTECT_PROBE', 'vm-protect32-probe.exe': 'PS5_PROTON_VM_PROTECT_PROBE', 'remote-memory-probe.exe': 'PS5_PROTON_REMOTE_MEMORY_PROBE', 'stdout-probe.exe': 'PS5_PROTON_STDOUT_PROBE', 'nt-file-probe.exe': 'PS5_PROTON_NT_FILE_PROBE', 'registry-flush64-probe.exe': 'PS5_PROTON_REGISTRY_FLUSH', 'file-write32-probe.exe': 'PS5_PROTON_FILE_WRITE', 'file-write64-probe.exe': 'PS5_PROTON_FILE_WRITE', 'net-throughput32-probe.exe': 'PS5_PROTON_NET_THROUGHPUT', 'net-throughput64-probe.exe': 'PS5_PROTON_NET_THROUGHPUT', 'thread-leak-probe.exe': 'PS5_PROTON_THREAD_LEAK_PROBE'}
+           'priority-probe.exe': 'PS5_PROTON_PRIORITY_PROBE', 'hang-probe.exe': 'PS5_PROTON_HANG_PROBE', 'window-probe.exe': 'PS5_PROTON_WINDOW_PROBE', 'fs-probe.exe': 'PS5_PROTON_FS_PROBE', 'stack-probe.exe': 'PS5_PROTON_STACK_PROBE', 'gl-exit-probe.exe': 'PS5_PROTON_GL_EXIT_PROBE', 'mem-probe.exe': 'PS5_PROTON_MEM_PROBE', 'gl-vertex-probe.exe': 'PS5_PROTON_GL_VERTEX_PROBE', 'gl-present-probe.exe': 'PS5_PROTON_GL_PRESENT_PROBE', 'gl-sprite-probe.exe': 'PS5_PROTON_GL_SPRITE_PROBE', 'vm-protect-probe.exe': 'PS5_PROTON_VM_PROTECT_PROBE', 'vm-protect32-probe.exe': 'PS5_PROTON_VM_PROTECT_PROBE', 'remote-memory-probe.exe': 'PS5_PROTON_REMOTE_MEMORY_PROBE', 'stdout-probe.exe': 'PS5_PROTON_STDOUT_PROBE', 'nt-file-probe.exe': 'PS5_PROTON_NT_FILE_PROBE', 'registry-flush64-probe.exe': 'PS5_PROTON_REGISTRY_FLUSH', 'file-write32-probe.exe': 'PS5_PROTON_FILE_WRITE', 'file-write64-probe.exe': 'PS5_PROTON_FILE_WRITE', 'relative-dir32-probe.exe': 'PS5_PROTON_NT_RELDIR_PROBE', 'relative-dir64-probe.exe': 'PS5_PROTON_NT_RELDIR_PROBE', 'file-cost32-probe.exe': 'PS5_PROTON_FILE_COST', 'file-cost64-probe.exe': 'PS5_PROTON_FILE_COST', 'handles-paths32-probe.exe': 'PS5_PROTON_HANDLES_PATHS', 'handles-paths64-probe.exe': 'PS5_PROTON_HANDLES_PATHS', 'pipe-cancel32-probe.exe': 'PS5_PROTON_PIPE_CANCEL', 'pipe-cancel64-probe.exe': 'PS5_PROTON_PIPE_CANCEL', 'lock32-probe.exe': 'PS5_PROTON_LOCK', 'lock64-probe.exe': 'PS5_PROTON_LOCK', 'continue64-probe.exe': 'PS5_PROTON_CONTINUE', 'stack-limit64-probe.exe': 'PS5_PROTON_STACK_LIMIT', 'syscall-cost32-probe.exe': 'PS5_PROTON_SYSCALL_COST', 'syscall-cost64-probe.exe': 'PS5_PROTON_SYSCALL_COST', 'net-throughput32-probe.exe': 'PS5_PROTON_NET_THROUGHPUT', 'net-throughput64-probe.exe': 'PS5_PROTON_NET_THROUGHPUT', 'thread-leak-probe.exe': 'PS5_PROTON_THREAD_LEAK_PROBE'}
 PERF = {
     'frames': re.compile(r'perf: (\w+) frames=(\d+) fps=([\d.]+) p50=([\d.]+) p95=([\d.]+) p99=([\d.]+) '
                          r'max=([\d.]+) ms present_avg=([\d.]+) present_max_all=([\d.]+)'),
@@ -214,6 +245,23 @@ def helper_rows(texts):
                      'vm_last': dict(zip(('resident_mib', 'direct_resident_mib', 'flexible_mib'), map(int, vm[-1]))) if vm else None,
                      'exec': dict(zip(EXEC_KEYS, map(int, tally[-1]))) if tally else None})
     return rows
+
+
+CODE_SHARE_KEYS = ('shared', 'shared_kib', 'offered', 'mismatched', 'failed', 'private_writes', 'private_kib')
+CODE_SHARE_TALLY = re.compile('wine-child: shared code copies ' + ' '.join(key + r'=(\d+)' for key in CODE_SHARE_KEYS))
+
+
+def code_share(texts):
+    """Shared code copies (wine/ps5/pw_wine_codeshare.h): each helper's last tally, summed; None if none printed one. A
+    recorded fact, never a failure: a failed ask turns sharing off in that helper and it copies privately, as before."""
+    record = None
+    for text in texts:
+        found = CODE_SHARE_TALLY.findall(text)
+        if found:
+            record = record or dict.fromkeys(CODE_SHARE_KEYS, 0)
+            for key, value in zip(CODE_SHARE_KEYS, found[-1]):
+                record[key] += int(value)
+    return record
 
 
 FOREIGN_KEYS = ('found', 'skipped_unmaps', 'refused_maps', 'query_failed', 'holes')
@@ -673,11 +721,10 @@ def parse_perf(lines):
         elif (m := PERF['first'].search(line)):
             frames.append({'api': m.group(1), 'first_frame_ms': float(m.group(2))})
         elif (m := PERF['top'].search(line)):
-            entries = {}
-            for item in m.group(1).split():
-                name, _, rest = item.partition('=')
-                count, _, avg = rest.partition('/')
-                entries[name] = {'count': int(count), 'avg_us': float(avg.rstrip('us'))}
+            # Item by item: a line another writer's output ran into (a program in the title prints to the title's
+            # standard error, fmem-bd-title-2026-10-26-01) keeps the items before the join and drops the rest.
+            entries = {name: {'count': int(count), 'avg_us': float(avg)}
+                       for name, count, avg in re.findall(r'(\w+)=(\d+)/([\d.]+)us(?=\s|$)', m.group(1))}
             top.append(entries)
     return frames, server, top
 
@@ -1038,7 +1085,7 @@ def main():
         owners = [match for match in (re.search(r'PS5_PROTON_OWNER_BOOTSTRAP (PASS|FAIL) initial_status=(-?\d+) '
                                                 r'graphics_claimed=\d+ broker_stopped=(\d+)', line) for line in lines) if match]
         closed_on_request = not marker and any('Wine: stop requested; asking the game to close' in line for line in lines) \
-            and not any('the game did not close in 10 s' in line for line in lines)
+            and not any(re.search(r'the game did not close in \d+ s', line) for line in lines)
         passed = passed and (not verdict_run or all(owner.group(1) == 'PASS' or (closed_on_request and owner.group(3) == '1')
                                                     for owner in owners))
         passed = passed and not any('PS5_PROTON_OWNER_BOOTSTRAP FAIL' in line and not re.search(r'initial_status=', line)
@@ -1148,7 +1195,7 @@ def main():
             'child_logs': [str(path.relative_to(ROOT)) for path in child_logs],
             'child_logs_missing': child_logs_missing, 'session_logs_status': logs_status,
             'storage_errors': len(storage), 'stop_terminate': stop_terminate,
-            'injected_fault': fault, 'exec_protection': exec_record, 'helpers': helper_rows(child_texts),
+            'injected_fault': fault, 'exec_protection': exec_record, 'code_share': code_share(child_texts), 'helpers': helper_rows(child_texts),
             'foreign_mappings': foreign_record, 'helper_sched': sched, 'helpers_ended': ended_record,
             'helper_doom': doom, 'broker_phases': phases,
             'memory_helper_slowest': memory.pop('slowest'), 'memory_helper': memory, **robustness,

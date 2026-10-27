@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "proton_gpu_broker_probe.h"
+#include "proton_flex_probe.h"
 #ifdef PROTON_NATIVE_GPU_ELEVATION
 #include <ps5platform/elevation.h>
 extern void _init_env(void *);
@@ -409,6 +410,59 @@ static void budget_helper(void)
     while (count) close(kept[--count]);
 }
 
+/* The flexible-memory probe's helper (native/proton_flex_probe.h): its own and its pool's flexible figures at the
+ * start, after 64 MiB of direct memory is mapped and written, after 64 MiB of anonymous memory is, and after a 16 MiB
+ * JIT object is; and which ways to executable memory hold here. It holds all of it until the title releases it. */
+extern int sceKernelGetResidentFmemCount(int, uint64_t *, uint64_t *);
+static void flex_point(struct ProtonFlexReply *reply, unsigned point)
+{
+    uint64_t resident = 0, mapped = 0;
+    size_t available = 0;
+    const int counted = sceKernelGetResidentFmemCount(getpid(), &resident, &mapped);
+    reply->resident[point] = counted ? -1 : (int64_t)resident;
+    reply->mapped[point] = counted ? -1 : (int64_t)mapped;
+    reply->available[point] = sceKernelAvailableFlexibleMemorySize(&available) ? -1 : (int64_t)available;
+}
+static void flex_touch(void *at, uint64_t bytes)
+{
+    for (uint64_t offset = 0; offset < bytes; offset += 16384) ((volatile char *)at)[offset] = 1;
+}
+static void flex_helper(void)
+{
+    struct ProtonFlexReply reply = {0};
+    reply.magic = PROTON_FLEX_MAGIC; reply.pid = getpid();
+    flex_point(&reply, FLEX_START);
+    int64_t physical = -1;
+    void *direct = 0;
+    reply.direct_alloc = sceKernelAllocateDirectMemory(0, sceKernelGetDirectMemorySize(), PROTON_FLEX_BYTES, 2u << 20, 12, &physical);
+    if (!reply.direct_alloc) reply.direct_map = sceKernelMapDirectMemory(&direct, PROTON_FLEX_BYTES, PROT_READ | PROT_WRITE, 0, physical, 2u << 20);
+    if (!reply.direct_alloc && !reply.direct_map) flex_touch(direct, PROTON_FLEX_BYTES);
+    flex_point(&reply, FLEX_DIRECT);
+    void *anon = mmap(0, PROTON_FLEX_BYTES, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    reply.anon_map = anon == MAP_FAILED ? -1 : 0;
+    if (!reply.anon_map) flex_touch(anon, PROTON_FLEX_BYTES);
+    flex_point(&reply, FLEX_ANON);
+    int jit = -1;
+    reply.jit_made = sceKernelJitCreateSharedMemory("pw-flex-16m", 16u << 20, 7, &jit);
+    if (!reply.jit_made) {
+        void *code = mmap(0, 16u << 20, PROT_READ | PROT_WRITE, MAP_SHARED, jit, 0);
+        if (code != MAP_FAILED) flex_touch(code, 16u << 20);
+        else reply.jit_made = -1;
+    }
+    flex_point(&reply, FLEX_JIT);
+    for (unsigned way = 0; way < FLEX_EXEC_WAYS; ++way) proton_flex_exec_try(way, &reply.exec[way]);
+    if (ready(3, POLLOUT) && send(3, &reply, sizeof(reply), MSG_NOSIGNAL) == sizeof(reply)) {
+        int32_t owned_id = -1;
+        int asked = 0;
+        for (int wait = 0; wait < 12 && !asked; ++wait) asked = ready(3, POLLIN); /* the title holds it 10 s first */
+        if (asked && recv(3, &owned_id, sizeof(owned_id), 0) == sizeof(owned_id) && owned_id > 0) {
+            const int32_t completed = 37;
+            if (ready(3, POLLOUT)) (void)send(3, &completed, sizeof(completed), MSG_NOSIGNAL);
+        }
+    }
+    /* Held until Sony closes the process; the title measures its pool after the close. */
+}
+
 __attribute__((noreturn)) void _start(void *parameters, void *teardown)
 {
     (void)teardown;
@@ -438,6 +492,10 @@ __attribute__((noreturn)) void _start(void *parameters, void *teardown)
     }
     if (argc >= 2 && argc <= 6 && equal(argv[argc - 2], "--service-native-memory-helper")) {
         memory_helper();
+        for (;;) sceKernelUsleep(100000);
+    }
+    if (argc >= 2 && argc <= 6 && equal(argv[argc - 2], "--service-native-flex-helper")) {
+        flex_helper();
         for (;;) sceKernelUsleep(100000);
     }
     // Sony may prepend the image pathname. Match our explicit final two

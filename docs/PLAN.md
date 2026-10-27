@@ -1,5 +1,99 @@
 # Plan
 
+## Helpers load Wine's modules themselves on every firmware (2026-10-27; host-tested, not yet on the console)
+
+**What changed.** A payload helper no longer picks its module loader by firmware. It maps the staged
+`<name>.prx.elf` files itself (`native/pw_prx_elf_ps5.c`, core `src/pw_prx_elf.c`) on every console;
+`WINE_PS5_PRX_LOADER=0` still asks for the kernel's `sceKernelLoadStartModule`, for an A/B. The choice is
+`pw_prx_elf_wanted` (host test `test_pw_prx_elf`), and each helper logs it before ntdll:
+`wine-child: module loader=user-space (default)` or `=kernel (WINE_PS5_PRX_LOADER=0)`. The memory guard and the other
+firmware-keyed decisions are unchanged.
+
+**Why.** The rule was "user-space from 12.00 on, the kernel's below" (alpha-2 to c4a3458). A tester's PS5 Slim on
+11.00 (kstuff-fpkg 1.13 dr-test6, ShadowMountPlus 1.7beta5, elfldr 0.27; bundle reviewed 2026-10-27, not in the repo)
+never reached the desktop on alpha-3 or the c4a3458 prototype: the title loaded ntdll, the desktop's helper took the
+kernel's loader and stopped inside it (last line `loading ntdll`, no klog: klogsrv was not loaded), and the notice said
+errno 92 on firmware 11.00. The same stop is klog-proven on 12.40 (pager error at ntdll's text, "Decrypt error in SELF
+block") and seen on 13.40 and 13.59. A helper runs in a system carrier process, and whether the kernel decrypts a
+fake-signed SELF there is the jailbreak tools' doing, not the firmware's: the title loads the same files everywhere.
+A firmware cut cannot follow that; a loader of our own does not depend on it.
+
+**What is proven and what is not.** The user-space loader runs the base PS5's gates (13.40/13.60) since alpha-2, and
+it ran the Pro's alpha-2 gate by accident (94/94, 517 helper logs; the reported word 0x12090001 picked it). The address
+space it cost there (917 to 31 GiB) is patch 1231's, fixed for both loaders. Open: `mt3-2026-10-24-01` (the Pro,
+Steam, `WINE_PS5_PRX_LOADER=1` together with the malloc trace, VMMAP and window surfaces) reached the program at 6.7 s
+and crashed at 27.7 s; and on the Pro (limit 870 MiB) module text becomes JIT memory, which is counted as flexible
+memory. Neither is measured yet. The console plan is in `docs/CONSOLE_QUEUE.md` (gate, plain Steam, a loader memory
+A/B). No console run was made for this change.
+
+## The WebUI: the library, art, tiles, saves, settings and logs in a browser (2026-10-26; host-tested and used on the PC; not yet on the console)
+
+The owner asked for PS5_RetroArch's WebUI in MihawkOS: port 6767, the Frutiger Aero look, the games list, media and
+details, game forwarders, the settings, served by the launcher only, the two projects' title ids kept apart, and its
+QR code easy to find in the launcher. [`docs/WEBUI.md`](WEBUI.md) is the reference.
+
+Built: the portable routes (`src/pw_webui.cpp`), the libmicrohttpd glue with RetroArch's safety model
+(`src/pw_webui_http.cpp`), the page in ten languages (`webui/`), the launcher's QR under the library panel and in
+Settings > Web UI, live reload of a setting or entry, covers drawn in the library, the store's art and details, tiles
+`PPSA99300`-`PPSA99399` through ShadowMountPlus (MihawkOS stays `PPSA99170`), saves as ZIPs and put back, theme and
+music, and a bug-report ZIP with addresses masked.
+
+The owner's review of the first page (2026-10-26): "not user-friendly/guided/descriptive at all", no per-game Game Mode
+or controller, and 120 Hz is global, not per game. So: the page rewritten for the average player (guided steps, plain
+words, technical fields under "Advanced settings"); a game's own Game Mode and controller (`WINE_PS5_GAME_MODE`,
+`WINE_PS5_CONTROLLER`) from the launcher, from the desktop (per process: Wine's new `PW_CHILD_NOTICE_GAME_MODE`,
+`pw_window_direct_set_process`, `WINE_PS5_HID` per program) and in the programs a game starts (inherited); and 120 Hz
+output as one setting (`src/pw_high_refresh.h`), in the launcher's Settings and the page's. The runtime changes
+(`wine/ps5/`), so this needs a runtime build and deploy.
+
+Proven on the PC: `test_pw_webui`, `test_webui_http` (7 of 7 on the real server) and `test_webui_i18n` pass; each page
+was used in a browser against `tools/run-webui-host.sh`, the store against the real Steam store.
+
+Next, on the console (the owner's go): the page from another machine, the QR, a reload, the store through the title's
+HTTPS, a tile made, started from the home screen and removed, a game with Game Mode off and a DualSense of its own
+started from the desktop and from the launcher (the title log's "Game Mode:" and "Controller:" lines, the broker's
+direct-flip verdict "off"), and 120 Hz off (the title log's "120 Hz: off"). Then, in PS5_RetroArch (its own repository): its tile range
+skips `PPSA99170`.
+
+## Helpers' converted code is held to a budget, and module zero pages stay unbacked (2026-10-25, the base PS5)
+
+Why and what was measured: [FLEXIBLE_MEMORY.md](FLEXIBLE_MEMORY.md).
+- A payload executes only JIT memory, which is flexible (on 13.60 the title too). So converted code is the part of a
+  helper that cannot move to direct memory.
+- The code cache holds it to a budget, on by default since 2026-10-25 (the owner's rule):
+  - 64 MiB fixed for Steam and the launchers;
+  - for games, 64 MiB raised in 32 MiB steps whenever they thrash;
+  - `WINE_PS5_CODE_BUDGET_MIB` overrides it, and 0 turns it off.
+  - Steam's web helper: 234-250 -> 173-193 MiB.
+  - The 2D game through Steam: 59.9 fps, same frame times as without it.
+  - The arms ran at 60 Hz; the owner waived 120 Hz.
+- The PRX loader no longer writes zeros over memory a fresh mapping holds as zero: ~8 MiB off every helper.
+- Sony local processes draw on the title's partition but cannot execute anything on 13.60. On 10.01 that is unmeasured.
+
+## The owner's launcher session on the standard PS5: a guard loop, a renderer storm, pipe memory out (2026-10-21)
+
+The owner ran the launcher on the standard PS5 (build `f94586d65070fca6`, the "Launcher test desktop" entry), 11:24 to
+12:09. Logs kept off the tree: they name the launcher. Reviewed by three analyses, a synthesis and a check against the
+logs.
+- **0-600 s, a guard loop.** The steep rule ended the browser 38 times (26 main processes, 12 renderers), each at a
+  census of 1590-1628 MiB with helpers at 889-927 MiB in 16: every new browser tree's normal start-up climb.
+  - The browser was no bigger than in the runs that held the sign-in window. What differed was everything that is
+    neither the title nor a helper: 705 MiB (727 at the start), against 682 and 646 MiB in those runs.
+  - After each end the launcher started a new tree within 0.5 s, and the guard, which forgets what it ended, ended
+    it again.
+- **600-1690 s, a renderer storm.** One browser main process survived. Each of the 3,416 renderers it started was
+  ended about 0.35 s after it was created, before its program loaded. Unsandboxed children of the same process ran.
+  The cause is not proven; the browser's own log (`cef_log.txt` in that prefix) should name it.
+- **About 11:53, pipe memory ran out.** A fresh pipe took 0 bytes and a helper start failed with errno 5. Over 54
+  more launches, the loader made a process each time and then failed, and nothing reaped them. They were 54 stopped
+  processes, still alive after the title closed. The console needed a restart.
+- Platform fixes proposed, none made yet:
+  - The guard should remember the lineage it ended, so it does not end a relaunched tree's start-up climb again.
+  - Processes a failed helper start leaves should be reaped.
+  - A parent whose children die before they run should be slowed down.
+  - Pipe memory should be checked before each helper start.
+  - The census should name the processes that are neither the title nor a helper.
+
 ## A launcher to its sign-in window on the standard PS5 (2026-10-20, console; the Pro not yet)
 
 The goal (the owner, 2026-10-20): a launcher end to end, installer, start from the installer, the launcher itself, its
@@ -50,13 +144,17 @@ What it took, each measured on the console:
 - **The memory guard's end line names the rule that fired.** The steep climb ends below the end mark, and the line
   had said "stood past 940 MiB" at 872-900 MiB.
 
-**The Pro** (10.01, guard 870/940 MiB) has not run this build: it needs a restart, as one helper outlived the last
-launcher run. Its kernel's own limit is about 1014 MiB of RSS, and the launcher's start stands at about 1530-1570 MiB
-of census on the standard PS5, which tracks that RSS within 9 MiB. So the Pro is short by about 500 MiB, not by a
-few tens.
-- The browser's five processes copy 181 MB of code between them, mostly the same `libcef.dll` pages.
-- Sharing those copies does not lower the kernel's figure: measured (K18 below). The owner, 2026-10-20, had called
-  cross-process code sharing "the best long-term solution"; on this kernel it is not one.
+**The Pro** (10.01, guard 870/940 MiB): the owner ran this build there on 2026-10-21 (logs kept off the tree). The
+console's own processes held 272 MiB before Wine started. The guard's steep rule ended the browser 7 times in 2 minutes
+with helpers at 616-629 MiB in 15-16 (census 867-880 MiB).
+- Per process the Pro's figures are lower than the standard PS5's: Wine's base helpers 14-19 MiB (21-29 there), the
+  launcher 108 MiB (119), its service 24 (45), the browser's main process 120-122 (139).
+- Scaled the same way, the launcher's whole start needs about 710 MiB of helpers. The Pro leaves about 600 MiB under
+  its 870 MiB limit, so it is about 110-130 MiB short. An earlier line here said 500 MiB: it compared the standard
+  PS5's whole census, which includes about 640 MiB of that console's own processes, with the Pro's ceiling.
+- The browser's five processes copy 181 MB of code between them, mostly the same `libcef.dll` pages. Shared copies
+  save physical memory on the standard PS5 (K19 below); whether the Pro's kernel acts on physical pages or on its
+  printed RSS limit is not measured.
 
 ## The combined alpha-3 gates (2026-10-20, console: both, one build)
 
@@ -347,7 +445,7 @@ It is the friendly front end of SELF_INSTALL phases 5 to 7. The design is in [GU
 - The tour and its rules (`src/pw_setup.*`, `examples/ps5proton/setup_tour.hpp`), on the installer's engine
   (`proton_install_find("usb")`), with a fake engine for tests and a simulated first run;
 - The Frutiger Aero sky shader;
-- nine languages, in the owner's order;
+- ten languages, in the owner's order (Polish the tenth, 2026-10-26);
 - The launcher's faces re-baked for accents and Cyrillic, plus Noto Sans SC/JP faces baked to the setup's text;
 - The first session ending itself once the prefix is made;
 - The first session's cover (2026-10-19, in v1.0.0-alpha-1; not yet on the console): the minute wineboot
@@ -357,7 +455,7 @@ It is the friendly front end of SELF_INSTALL phases 5 to 7. The design is in [GU
 - Wine patch 1230: games take the setup's language, the shell stays English.
 
 **Proven on the host:**
-- `tools/test-setup-ui.py`: every step and error state rendered in all nine languages, the QR code read back, the
+- `tools/test-setup-ui.py`: every step and error state rendered in all ten languages, the QR code read back, the
   gate's walk.
 - `test_pw_setup`, `test_pw_wine_inherit`.
 
@@ -439,14 +537,57 @@ the same start without sharing on build `09acfc9faec09198`. Records kept off the
 | Page tables, CPU | 6840 of 8192 | 5170 of 8192 |
 | Memory-guard ends in 10 minutes | 0 | 4 |
 
-- The kernel's RSS counts a shared JIT object in every process that maps it, as the census does (K14): 449 MB of
-  shared mappings moved neither figure down.
+- SceShellCore's VM Stats RSS counts a shared JIT object in every process that maps it, as the census does (K14):
+  449 MB of shared mappings moved neither figure down. That RSS is SceShellCore's own sum of the per-process figures
+  (its FMEM lines add up to it to 0.1 MiB), not the kernel's: K19 shows the kernel counts a shared object once, not
+  per mapping.
 - About 27,000 objects of 16 KiB cost the kernel about 33 MiB more of its own memory.
 - Only the CPU page tables fell, by about a fifth.
 - An idle desktop ran clean with it (930 clusters shared, 0 mismatched).
 
-**Decision** (2026-10-21): shared code copies stay off the tree. On this kernel they save no memory that counts and
-cost kernel memory.
+**Decision** (2026-10-21, morning): shared code copies stay off the tree, as they saved no memory that counted.
+Superseded the same day by K19: they do save physical memory on the standard PS5; what does not see it is the census.
+
+**K19, what the standard PS5's kernel acts on (2026-10-21, console; the owner asked for the risky test).**
+`tools/shared-charge-probe.c` and `tools/run-shared-charge.py` (not committed: code needs a gate). One payload maps
+64 MiB JIT objects step by step, each step held 30 s and granted by the runner only after the step before passed:
+- shared: one object mapped again at each step (the census grows 64 MiB a step; the physical pages stay one object);
+- distinct, the control: a new object written at each step (both grow).
+
+The probe reads every process's resident flexible memory itself each second, as the title's census does, because
+SceShellCore prints its VM Stats and FMEM lines only on the running app's own process events: none at idle, none for
+payloads started beside a title, none while the title drew its menu for 120 s. The title stayed on its launcher
+screen for each run (test-run.txt `samples launcher`, 60 frames a second, no Wine session), which gives SceShellCore's
+swap-out at its start and its exit. Fresh boot of the standard PS5 (13.40), console processes at about 1220 MiB.
+
+| Run | Steps held | Per-mapping charge added | Object / pages added | Other processes | vm.swap_reserved | Swap-out |
+| --- | --- | --- | --- | --- | --- | --- |
+| `shared-charge-shared-2026-10-21-07` | 24 of 24 | 1,536 MiB | one 64 MiB object | flat (1,234 MiB throughout) | +76 MiB | 0.0 to 0.0 |
+| `shared-charge-distinct-2026-10-21-01` | stopped at 10 | 640 MiB | 640 MiB of new pages | -56 MiB at step 10 (step 9: SceShellUI -5.7) | +64 MiB a step | 0.0 to 0.0 |
+
+`shared-charge-shared-2026-10-21-03` was the first shared run; its probe still read pid 0 as the caller's own figure, so
+its "other processes" grew by the probe's own mappings. The fixed probe (ELF `1e4ce…`, the distinct run's binary) reran
+it as `-07`: 24 of 24, others flat at 1,234 MiB, `vm.swap_reserved` +76 MiB, swap-out 0.0, passed.
+
+- The kernel took memory from other processes once 576-640 MiB of distinct memory was added, and never for 2.4
+  times that charge in shared mappings. On 13.40 it counts a shared object once, not the per-mapping figure that
+  SceShellCore and the title's census add up.
+- After the release the processes it had trimmed were SceNKUIProcess (-21.5 MiB), SceNKNetworkProcess (-20.9) and
+  SceShellUI (-7.7). Swap-out stayed 0.0: the system reclaimed, it did not swap, at that level.
+- The kernel's own commit count, vm.swap_reserved, counted the shared object once and each distinct one again.
+- `shared-charge-shared-2026-10-21-02` (3 steps) checked the tooling first.
+- So on the standard PS5 shared code copies would save real memory: the browser's code is copied about five times.
+  The census, and so the memory guard, would not see it unless shared objects are counted once.
+- A census quirk found on the way: pid 0 answers sceKernelGetResidentFmemCount with the caller's own figure, so the
+  title's census (`src/pw_memory_helper.c`, which skips only the title) counts its memory helper twice, a few MiB.
+The launcher with both (`launcher-share-census-2026-10-21-01`, standard PS5, 13.40, build `0e78baf9`, the
+`launcher-e2e` profile): 625.8 s, passed, returned to the launcher; 930 clusters shared (14,880 KiB mapped, 4,752 KiB
+held at the peak), 0 mismatched, 0 failed; the census 1,216 MiB (helpers 225 in 9), 11 MiB of shared copies left out,
+the raw peak 1,227 MiB, and no guard end; 0 storage errors. This profile is not the CEF one of K18; it validates the
+census correction, not the 448 MiB saving.
+- Not settled: the Pro (10.01), which prints an RSS limit (about 989-1014 MiB) and froze twice past it, may act on
+  that printed sum. The 2026-10-20 run there, where counting the sync region once let RSS reach 1081 MiB and swap
+  rose from 38 to 139 MiB, is consistent with that. It needs the same test on the Pro, which is riskier.
 
 ## The helpers' synchronization device, patch 1180 (2026-10-17, console; on by default since a5a0d88)
 
@@ -5735,7 +5876,8 @@ user-space module loader in alpha-2, which the earlier text above says. `src/pw_
 read `sysctl kern.sdk_version` (the installed firmware, BCD) and fall back to the reported word. The memory guard's default limit
 (`pw_memory_guard_default_limit_mib`), the helpers' module loader (`prx_loader_wanted`: `pw_prx_elf_ps5_needed` on the
 installed firmware; `WINE_PS5_PRX_LOADER=1|0` overrides it for an A/B), the launcher's firmware line and the late-library probe's floor
-all take it. Verified on the console: Pro "firmware 10.01 installed (the system reports 12.09), limit 870 MiB, kernel loader";
+all take it. *Superseded 2026-10-27 for the module loader:* helpers use the user-space loader on every firmware (11.00
+stopped in the kernel's too; see the section of that date at the top). Verified on the console: Pro "firmware 10.01 installed (the system reports 12.09), limit 870 MiB, kernel loader";
 base PS5 "13.40 installed (13.59), limit 1600 MiB, user-space loader".
 
 **2. The address-space regression of alpha-2 (introduced in e15960a, shipped in alpha-2, found 2026-10-20, fixed in alpha-3).**
@@ -5764,3 +5906,438 @@ consoles after the fix is recorded in its own run, not here.
 
 **Open:** a prefix left half-initialised by a wineboot that was ended midway has nothing that repairs it (title-side
 detection and rebuild).
+
+## Aurelia in the launcher: sign-in, library, and the Playden session screen (2026-10-22; the Pro; play still open)
+
+The official Steam client's CEF was what made the console's memory guard end a
+helper every few minutes and what blacked the windows; the headless client
+[Drackrath/Aurelia](https://github.com/Drackrath/Aurelia) (GPL-3.0, no CEF, no
+WebView) talks Steam's protocols and is driven here as a backend over its
+`--json` lines. Decided with the owner: an **Aurelia** entry and page in the
+launcher, in the launcher's 30 themes, never the word "Steam" as branding.
+
+What is built:
+
+- The pinned client binary (`tools/fetch-aurelia.sh`, v0.1.40, SHA-256) runs
+  under the mihawk prefix; the launcher's catalog entry is a `game.json`
+  (`arguments: login --qr --json`). The launcher's library lists only entries
+  with a prefix of their own, so `/data/ps5proton/library-show-all` keeps this
+  one visible while it shares the mihawk prefix (the owner's choice).
+- The session captures the client's JSON (src/pw_aurelia.h): a payload helper's
+  stdout lands in `WINE_PS5_STDOUT` and is buffered until it exits, so the title
+  tails that file four times a second and once more after the helpers end, and
+  accumulates a document across lines (a signed-in `list --json` is printed
+  pretty, a login result spans four lines).
+- The sign-in screen: the title's loading screen becomes "Aurelia" with the live
+  QR (Nayuki's encoder, MIT) on a white card. An Aurelia session skips the GPU
+  broker (its presenter stole VideoOut after 0.1 s, and a headless client needs
+  no broker), both display buffers refresh together (the first version flickered),
+  and the login result ends the session by itself with "Signed in as <account>"
+  (the client keeps its daemon, so nothing else ended it).
+- The page (examples/ps5proton, opened with R2): the snapshot the session wrote
+  (`/data/ps5proton/aurelia-library.txt`) as a themed list with a detail panel,
+  the account line, and Sign in / Refresh (restarts carrying `args=`, new) and
+  Play (a catalog game by app id). A one-shot probe
+  (`/data/ps5proton/aurelia-open`) and the page's marker
+  (`/data/ps5proton/aurelia-page.txt`) let a run prove the page without a
+  controller; the kit's scripted input learned r2/l2/touch/options for the same.
+
+Proven on the Pro (firmware 10.01, 2026-10-22): the QR was scanned and
+`{"account":"freshpotato99","logged_in":true}` came back; `Aurelia: the library
+lists 59 games` and the snapshot holds all 59; the page opened and its marker
+says `games=59, focus=0 of=59`. The client's public HTTPS works
+(`example.com status=200`, one trusted root reached, an unknown one refused).
+
+Registering what the client installs is `tools/register-aurelia-games.py`: it
+reads the client's Steam library over FTP and writes a catalog entry per game
+under its app id (name from the snapshot, the largest .exe as its executable),
+idempotently. It ran on the Pro (2026-10-22) and registered the client's one
+installed game, 1476970 "IdleOn - The Incremental MMO"; the page's Cross now
+resolves it by app id. A working game's play run is still open: IdleOn dies on
+the known D3D11 descriptor-heap global-buffer failure, and the 2D game's install did
+not leave files to register (below).
+
+The session screen now carries Playden's own visual language (2026-10-22, the
+owner's request). Its theme values are copied exactly, not approximated, from
+[leolobato/playden-ps5](https://github.com/leolobato/playden-ps5) (GPL-3.0),
+`src/homebrew/view.cpp` at `054668246f1a967da55aeb4f79eab110246a4e78`
+(`playden_theme()`): background `#0E0D0C`, surface `#16140F`, surface high
+`#2A2623`, accent `#F0863A`, text `#F3EFE9`, muted `#A8A29E`, success
+`#7BBF6A`, danger `#E05A4F`, radius 8, card radius 10, focus width 4 and gap 5;
+the library page's 6-column 210x315 grid on 24 px gaps, its boxed tab and left
+rail are its metrics too. They live in one `Palette` in
+`native/proton_loading.cpp` (credited beside it), and the QR card stays white
+because contrast is a hard requirement. No Playden code is copied; README.md
+and NOTICE.md credit the values and say so.
+
+The loading screen is the client's own states now: a centred mark and "Aurelia"
+in the title font, a phase line, the last status the client reported, a Playden
+spinner while the phase is indeterminate (or the determinate bar when an
+install's percent is known), and the footer. The phases are the session's real
+ones: "Starting Wine", "Signing in" (a challenge arrived, and the launch
+arguments say login), "Code scanned" (`{"event":"qr_scanned"}`, a new event and
+handler), "Signed in as <account>", "Listing your library" (a list session after
+the client starts), "Installing <name> - N%" (progress; the parser's progress
+branch was unreachable before 2026-10-22 and every line was logged as unknown),
+and "Library ready". The library is the Playden page: the tab bar, the left rail
+with real Installed/All/Not installed filters, the six-column poster grid with
+the store capsules (`tools/fetch-aurelia-covers.py` fetches them on the PC and
+uploads them under `/data/ps5proton/covers`; 59/59), the focused poster's bottom
+overlay and ring, and the button legend. Up from the grid's first row reaches
+the tab bar, left from its first column the rail; Home leaves the session to
+the launcher, and the reference's other tabs say this session has only the
+library.
+
+The hand-off is the session's own restart: a static next request is passed to
+`return_to_launcher`'s final `proton_restart` (the earlier wine-run.txt write was
+overwritten), and the session clears its captured stdout before a hand-off
+session starts (the first console run replayed the login from the stale file and
+looped). Proven on the Pro (2026-10-22): a login run's QR was scanned; the log
+shows "phase Signing in", "the code was scanned", "phase Code scanned", "Signed
+in as freshpotato99", "phase Signed in as freshpotato99", "Wine: the session
+hands over to aurelia", then the new session "previous output cleared", "phase
+Listing your library" and "the library lists 59 games"
+(`klog/aurelia-login-phases.log`). A list run showed "phase Starting Wine" ->
+"phase Listing your library" -> "the library lists 59 games", and the owner
+confirmed the Playden library page, the up/down/tab/rail navigation, the
+filters, the legend and the covers on the TV ("All good"; `evidence/aurelia-library-nav.json`).
+An install run showed "phase Installing <the game>: Rebirth - 14% ...
+29%" and the owner confirmed the determinate bar
+(`evidence/aurelia-install-progress.json`). The cover art is the store's own and
+is not in this repository; README/NOTICE say so.
+
+The install's completion is a failure to record. The long run downloaded the
+client's full 2,058,088,168 bytes (progress 100%, 159 s of program time) and the
+client answered `{"event":"result","status":"installed"}` (no `ok` field; the
+result parser now treats "installed" as success and the screen says Installed
+instead of "The command failed"). But neither `appmanifest_250900.acf` nor
+`common/<the game's folder>` exists in the mihawk prefix (FTP LIST,
+2026-10-22 20:13), and `tools/register-aurelia-games.py` still finds only
+1476970 IdleOn, so there is no executable to register and no play run to make.
+The download is real and fast (the client reported 8-35 MB/s); the failure is
+after it, in the client's install/finalisation step, and is not yet diagnosed.
+A working game rendering and being controllable therefore remains unproven
+(IdleOn 1476970 still dies on the D3D11 descriptor-heap global-buffer failure).
+
+**Correction (2026-10-24, docs/AURELIA_REVIEW.md):** the paragraph above, "the install left no files", compared two different prefixes. A bare-path
+launch gets the prefix `probe` (`src/pw_wine_launch.c:20`) and the listing read `mihawk`; the client's install of the 2D game in `C:\users\<user>\Games\Aurelia` is
+what the official client later launched (lib-isaac-2026-10-24-01 and -02). The install worked.
+
+Open, and why: the home-screen exit after a session ends (the log says
+`restart: to=launcher` but the shell appeared; the relaunched launcher died) is
+still a separate, undiagnosed fix; the external klog recorder is unreliable, so
+it needs the guard's boot klog or the payload's. The top tabs Downloads, Saves
+and Settings are the reference's labels, not pages: Cross there says the
+session has only the library; Home leaves and Library is the page. The
+launcher's R2 page remains a debug entry. The commit gate could not run: 95 of
+96 cases passed on an earlier build of this code and `launcher-tls` fails only
+because this host's ufw drops the console's connects to the owned LAN fixture
+(the console's public HTTPS passes); the owner directed committing with the
+hook skipped.
+
+## Steam runtime (SteamCMD) in the Aurelia session (2026-10-23; slice 1)
+
+The Steam client cannot run on this homebrew: its CEF is mandatory, renders black
+and its memory took the homebrew down. The legitimate headless replacement is
+Valve's SteamCMD, installed at `C:\Games\SteamCMD` in the mihawk prefix (461 MiB
+under Wine, no CEF; it was reaching the `Steam>` prompt on the console). The owner
+decided the runtime is integrated into the Aurelia session with the Playden UI as
+the only interface, never a console or a login file; GOG is out of scope.
+
+Plan: `docs/aegis/plans/2026-10-23-steamcmd-runtime.md`, five slices. Slice 1 is
+done: `src/pw_steamcmd.{h,c}` maps SteamCMD's console lines to
+idle/update/signing-in/guard/signed-in/ready/failed (host test
+`tests/test_pw_steamcmd.c`), and the title's `profile=steamcmd` session polls the
+program output and drives the overlay. The Pro run of 2026-10-23
+(`--profile steamcmd`, `evidence/steamcmd-slice1.json`, `klog/steamcmd-slice1.log`)
+showed the "Steam runtime" phase and `SteamCMD: ready Steam Console Client ...`;
+the wrapper starts/stops the program through the title's own session. Slices 2-5
+remain: the setup page with account/password/Steam Guard and stdin, the game
+prelaunch with `SteamAppId`, the library tile, and the closeout tests (the game's
+`SteamInternal_SteamAPI_Init` accepting SteamCMD's client pipe is the open
+question).
+
+### Slice 2: the Steam runtime setup page (2026-10-23)
+
+`src/pw_steamcmd_setup.{h,c}` holds the page's state machine: account, masked password and Steam Guard
+fields, Tab/Enter/Backspace editing, the submit lines for SteamCMD's stdin, and the mapping of SteamCMD's
+parsed states (signing in, Guard, refused, signed in). The Playden overlay draws it (`proton_aurelia_setup`),
+the title feeds it the USB keyboard events and writes the login/Guard lines to SteamCMD's stdin through a
+pipe (`SteamCMD: the console's input is a pipe`). The password is cleared after the attempt and never
+stored; the SteamCMD's own machine token is the persisted credential. Host tests: 150 passed, including the
+setup state machine.
+
+Slice 2 is now console-proven (2026-10-23, 13:16 console time). The page was reached from the launcher's
+**SteamCMD** tile, the account and password were typed on the TV, and SteamCMD's own
+`logs/connection_log.txt` recorded `[Logging On] ... Using JWT ..., persistence: 1`, `Successfully
+generated token via password authentication` and `[Logged On] ... RecvMsgClientLogOnResponse(): OK`; a
+Steam Guard notification arrived on the owner's phone during the attempt, and the page ended on
+"Steam runtime ready". The persisted token now lives in SteamCMD's `C:\Games\SteamCMD\config`.
+
+What the console run forced into the design, each proven on the device:
+
+- The setup page stayed up because the SteamCMD session is **headless** (the title skips the GPU broker and
+  the graphics owner for `profile=steamcmd`) and refuses a second presenter while it owns the display.
+- SteamCMD does not read the title's stdin pipe for its interactive login; the page writes
+  `logs/steamcmd-login.txt` and the `steam-runtime.exe` wrapper starts SteamCMD with `+runscript`. That file
+  is deleted at session start and removed after the run; the password never appears in a process command line.
+- SteamCMD's console text is not the redirected stdout, so the title also parses `connection_log.txt` for the
+  verdict (signed in / invalid password / Guard / rate limit) and shows it on the page.
+- The keyboard map was producing plain digits for shifted digits (a shifted-symbol password silently
+  became wrong); shifted symbols and numpad keys are mapped, the password is visible while typing, and the
+  failed state retries on any key. The pad moves between fields; Cross is Enter, Circle is Back.
+
+### Slice 3: the game prelaunch (in progress)
+
+`tools/steam-runtime.c` is the prelaunch wrapper deployed at `C:\Games\SteamRuntime\steam-runtime.exe`.
+It waits for a login file, starts SteamCMD with `+runscript` and `-nobuffer`, forwards SteamCMD's lines,
+then starts the game with `SteamAppId` set (default 250900) and waits for it. The remaining slice-3 work is
+the game's catalog entry through the wrapper, hiding SteamCMD's console in the game path, and recording the
+game's Steam API result plus the frame/GPU log; the deciding question is still whether the game's
+`SteamInternal_SteamAPI_Init` accepts SteamCMD's client pipe.
+
+### The direct-memory investigation of 2026-10-23, corrected (2026-10-24)
+
+An earlier entry here called a direct-memory "claim" for file views a measured negative: "counter 9 did not fall with the claim active". The
+review of that work and the logs on disk say otherwise, and the entry is replaced:
+- **The instrument could not show it.** The child's `file_private_mib` and "files read in" are one counter (`VM_STAT_FILE_READ`) that adds each
+  `pread` into a view and never subtracts, so it cannot fall when a view is released or when memory moves; the two runs compared were also
+  different processes. What the guard counts is each process's resident flexible memory (`sceKernelGetResidentFmemCount`).
+- **Those bytes were never in the guard's pool.** A helper's file and image views are backed by the application's direct memory before the read
+  (the helper adopts the ForApp allocator; every reserved area and fixed reservation is a direct-memory region), and direct memory is not counted.
+  What the guard sees of an image is its converted code (JIT objects, patch 1127), which the registry already shares by content.
+- **The claim does nothing:** a view lies inside a region registered when it was made, so `__wine_ps5_dmem_claim` merges into it and the commit
+  after it is skipped. Claims 1-4 were all refused (an alignment bug the code's own comment records); only the fifth succeeded, and it changed nothing.
+- **Sharing image text as file-keyed shared objects is not safe** (Wine writes relocations and import tables into a section after it is mapped, and
+  those writes would reach every helper), and would move bytes from uncounted direct memory into counted JIT memory. It was not pursued.
+- The memory guard was changed in the same worktree (end margin 70 -> 119 MiB, a 12 s "swap grace" on the steep rule, its tests rewritten): that
+  loosened the guard against the owner's word and was reverted.
+
+### Pro memory facts, measured (2026-10-24, the PS5 Pro, installed 10.01; records `bit22-try-2026-10-24-01`, `flex512-2026-10-24-01`)
+
+One short run each with the title's own `param.json` changed and put back (one launch, restored and compared with the production file):
+- **`attribute3` bit 22 (0x400000) is the Pro memory mode** (found by github.com/obl1vn/Unlock-ps5-pro-memory on 13.60; it works on 10.01
+  too). 64 -> 4194368 (0x400040, our high-frame-rate bit kept): the direct pool 11712 -> 12928 MiB (+1216), the largest free block
+  11277 -> 12246 MiB. `FMEM size` (0x40000000), the flexible 946 MiB free and the console's RSS limit (1038.7) did not change. The production
+  title carries 4194368 from this date (the driver tests the 120 Hz bit by mask, so that flag still reads). A release for a standard PS5 would
+  carry 64: the bit is untested there (it may be refused at launch).
+- **`kernel.flexibleMemorySize` is a partition slider.** 1.5 GiB is refused (`max: 1073741824`, with or without bit 22). 512 MiB: `FMEM size`
+  0x20000000, the direct pool 12928 -> 13440 MiB (+512, exactly what was given back), flexible 434 MiB free. A user's report on a 10.20 console
+  (1 GiB -> 256 MiB freed 768 MiB, the title's own flexible use about 77 MiB) agrees. What is NOT known: whether the helpers (payload processes)
+  draw on the title's entitlement. Their counted memory exceeded the 1 GiB entitlement in runs of a store client without failing, but no run was made under a
+  smaller entitlement with helpers loaded; do not lower it without that run.
+- **The console's printed RSS limit is not the title's entitlement.** With the entitlement at 512 MiB the line still read `RSS 141.8 1039.3`
+  (the note above, "RSS x of 1025.8 is the title's 1 GiB flexible pool", is wrong). It stays near 1038-1039 whatever the title asks.
+- **The guard's default is keyed by installed firmware** (`pw_memory_guard_default_limit_mib`: below 12.00 the 870 MiB limit, 12.00 and
+  later the larger one), fitted to two consoles: this Pro on 10.01 (prints a limit, ~1039) and the standard PS5 on 13.40 (prints 0.0, ran past
+  1700 with swap flat in the earlier records). A user reports that 1600 MiB "works perfectly fine" on a 10.20 console. If that console is a
+  standard PS5, the rule gives it the Pro's limit: the key should be the console model (or its measured reclaim behaviour), not the firmware
+  number. Needed from that user: the console model and the `VM Stats: RSS a b` line from klog (b = 0.0 means the base behaviour).
+
+### Why testers prefer alpha-2: the guard's firmware key (2026-10-24)
+
+alpha-3 changed where the guard's firmware number comes from
+(`1263ccf`: installed firmware, `kern.sdk_version`, instead of `sceKernelGetSystemSwVersion`, which the jailbreak enabler spoofs: the Pro reports
+12.09, the standard PS5 13.59). The threshold did not change (below 12.00 the 870 MiB limit, from 12.00 the larger one), so in alpha-2 every
+enabled console ran with the larger limit and in alpha-3 every console whose INSTALLED firmware is below 12.00 gets the Pro's 870, a base PS5 on
+10.x or 11.x included, where the 13.40 base console's measurements (kernel acting on physical pages, ran past 1700 with swap flat) and a user's
+report (1600 "works perfectly fine" on a 10.20 console) say it is far too low. The 870 is right only for the Pro. Other alpha-3 changes that
+cost memory: MihawkBrowser works again (alpha-2's address-space regression had broken it; about 350 MiB with its processes), and helpers on
+consoles below 12.00 now load Wine's modules themselves (the Pro's path). Fix to make: key the default on the console model
+(`sceKernelGetHwModelName`, reachable from a payload with `-lkernel_sys`; not yet read on a Pro or a base console), and give testers a setting.
+
+### A launcher option that installs a store client, and sessions that follow their processes (2026-10-24, Pro 10.01)
+
+The launcher has an option that downloads a store client from its vendor's own servers, installs it silently in the Windows prefix, and opens it
+once for its sign-in; its steps, numbers and the open items are in docs/STEAM.md. Three engine facts it established, each measured on the console:
+- A program that updates and restarts itself ends its first process after starting its second (twice on a fresh install). A session used to end
+  with its root process; an entry that sets `PROTON_SESSION_FOLLOWS=processes` now ends when the server's user-process count (patch 2073, the count
+  Wine's own shutdown waits on) has been 0 for 5 s. Off for every other entry; making it the default is a gate-run decision.
+- The console's file system is case-sensitive and Windows is not: a name an installer wrote as `Client.exe` is found by Windows as `client.exe`.
+  `src/pw_path_nocase.{h,c}` resolves paths ignoring case where the launcher checks a program.
+- A new export of the server module must also be listed in `tools/build-wine-ps5.sh` (the wineserver descriptor), or the title's symbol lookup
+  returns null without an error (the title now says so for this one).
+
+### The guard is a last resort (2026-10-24, the owner's decision)
+
+The default limit for firmware below 12.00 is 990 MiB with the end mark at 1010 (`PW_MEMORY_GUARD_LAST_RESORT_MIB`, `pw_memory_guard_default_end_mib`); 12.00 and
+later keep 1800/1870, and PROTON_SYSTEM_MEMORY_LIMIT still lowers it. Why: the signed-in client window runs at a kernel RSS of about 725 of ~1039 MiB with
+swap-out rising 64 to 113 MiB (steam-signin-raise-2026-10-24-02), and the 870 mark ended it before the client had saved its sign-in. What the October records
+say about the early builds: no visible, signed-in Steam run was fine before the guard (10-05 an error box, 10-06/07 swap to 1115-2066 MiB and a stopped
+console, 10-10/11 the browser's GPU process at 430-470 MiB and the census to 940-992 MiB); the early client was version 1788652215, today's fresh one
+1792618285; another launcher's game played only with the guard raised to 1250/1300 (10-12). The 990 mark leaves 49 MiB to the kernel's limit, so a climb of 15-36 MiB/s
+can still pass it before a decision lands: the steep rule stays armed and the freeze risk is the owner's accepted one. Not yet run on the console with this default.
+
+### What Big Picture's start-up jump is not (2026-10-24, the Pro; kit-bp-*, kit-flex/direct/reserved-*, kit-nogpu-*, dsec-*)
+
+The signed-in client's browser helper holds 225-241 MiB of kernel-counted memory until about 15 s, then 411, 524, 575, 613 MiB in 4 s (the start-up freeze:
+the census to 880-920, swap-out 64 to 166-184). Measured with the class-budget census (`WINE_PS5_CENSUS_MS=F:D:R`, `WINE_PS5_EARLY=1`), each class once
+with a budget that finished it: at 20 s, kernel 602-623 MiB; flexible-flag mappings **162 MiB resident** (6871 of 6871 mappings, 84 ms); direct **1081 MiB**
+(7416 of 7416; already 1069-1088 at 13-15 s, so it does not move with the jump); reserved (PROT_NONE) **0 MiB** (7383 of 7383). So the +380 MiB the kernel
+counts is in none of the three classes the walk lists. Not the GPU: with `--disable-gpu --disable-gpu-compositing` the helper still jumps at 11-12 s to 540 MiB,
+the swap-out peak is lower (74) but the UI draws about 8 frames a second. Not sections: 2 sections of 25 MiB were 8 MiB or more
+(`WINE_PS5_DSECTION_MIN_MIB`, default 256, changes nothing). Not libc: about 20 MiB. Next: a kernel-side map summary (kern.proc.vmmap, taken from the memory
+helper with a direct-memory buffer) at the jump, as the plan for the measurement kit allowed once a residual over 60 MiB survived.
+
+**The kernel's own map names the jump (kit-vmmap-2026-10-24-01, `WINE_PS5_VMMAP=1`, kern.proc.vmmap read inside the browser helper).** By region type
+(FreeBSD's: 1 default, 3 swap-backed anonymous, 4 device): at 12 s the helper holds 104 MiB of type 3 and 446 MiB of type 1 at 13 s; at 15 s, after the jump (kernel count
+534 to 605 MiB), type 3 holds **519 MiB resident** (6847 regions) and type 1 only 29. The largest regions are two anonymous ranges, `0x880420000-0x88f0a0000`
+(221, 236, 233 MiB) and `0x88fd30000-0x899990000` (95 then 156 MiB), growing with the jump: about 390 MiB of the 600. **`sceKernelVirtualQuery` does not list them**: the largest
+mappings of the walk (`vm big`) are 64, 32, 29 MiB at other addresses, which fits every class of the walk, measured whole, holding 162 MiB flexible and 0 reserved, and means the
+walk's "libc about 20 MiB" (above) did not account for them. Owner: Sony's libc heap, filled by the GPU client (see "The owner" below), so the libc heap
+experiment (idea 1) was the right place to look: an allocation log of the helper's malloc by size and caller at the jump is the next step.
+
+**The owner of the start-up jump: the GPU client's platform heap could not get direct memory in a helper, so Mesa's whole heap went to Sony's libc (2026-10-24, Pro fw 10.01).**
+How it was found, in order (each a run under `klog/` with its evidence JSON): `vq-` (libkernel's `sceKernelVirtualQuery` refuses the exact query for the two big
+ranges and skips them in the next-mapping walk: why the census never listed them); `ms-` (`malloc_stats_fast` reads the libc heap: 13 to 282 to 388 MiB in use between
+12 s and 14 s); `pr-` (`malloc` hands out new blocks inside the growing region); `mt22-` (a counter on every Wine module's libc allocation imports, output through
+`stderr`, not `write(2)`, which reaches no helper log: **every earlier silence from `write(2)` logs is void**): `libvulkan-helper.prx` asked libc for 2.7 GiB in 6.4 million
+calls, 394 MiB live at peak, all through five call sites in the platform heap's `__wrap_malloc`. Disassembling it (`llvm-objdump`, REA times out on the 8 MB module):
+it calls `ps5_heap_malloc` first and tail-jumps into libc's `malloc` when that returns NULL, and it always did. The SDK heap (`PS5_PayloadSDK/platform/src/heap.c`) maps
+direct memory with `sceKernelAllocateDirectMemory`; a payload must use `sceKernelAllocateDirectMemoryForApp` (native/proton_payload_child.c, `payload_allocate_direct`:
+the plain call draws on the system partition, which has no budget in a payload), so the heap was refused every time.
+Not the owner (each measured): window surfaces, the Wine `mmap` wrap (it is never linked into a helper; helpers map through the carrier's `sdk_mmap`, which saw
+no mapping of 1 MiB or more), libfreetype and libgnutls (under 32 MiB asked), the carrier's own code, libc's mapping call (the heap reserves its regions at start).
+Dead ends worth knowing: forcing the helper's user-space PRX loader on 10.01 (`WINE_PS5_PRX_LOADER=1`) crashes the title; `--wrap` of the allocation family in the
+carrier crashes the helper at 6 s; redirecting the client's allocation to Wine's heap fixes Steam (resident 664 to 294 MiB) but the 2D game then needs 72 s to reach its intro,
+because one mutex serves Mesa's allocation rate (`isaac-ch-2026-10-24-01` against `isaac-ctl-2026-10-24-01`); patching a Wine module's `malloc` import without checking its library token breaks
+`winehid` and the desktop window: most Wine modules import `malloc` from ntdll's own heap, only the imports whose token names `libSceLibcInternal` reach Sony's.
+**The fix, first** (`native/pw_malloc_trace_ps5.c` in the loader's per-module hook): the client's one `sceKernelAllocateDirectMemory` import replaced with the `ForApp`
+call. Wine's heap area now tries `0x5000000000` before `0x2000000000` so the platform heap can reserve its range at its hint (`wine/ps5/pw_wine_dmem_ps5.c`;
+`tests/test_crash_replays.c` follows the address). **The fix, where it belongs** (PS5_PayloadSDK, ours): `ps5p_allocate_direct` (`platform/src/placement.c`, commit
+`c32d2be`) tries the plain call and then the weak `ForApp` one, for the heap, exec, shm and thread stacks; then `9d04878` makes an arena's growth step 2 MiB instead of
+the dlmalloc default (direct memory is committed whole when mapped, so each of the eight arenas held a large first segment it never used: the 2D game's +80 MiB below).
+The SDK pin is `9d04878` (`ps5/tools/setup-sdk.sh`, `docs/PROVENANCE.md`; build with `PS5_PAYLOAD_SDK_FORK` pointing at the fork); the import patch is removed.
+Measured on the Pro, Big Picture, same console and day: the browser helper's resident memory across the old jump 588-664 to 247-278 MiB, libc heap 400 to 6 MiB in use,
+peak system RSS 945-964 to 705-707 MiB (swap out unchanged at 82 MiB), frame windows of 110-118 fps with a longest gap of 2.7 s in the first window (the stall
+totals were 51-52 s; the first of the two 24 s gaps is gone, a later 5-8 s one remains: not this cause). The 2D game from the library: 57-62 fps as before, peak system RSS
+**754 against 672 MiB** (the client's platform heap holds more than libc's lazy heap did: about +20 MiB in each of three GPU-client processes), still under the
+swap onset of 780-820. `fin1-2026-10-24-01` (Steam) and `fin2-2026-10-24-01` (the 2D game) are the runs of the final build with nothing set.
+Diagnostics left in, all env-gated: `WINE_PS5_MALLOC_TRACE=1` (counts every libc allocation of the Wine modules by caller), `WINE_PS5_VMMAP=1` (kernel map by region type,
+`malloc_stats_fast`, a malloc probe, a peek into the biggest regions), `WINE_PS5_SAMPLE=1` now reports every second across 10-20 s. No gate was run on any of it.
+With the SDK fix and the import patch removed (the Pro, 2026-10-24): Big Picture peak system RSS 642 MiB, the 2D game 673 MiB at 60 fps (the +80 MiB is gone).
+
+**A .NET game (Wine-Mono) crashed after a long load, then started in 2 s (2026-10-24, the Pro).** Two causes, each a fix for every program:
+- *The crash*: "Access to the path ...\Content\Dialog\Fonts is denied". The console has no `*at()` calls; the in-process server opens a name relative to a directory
+  handle with `fchdir(that descriptor)`, and `pw_wine_cwd` keeps one path per descriptor number in a table that stopped at 4096. The title's server held descriptor 8269
+  with Steam and the game running, so every relative open above 4096 was refused (patch 2074's ERR line named the open; the `fchdir` wrap now says why it refuses).
+  `PW_CWD_MAX_FDS` is 65536 (`wine/ps5/pw_wine_cwd.h`, a host check for descriptor 8269).
+- *The slow start* (37 s to the first frame): Mono's hazard table is a writable 4 KiB page whose host page (16 KiB) holds three no-access pages. Patch 1122 maps a host
+  page read-only when its pages disagree on write and steps each store; a no-access neighbour counted as a disagreement, so every hazard-pointer store faulted. Patch
+  2075 leaves no-access pages out of that rule (they are not readable, so nothing is lost; read-only and guard neighbours still step). Start-up 37 s to 2.2 s; the
+  owner played it and reported it "runs great"; the last session: about 61 fps, no crash, peak system RSS 678 MiB.
+Gate cases added for both: `relative-dir32`/`relative-dir64` (4400 files held, then every subdirectory of `C:\windows` opened relative to the listing's handle) and
+V7 in `vm-truth32`/`vm-truth64` (200,000 stores into a writable page beside only no-access pages take under 100 ms). The gate is now 98 cases.
+
+**The OpenGL SDK moves to its mirror, 1.0.0 to 1.0.2 (2026-10-24; PS5_MihawkOS PR 29 by RikyPy, issue 28).** blackbearreloaded/ps5-opengl is gone (404), so a fresh
+clone could not fetch the SDK. darkxex/ps5-opengl mirrors it but carries only 1.0.2 (SHA-256 `30d8e51d...`, matching its release note). 1.0.2 is a later release,
+not a re-host: runtime source `dce7491` to `a519561`, the three static archives differ (EGL, the gallium screen, the AGC runtime; Compatibility-profile contexts
+added), headers and `LICENSES/` unchanged, corresponding source included. The PR's five commits moved the URL, the pin, the download's file name and
+the SDK path in `tools/build-wine-ps5.sh` and `tools/stage-licences.py`; the URL in `tools/fetch-opengl-sdk.sh` and `NOTICE.md`, `README.md`, `docs/PROVENANCE.md` were
+finished here.
+
+**Gate on the Pro with all of this (`gate-celeste-gl102-2026-10-24-01`, 1800 s): 97 of 98 passed**, the first gate with 1.0.2 in `win32u.prx` and with
+`relative-dir32/64` and V7 (all four passed; the probe's `C:\windows` handle was 0x457c, after the 4400 held files, and its 20 subdirectories opened relative to it).
+The one failure, `desktop-session`, was the check, not the build: going up from Documents shows the Desktop, which now lists the owner's 19 shortcuts (13 on
+10-22), and its vertical scrollbar covered 141 compared pixels (x 1073-1089 of the window, over the column header too). `tools/pw_explorer_expected.py` now leaves that
+column out for the Desktop; both captures (13 and 19 items) compare with 0 wrong. A second gate on the fixed check was stopped by the owner before it reached the
+console, and the commits were made with `--no-verify` at the owner's word.
+
+## Steam games start: where a 2D game's two minutes went (2026-10-25, the Pro, the owner asleep; goal: as close to a PC as possible)
+
+`tools/start-timeline.py RUN` gives a run's start one line a second from its flight log (frames flipped, each Windows program's CPU), and the milestones. The 2D game from its
+library entry (`steam.exe -silent -no-browser steam://run/250900`), `isaac-load-2026-10-25-01`: Steam's first CPU at 10 s, the game's process at 50 s, steady 60 fps at
+120 s. Two parts, each measured, each fixed for every program:
+
+- **Steam, 40 s** (its own logs, `klog/steam-logs-2026-10-25/`): 15 s "Verifying all executable checksums" on every start, then about 13 s to its sign-in and 5 s of
+  launch tasks. `-noverifyfiles` skips the verification ("Verification skipped"; an update still replaces the files): on the 250900 entry (the original kept in
+  `~/PS5-Backups/game-json-2026-10-25/`) and on the launcher's Big Picture entry (`src/pw_steam.c`).
+- **The game's own load, 70 s, almost all of it file calls in the game's helper** (its loading thread 80% inside NtReadFile, NtQueryAttributesFile, NtCreateFile,
+  NtClose; `isaac-load-sample-2026-10-25-01`): 370,000 reads (1.43 GB, all its archives, 4 KiB at a time), 47,000 attribute queries, 25,000 opens. Each was slow for
+  its own reason, measured by `tests/file-cost-probe.c` (32- and 64-bit, in a helper):
+
+| Cause | Before | Fix | After |
+| --- | --- | --- | --- |
+| A child got every file uncached (patch 0929), so each read was a get_handle_fd and a descriptor passed over the socket | ReadFile 4 KiB 36.8 us | 2076: a regular file is leased to the child (cached; pinned until the handle closes; 32 a process, 96 in all) | 6.8 us |
+| A missing name read the whole directory (case-sensitive disk) | 340-360 us | 2077: a process keeps a directory's names (32 directories, checked by device, inode and modification time) | 78 us |
+| Every open resolved its whole path with realpath(), a system call a component | open+read+close 158 us | 2080: the server keeps resolved directories (64) | 132 us |
+| The game asks, in lower case, about each resource of each installed mod: every component looked up one at a time, with the file system's case asked each time | 180 us (probe), ~400 us (the game) | 2081: a process keeps the directories it resolved by their Windows path (1024), and the PS5 answers case-sensitive without asking | 64 us |
+| The kernel does not read ahead for small reads: a 1.5 GB file read 4 KiB at a time 88 MB/s cold (both passes: it does not stay cached), 830 MB/s in 1 MiB reads (`readspeed-cold-2026-10-25-01`); FreeBSD's F_READAHEAD changed nothing (`readspeed-ahead-2026-10-25-01`, not kept) | the game's reads 13 s | 2082: a synchronous read of 64 KiB or less is served from a 512 KiB piece read at once (4 a process, by device and inode, checked with fstat each read; this process's writes forget them) | 350 MB/s cold (`readspeed-ra-2026-10-25-01`); the game's reads 4.8 s |
+
+  Also found: a 32-bit program's server requests had no name (wow64_wine_server_call), the counters kept the stack's bytes as a label, and the game's helper crashed in
+  the census's snprintf (`isaac-load-fix1-2026-10-25-01`): patch 2079. `WINE_PS5_FILE_TRACE=N` (patch 2078) logs a helper's first N opens and attribute queries with
+  their names and microseconds; it is what named the game's mod lookups (`isaac-load-trace-2026-10-25-02`).
+- **So far:** the game's process at 36 s and steady 60 fps at 66 s (`isaac-load-fix4-2026-10-25-01`), from 50 and 120: its own load 70 s to 30 s. What is left
+  of it: reads 4.8 s, opens 3.1 s, attribute queries 7.4 s (156 us each: the reparse-point retry and the exact-name stat still cost system calls for every
+  missing component), and about 15 s of the game's own work at two cores. Before the game: about 10 s of Wine's session start (wineboot, services) and 26 s of Steam
+  (its UI and sign-in about 15 s, its launch tasks about 5 s). From a running Big Picture, a launch skips the session's and Steam's start: that is the PC-like
+  path.
+- **The gate:** `gate-load-2026-10-25-01` passed 64 cases; at the 65th (`initial-env64`) the console's Shell UI froze 60 s before the title printed anything
+  and was force-aborted, and the title could not be killed (the control payload busy for 13+ minutes, FTP silent). After the owner restarted the console the
+  same build passed all 98 (`gate-load-2026-10-25-02`, 1817 s). The freeze's cause is not known; it did not recur.
+
+## The Steam guide, Polish and the controller choice (2026-10-26; on the base PS5, the owner's first run through to Big Picture)
+
+The owner: "users are left confused" by the Steam setup; guided screens in the guided tour's style, from the first press
+to Big Picture, and Polish as the tenth language. The design and what each screen says: [STEAM.md](STEAM.md), "The guide".
+
+**Built** (branch `steam-guide`, from `hypervisor` d352dfe):
+- `src/pw_steam_guide.{h,c}`: the launcher's pages, the record kept across the restarts, where the launcher resumes, the
+  sign-in session's screens as a state machine (`tests/test_pw_steam_guide.c`).
+- `src/pw_steam_screen.{h,c}`: the session screens, drawn by the title over the client's windows through the broker's cover
+  (`tests/test_pw_steam_screen.c`: every screen in every language, words on the card, every character with a face).
+- The launcher pages as the setup tour's Steam mode; the library's Steam row opens them until the client is signed in.
+- The sessions (`PROTON_STEAM_GUIDE=install|signin` in the entries): the screens, the pad kept from the client while a
+  screen shows, the results written back for the launcher.
+- Polish across the tour and the guide; the Chinese and Japanese cuts also shipped as TrueType.
+- Console pictures: `tools/run-launcher.py --steam-guide-pictures 1` (the pages) and `PROTON_STEAM_GUIDE_SHOWCASE=1`
+  (the session screens); gate cases `steam-guide-pages` and `steam-guide-screens` (English).
+
+**On the console** (base PS5 13.60, 2026-10-26; the gate was skipped at the owner's word, so there is no gate record and the
+two new gate cases have not run inside one):
+- `steam-guide-pages-2026-10-26-02` PASS: the launcher's 5 pages in all 10 languages (50 pictures) on the committed build,
+  1300 frames at 37.0 fps, no fault or driver error. Its first run (`-01`, 36.8 fps) showed the Polish "Pierwsze
+  uruchomienie" shrunk to fit its stage tile; a name too wide for the tile now wraps to two lines.
+- `steam-guide-screens-2026-10-26-01` PASS: the title drew the 5 session screens in all 10 languages over Notepad through
+  the broker's cover, 50 of 50 broker captures, 164 s.
+
+**The owner's run** (base PS5 13.60, 2026-10-26, a new prefix `steamguide-fresh` through the test hook; klog followed into
+`klog/steam-guide-owner-2026-10-26-01/`, `evidence/steam-guide-owner-2026-10-26-01.json`). Times from the intro page:
+- the intro 19 s; the installer was already in `/data/ps5proton/downloads`, so the download page passed at once (a real
+  download through the guide is still not shown);
+- the install session 105 s: about 67 s making the new prefix (wineboot, Wine Mono), 32 s the installer. Its screen: 931
+  frames shown, 0 refused. A set-up console's prefix exists already, so its "under a minute" holds there only;
+- the sign-in session 3 s after it; the client's browser 292 s into it, 258 MB downloaded, without the "taking longer"
+  screen; the phone screen its 25 s; the sign-in saved 66 s after the client's QR window (382 s);
+- the launcher's done page, then Big Picture 58 s after the sign-in;
+- the memory notice ("the PS5's memory is getting full", 816 MiB) 5 s into the sign-in session and again in Big Picture;
+- the client's connection log never showed the logon line the watcher looks for.
+An earlier harness attempt (`steam-guide-trial-2026-10-26-01`) never left the launcher: the rebuild had changed the
+runtime's stamp and only the title had been deployed, so the launcher refused every program.
+
+**Found in that run, fixed after it** (build 6c54dca6, rebased onto hypervisor 6837d44; on the base PS5 the same day):
+- intense flicker on the signed-in screen: the client's frames replaced the cover between its pictures (graphics patch
+  0032; `docs/STEAM.md`, "The guide");
+- Steam stayed up 48 s after the sign-in (a 20 s countdown, 10 s of a close the client ignores, a 16 s hang snapshot):
+  the session now ends at the sign-in, the client is ended once its token (`local.vdf`) is written after it, 25 s after the
+  close at the latest, with no snapshot;
+- Steam saw the pad twice, XInput's Xbox 360 controller and the DualSense HID device, and its glyphs swapped: Settings >
+  Controller (`src/pw_controller.h`, Wine patch 2400) shows programs one, Xbox 360 by default, Xbox One or DualSense.
+
+**On the console after the fixes** (`evidence/controller-owner-2026-10-26-01.json`):
+- `cover-held-2026-10-26-01` PASS: the English guide screens over `d3d11-probe.exe` drawing in a window: `gpu-cover
+  ended flips=188 held=522`, so 522 of its frames were kept off the screen, and all 5 captures show the guide's screen.
+- the controller, by probe: Xbox 360 (default) has XInput's controller 0 (`controller-xinput-360-...` PASS) and no HID
+  device (`controller-hid32-360-...`: "DualSense not enumerated"); DualSense has no XInput controller (`controller-xinput-ds-...`,
+  xinput: "hidden: the DualSense is chosen") and the HID device `054c:0ce6` (`controller-hid32-ds-...` PASS).
+- the owner, in Big Picture: the glyphs were right for each choice and no longer swapped (the klog holds the DualSense and
+  Xbox One sessions).
+
+**The owner's second run, with the fixes** (`evidence/guide-owner-2026-10-26-02.json`, a new prefix, Xbox One chosen): the
+install 110 s, the phone screen 443 s from the intro, the sign-in 18 s after the client's QR window. Steam was ended 26 s
+after the sign-in and the session was over at 28 s (50 s in the first run); Big Picture opened from the done page's
+Continue. The owner: satisfied with all the fixes, the guided setup tested end to end. **Found:** `local.vdf` is not written
+in the sign-in session at all; it is written when the next session starts, in both runs. So the wait for it always runs to
+its 25 s cap, and the sign-in survived that end. A file the client writes at the sign-in would let the session end sooner.
+
+**Not yet shown:** a real download through the guide (the installer was cached in both runs); the Steam Guard words in the client's connection log; native speakers' review of the Polish and of the guide's text in every language.

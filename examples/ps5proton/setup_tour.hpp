@@ -3,6 +3,7 @@
  * the first Mihawk OS session, Done. Its rules (when it shows, where each step goes, its text) are src/pw_setup.h;
  * this file draws it with the kit in the Gloss theme over a Frutiger Aero sky (shaders/glsl/ps5proton/aero.*),
  * plays the glass sounds, takes the pad and the touchpad's pointer, and drives the install engine (SetupEngine).
+ * The Steam guide's launcher pages (src/pw_steam_guide.h) are a mode of the same tour: its card, buttons and sounds.
  * ps5proton.cpp includes it, so it is compiled in the launcher's namespace (ps5/src/wrap.cpp.in).
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -11,8 +12,12 @@
 
 #include "stb_image.h"
 
+#include <cerrno>
+#include <cmath>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "../../src/pw_steam_guide.h"
 
 // ---- The install engine, as the tour sees it ----------------------------------------------------------------------
 // The installer's ps5/src/proton_install.h (SELF_INSTALL phase 5) fills this; until it lands, FakeSetupEngine does,
@@ -33,8 +38,9 @@ class SetupEngine
 {
 public:
 	virtual ~SetupEngine() = default;
-	// Look for the pieces on a USB drive and for the free space; not while an install runs
-	virtual SetupInstall find() = 0;
+	// Look for the pieces on a USB drive (folder: in /data/ps5proton/install, copied there over FTP) and for the free
+	// space; not while an install runs
+	virtual SetupInstall find(bool folder = false) = 0;
 	// Start the install find() found ready; returns at once
 	virtual void start() = 0;
 	// Stop between pieces; what is installed stays (phase failed, problem cancelled)
@@ -48,7 +54,7 @@ class FakeSetupEngine : public SetupEngine
 {
 public:
 	explicit FakeSetupEngine(std::string scenario) : scenario_(std::move(scenario)) {}
-	SetupInstall find() override
+	SetupInstall find(bool = false) override
 	{
 		state_ = {};
 		state_.total = 1189920691ull;
@@ -117,12 +123,13 @@ private:
 	bool held_{ false };
 };
 
-// The installer's engine (ps5/src/proton_install.h, SELF_INSTALL phase 5), read from the USB sticks alone: the step
-// says "drive". Its phases and problems are the tour's, in the same order.
+// The installer's engine (ps5/src/proton_install.h, SELF_INSTALL phase 5), read from the USB sticks alone on the USB
+// step and from /data/ps5proton/install alone on the FTP step, never a download. Its phases and problems are the
+// tour's, in the same order.
 class InstallSetupEngine : public SetupEngine
 {
 public:
-	SetupInstall find() override { return convert(proton_install_find("usb")); }
+	SetupInstall find(bool folder) override { return convert(proton_install_find(folder ? "install" : "usb")); }
 	void start() override { proton_install_start(); }
 	void cancel() override { proton_install_cancel(); }
 	SetupInstall state() override { return convert(proton_install_state()); }
@@ -264,7 +271,9 @@ private:
 class SetupTour
 {
 public:
-	enum class Outcome { none, library, enter, prepare };
+	// steam_*: the Steam guide asks the launcher to download the installer, or to restart into its install session, its
+	// sign-in session or the client in Big Picture
+	enum class Outcome { none, library, enter, prepare, steam_download, steam_install, steam_signin, steam_big_picture };
 
 	SetupSky sky;
 	Outcome outcome{ Outcome::none };
@@ -301,6 +310,7 @@ public:
 		bool test, std::unique_ptr<SetupEngine> engine)
 	{
 		kit_ = &kit;
+		assets_ = assets;
 		facts_ = facts;
 		simulated_ = simulated;
 		test_ = test;
@@ -322,19 +332,7 @@ public:
 			if (rgba) stbi_image_free(rgba);
 			else proton_say("setup: no flag for %s (%s)", all[i].tag, all[i].flag);
 		}
-		// Chinese and Japanese draw with faces of their own: every role of the kit's set points at it (one weight)
-		for (const auto *language : shown_) {
-			if (!language->font || faceRefs_.count(language->font)) continue;
-			std::string data;
-			faces_.emplace_back();
-			hui::gfx::Font &face = faces_.back();
-			if (!hui::save::read_file(assets + "setup/fonts/" + language->font + ".huifont", &data) || !face.load(data)) {
-				proton_say("setup: no face %s; %s keeps the launcher's", language->font, language->tag);
-				faces_.pop_back();
-				continue;
-			}
-			faceRefs_[language->font] = { &face, kit.renderer.create_font_texture(face) };
-		}
+		for (const auto *language : shown_) loadFace(language);
 		std::string qr;
 		hui::save::read_file(assets + "setup/qr.txt", &qr, 1 << 16);
 		std::istringstream rows(qr);
@@ -351,11 +349,64 @@ public:
 	// A picture's language, without saving it
 	void preview_language(const char *tag)
 	{
-		if (pw_setup_language(tag)) useLanguage(pw_setup_language(tag));
+		if (const PwSetupLanguage *language = pw_setup_language(tag)) {
+			loadFace(language);
+			useLanguage(language);
+		}
+	}
+
+	// ---- The Steam guide's pages (src/pw_steam_guide.h) ----
+	// What the launcher reads of the client (ps5/src/proton_steam.h), a few times a second
+	struct SteamFacts {
+		bool downloading{ false }, downloaded{ false }, failed{ false }, installed{ false }, signed_in{ false };
+		unsigned long long bytes{ 0 };
+		int fetch_status{ 0 };   // the download's PW_HTTPS_* status when it failed
+		std::string persona;     // the signed-in display name
+	};
+
+	// In the setup's language, at page. starting: the download page says "Installed. Starting Steam" (the launcher
+	// restarts into the sign-in session); test: a test run's preview.
+	void beginSteam(ps5ui::Kit &kit, const std::string &assets, PwSteamPage page, PwSteamFailure failure, bool test,
+		bool starting = false)
+	{
+		kit_ = &kit;
+		assets_ = assets;
+		test_ = test;
+		steam_ = true;
+		starting_ = starting;
+		failure_ = failure;
+		PwSetupRecord record;
+		pw_setup_record_load(&record, recordPath);
+		language_ = pw_setup_language(record.language) ? pw_setup_language(record.language) : pw_setup_default_language();
+		loadFace(language_);
+		useLanguage(language_);
+		goSteam(page, false);
+		proton_say("steam guide: starts at page %d (failure %d%s), language %s", (int)page, (int)failure,
+			starting ? ", starting the sign-in" : "", language_->tag);
+	}
+	void steam(const SteamFacts &facts) { steamFacts_ = facts; }
+	bool steamMode() const { return steam_; }
+	// A test's picture: the download held at share, the done page's countdown stopped, a display name
+	void holdSteam(float share, const char *persona)
+	{
+		held_ = true;
+		steamFacts_.bytes = (unsigned long long)(share * (float)PW_STEAM_INSTALLER_BYTES);
+		if (persona) steamFacts_.persona = persona;
+	}
+	// The launcher could not start the session the guide asked for: the guide says so, with Try again
+	void failSteam(PwSteamFailure failure)
+	{
+		failure_ = failure;
+		outcome = Outcome::none;
+		feedback_.play(hui::audio::Cue::error);
+		goSteam(PW_STEAM_PAGE_FAILED, true);
 	}
 
 	PwSetupStep step() const { return step_; }
-	float calm() const { return step_ == PW_SETUP_INSTALLING ? 1.0f : 0.0f; }
+	float calm() const
+	{
+		return (steam_ ? steamPage_ == PW_STEAM_PAGE_DOWNLOAD : step_ == PW_SETUP_INSTALLING) ? 1.0f : 0.0f;
+	}
 	float clock() const { return clock_; }
 	FakeSetupEngine *fake() { return dynamic_cast<FakeSetupEngine *>(engine_.get()); }
 
@@ -379,6 +430,7 @@ public:
 		entered_ = std::min(1.0f, entered_ + dt / (step_ == PW_SETUP_WELCOME ? 0.9f : 0.35f));
 		press_ = std::max(0.0f, press_ - dt * 6.0f);
 		if (auto *fake = this->fake()) fake->tick(dt);
+		if (steam_) steamTick(dt);
 		if (engine_ && (step_ == PW_SETUP_INSTALLING)) {
 			const auto before = install_.phase;
 			install_ = engine_->state();
@@ -410,7 +462,12 @@ public:
 			}
 		}
 		if (input.is_pressed(hui::Action::confirm)) activate(focus_);
-		else if (input.is_pressed(hui::Action::back) && pw_setup_back(step_) != PW_SETUP_NONE && !busy()) {
+		else if (steam_) {
+			if (input.is_pressed(hui::Action::back) && steamPage_ != PW_STEAM_PAGE_DOWNLOAD && outcome == Outcome::none) {
+				feedback_.play(hui::audio::Cue::back);
+				leaveSteam("back");
+			}
+		} else if (input.is_pressed(hui::Action::back) && pw_setup_back(step_) != PW_SETUP_NONE && !busy()) {
 			feedback_.play(hui::audio::Cue::back);
 			go(pw_setup_back(step_), true);
 		} else if (input.is_pressed(hui::Action::north) && skippable()) {
@@ -429,7 +486,12 @@ public:
 		hui::ui::Painter paint(list, fonts, look);
 		const auto ink = paint.page_text(), muted = paint.page_text_muted();
 		paint.heading("MihawkOS", 96, 92, 32, ink);
-		if (step_ != PW_SETUP_WELCOME) progressDots(list, paint, look);
+		if (steam_) {
+			const int stage = steamPage_ == PW_STEAM_PAGE_DOWNLOAD ? (starting_ ? 1 : 0) : steamPage_ == PW_STEAM_PAGE_DONE ? 3 : -1;
+			if (stage >= 0) progressDots(list, paint, look, stage, 4);
+		} else if (step_ != PW_SETUP_WELCOME) {
+			progressDots(list, paint, look);
+		}
 		const float ease = 1.0f - (1.0f - entered_) * (1.0f - entered_) * (1.0f - entered_);
 		list.push_opacity(ease);
 		list.push_transform(1.0f, 0.0f, 0.0f, 0.0f, (1.0f - ease) * (step_ == PW_SETUP_WELCOME ? 36.0f : 20.0f));
@@ -439,6 +501,8 @@ public:
 			for (int i = 0; i < 3; ++i)
 				hui::ui::text(list, fonts.semibold, text(stages[i]), PW_SETUP_COVER_MARK_X + 52,
 					PW_SETUP_COVER_ROW_Y + i * PW_SETUP_COVER_ROW_STEP + 11, 30, look.text);
+		} else if (steam_) {
+			composeSteam(list, paint, look);
 		} else switch (step_) {
 		case PW_SETUP_WELCOME:
 			paint.heading(text(PW_TEXT_WELCOME_TITLE), 960, 470, fitted(paint, text(PW_TEXT_WELCOME_TITLE), 92, 1640), ink,
@@ -453,8 +517,9 @@ public:
 			if (facts_.runtime) status(list, text(PW_TEXT_METHOD_INSTALLED), look.success, kCard.y + 230);
 			qrCode(list, look, { kCard.x + 72, kCard.y + kCard.h - 72 - 168 }, 168, true);
 			break;
-		case PW_SETUP_USB: {
-			card(list, paint, text(PW_TEXT_USB_TITLE), nullptr);
+		case PW_SETUP_USB:
+		case PW_SETUP_FTP: {
+			card(list, paint, routed(PW_TEXT_USB_TITLE), nullptr);
 			float y = kCard.y + 196;
 			const PwSetupText steps[] = { PW_TEXT_USB_STEP1, PW_TEXT_USB_STEP2, PW_TEXT_USB_STEP3, PW_TEXT_USB_STEP4 };
 			for (int i = 0; i < 4; ++i) {
@@ -463,17 +528,21 @@ public:
 				char number[4];
 				snprintf(number, sizeof(number), "%d", i + 1);
 				hui::ui::text(list, fonts.semibold, number, x + 22, y + 13, 24, hui::ui::Painter::on(look.primary), hui::gfx::Align::center);
-				y = wrapped(list, fonts.regular, text(steps[i]), x + 68, y + 13, 26, 680, look.text) + 26;
+				y = wrapped(list, fonts.regular, routed(steps[i]), x + 68, y + 13, 26, 680, look.text) + 26;
 			}
 			qrCode(list, look, { kCard.x + kCard.w - 72 - 300, kCard.y + 176 }, 300, false);
+			// The outcome goes under the last step (a long translation's steps reach past kStatusY), as wide as the buttons
+			// beside it allow: up to Check's left edge when Install is offered too, else up to the one button
+			const float statusY = std::max(kStatusY, y + 8), right = kCard.x + kCard.w - 72;
+			const float statusWidth = (install_.phase == SetupInstall::ready ? right - 632 : right - 300) - 24 - (kCard.x + 72);
 			if (install_.phase == SetupInstall::ready) {
 				char size[32], line[256];
 				pw_setup_gigabytes(language_, install_.total, size, sizeof(size));
 				const char *args[] = { size };
-				pw_setup_fill(line, sizeof(line), text(PW_TEXT_FOUND), args, 1);
-				status(list, line, look.success, kStatusY);
+				pw_setup_fill(line, sizeof(line), routed(PW_TEXT_FOUND), args, 1);
+				status(list, line, look.success, statusY, statusWidth);
 			} else if (install_.problem != SetupInstall::none) {
-				status(list, problem().c_str(), look.danger, kStatusY);
+				status(list, problem().c_str(), look.danger, statusY, statusWidth);
 			}
 			break;
 		}
@@ -501,7 +570,7 @@ public:
 			else if (install_.phase == SetupInstall::done)
 				status(list, text(PW_TEXT_INSTALLED), look.success, kCard.y + 500);
 			else
-				wrapped(list, fonts.regular, text(PW_TEXT_INSTALLING_BODY), kCard.x + 72, kCard.y + 470, 26, 1100, look.text_muted);
+				wrapped(list, fonts.regular, routed(PW_TEXT_INSTALLING_BODY), kCard.x + 72, kCard.y + 470, 26, 1100, look.text_muted);
 			break;
 		}
 		case PW_SETUP_PREPARING: {
@@ -537,23 +606,41 @@ public:
 	}
 
 private:
-	enum Id { T_NONE = 0, T_START, T_SKIP, T_USB, T_INTERNET, T_CONTINUE, T_CHECK, T_INSTALL, T_STOP, T_BACK, T_PREPARE,
-		T_ENTER, T_LANGUAGE = 100 };
+	enum Id { T_NONE = 0, T_START, T_SKIP, T_USB, T_FTP, T_INTERNET, T_CONTINUE, T_CHECK, T_INSTALL, T_STOP, T_BACK, T_PREPARE,
+		T_ENTER, T_STEAM_START, T_STEAM_NOT_NOW, T_STEAM_RETRY, T_LANGUAGE = 100 };
 	struct Target {
 		int id;
 		hui::gfx::Rect rect;
 		bool disabled{ false };
 	};
 	static constexpr hui::gfx::Rect kCard{ 300, 170, 1320, 760 };
+	static constexpr float kTileH = 220;
 	static constexpr float kStatusY = 930 - 190;
 
 	const char *text(PwSetupText key) const { return pw_setup_text(language_, key); }
+	// A text of the install's pages, in the words of the route the pieces come by (no drive on the FTP route)
+	const char *routed(PwSetupText key) const { return text(pw_setup_route_text(route_ == PW_SETUP_FTP, key)); }
 	bool busy() const
 	{
 		return step_ == PW_SETUP_INSTALLING &&
 			(install_.phase == SetupInstall::checking || install_.phase == SetupInstall::running || install_.phase == SetupInstall::done);
 	}
 	bool skippable() const { return step_ != PW_SETUP_DONE && !busy(); }
+
+	// A language's own face (Chinese, Japanese), once: every role of the kit's set points at it (one weight)
+	void loadFace(const PwSetupLanguage *language)
+	{
+		if (!language->font || faceRefs_.count(language->font)) return;
+		std::string data;
+		faces_.emplace_back();
+		hui::gfx::Font &face = faces_.back();
+		if (!hui::save::read_file(assets_ + "setup/fonts/" + language->font + ".huifont", &data) || !face.load(data)) {
+			proton_say("setup: no face %s; %s keeps the launcher's", language->font, language->tag);
+			faces_.pop_back();
+			return;
+		}
+		faceRefs_[language->font] = { &face, kit_->renderer.create_font_texture(face) };
+	}
 
 	void useLanguage(const PwSetupLanguage *language)
 	{
@@ -569,7 +656,11 @@ private:
 	{
 		step_ = step;
 		entered_ = animate ? 0.0f : 1.0f;
-		if (step != PW_SETUP_USB && step != PW_SETUP_INSTALLING) install_ = {};
+		if (step != PW_SETUP_USB && step != PW_SETUP_FTP && step != PW_SETUP_INSTALLING) install_ = {};
+		if (step == PW_SETUP_USB || step == PW_SETUP_FTP) route_ = step;
+		// The folder FTP copies into is made here, so the user only opens it (a test run writes nothing)
+		if (step == PW_SETUP_FTP && !test_ && mkdir(PROTON_DATA_ROOT "/install", 0777) != 0 && errno != EEXIST)
+			proton_say("setup: %s/install not made (%d)", PROTON_DATA_ROOT, errno);
 		layout();
 		focus_ = targets_.empty() ? T_NONE : targets_.front().id;
 		if (step == PW_SETUP_LANGUAGE)
@@ -604,6 +695,15 @@ private:
 		targets_.clear();
 		if (cover_) return; // nothing to choose
 		const float right = kCard.x + kCard.w - 72, bottom = kCard.y + kCard.h - 72;
+		if (steam_) {
+			// The secondary button left of the primary one, which is laid out last (it takes the focus: goSteam)
+			if (steamPage_ == PW_STEAM_PAGE_INTRO) targets_.push_back({ T_STEAM_NOT_NOW, { right - 632, bottom - 68, 300, 68 } });
+			if (steamPage_ == PW_STEAM_PAGE_FAILED) targets_.push_back({ T_BACK, { right - 632, bottom - 68, 300, 68 } });
+			if (steamPage_ == PW_STEAM_PAGE_INTRO) targets_.push_back({ T_STEAM_START, { right - 300, bottom - 68, 300, 68 } });
+			if (steamPage_ == PW_STEAM_PAGE_FAILED) targets_.push_back({ T_STEAM_RETRY, { right - 300, bottom - 68, 300, 68 } });
+			if (steamPage_ == PW_STEAM_PAGE_DONE) targets_.push_back({ T_CONTINUE, { right - 300, bottom - 68, 300, 68 } });
+			return;
+		}
 		switch (step_) {
 		case PW_SETUP_WELCOME:
 			targets_.push_back({ T_START, { 960 - 200, 596, 400, 84 } });
@@ -625,13 +725,16 @@ private:
 			break;
 		}
 		case PW_SETUP_METHOD: {
-			const float y = kCard.y + (facts_.runtime ? 290 : 250), w = (kCard.w - 144 - 32) * 0.5f;
+			// Three tiles in a row, clear of the QR code below them (its top is kCard.y + kCard.h - 240)
+			const float y = kCard.y + (facts_.runtime ? 290 : 250), w = (kCard.w - 144 - 64) / 3.0f;
 			if (facts_.runtime) targets_.push_back({ T_CONTINUE, { right - 300, bottom - 68, 300, 68 } });
-			targets_.push_back({ T_USB, { kCard.x + 72, y, w, 210 } });
-			targets_.push_back({ T_INTERNET, { kCard.x + 72 + w + 32, y, w, 210 }, true });
+			targets_.push_back({ T_USB, { kCard.x + 72, y, w, kTileH } });
+			targets_.push_back({ T_FTP, { kCard.x + 72 + w + 32, y, w, kTileH } });
+			targets_.push_back({ T_INTERNET, { kCard.x + 72 + 2 * (w + 32), y, w, kTileH }, true });
 			break;
 		}
 		case PW_SETUP_USB:
+		case PW_SETUP_FTP:
 			if (install_.phase == SetupInstall::ready) targets_.push_back({ T_INSTALL, { right - 300, bottom - 68, 300, 68 } });
 			targets_.push_back({ T_CHECK, { right - (install_.phase == SetupInstall::ready ? 632 : 300), bottom - 68, 300, 68 } });
 			break;
@@ -724,6 +827,10 @@ private:
 		press_ = 1.0f;
 		pressed_ = id;
 		feedback_.play(hui::audio::Cue::select);
+		if (steam_) {
+			activateSteam(id);
+			return;
+		}
 		if (id >= T_LANGUAGE) {
 			useLanguage(shown_[id - T_LANGUAGE]);
 			save(false);
@@ -737,8 +844,9 @@ private:
 		case T_SKIP: finish(Outcome::library, "skipped"); break;
 		case T_CONTINUE: go(pw_setup_next(PW_SETUP_METHOD, &facts_), true); break;
 		case T_USB: go(PW_SETUP_USB, true); break;
+		case T_FTP: go(PW_SETUP_FTP, true); break;
 		case T_CHECK:
-			if (step_ == PW_SETUP_INSTALLING) go(PW_SETUP_USB, true);
+			if (step_ == PW_SETUP_INSTALLING) go(route_, true);
 			check();
 			break;
 		case T_INSTALL:
@@ -748,7 +856,7 @@ private:
 			go(PW_SETUP_INSTALLING, true);
 			break;
 		case T_STOP: if (engine_) engine_->cancel(); break;
-		case T_BACK: go(PW_SETUP_USB, true); break;
+		case T_BACK: go(route_, true); break;
 		case T_PREPARE:
 			if (!test_) {
 				if (FILE *marker = fopen(preparingMarker, "w")) fclose(marker);
@@ -762,11 +870,185 @@ private:
 		}
 	}
 
+	void goSteam(PwSteamPage page, bool animate)
+	{
+		steamPage_ = page;
+		entered_ = animate ? 0.0f : 1.0f;
+		if (page == PW_STEAM_PAGE_DONE) countdown_ = 5.0f;
+		layout();
+		focus_ = targets_.empty() ? T_NONE : targets_.back().id;
+		proton_say("steam guide: page %d", (int)page);
+	}
+
+	void leaveSteam(const char *why)
+	{
+		outcome = Outcome::library;
+		proton_say("steam guide: leaves (%s)", why);
+	}
+
+	void activateSteam(int id)
+	{
+		switch (id) {
+		case T_STEAM_START:
+			outcome = Outcome::steam_download;
+			proton_say("steam guide: Start");
+			goSteam(PW_STEAM_PAGE_DOWNLOAD, true);
+			break;
+		case T_STEAM_NOT_NOW: leaveSteam("not now"); break;
+		case T_BACK: leaveSteam("back"); break;
+		case T_STEAM_RETRY:
+			proton_say("steam guide: try again after failure %d", (int)failure_);
+			if (failure_ <= PW_STEAM_FAIL_INSTALL) {   // the download's and the install's failures: from the download
+				outcome = Outcome::steam_download;
+				goSteam(PW_STEAM_PAGE_DOWNLOAD, true);
+			} else {
+				outcome = Outcome::steam_signin;       // the sign-in session's: that session again
+			}
+			break;
+		case T_CONTINUE:
+			outcome = Outcome::steam_big_picture;
+			proton_say("steam guide: Big Picture opens (Continue)");
+			break;
+		default: break;
+		}
+	}
+
+	// What moves by itself: the download's end or failure, the done page's countdown
+	void steamTick(float dt)
+	{
+		if (outcome != Outcome::none || held_) return;
+		const SteamFacts &f = steamFacts_;
+		if (steamPage_ == PW_STEAM_PAGE_DOWNLOAD && !starting_) {
+			if (f.failed && !f.installed) {
+				failure_ = pw_steam_guide_fetch_failure(f.fetch_status);
+				if (failure_ == PW_STEAM_FAIL_NONE) failure_ = PW_STEAM_FAIL_DOWNLOAD;
+				feedback_.play(hui::audio::Cue::error);
+				goSteam(PW_STEAM_PAGE_FAILED, true);
+			} else if (f.downloaded || f.installed) {
+				outcome = f.installed ? Outcome::steam_signin : Outcome::steam_install;
+				proton_say("steam guide: %s", f.installed ? "installed; the sign-in session is next" : "downloaded; the install is next");
+			}
+		}
+		if (steamPage_ == PW_STEAM_PAGE_DONE && (countdown_ -= dt) <= 0.0f) {
+			outcome = Outcome::steam_big_picture;
+			proton_say("steam guide: Big Picture opens (countdown)");
+		}
+	}
+
+	// Whether every letter of a display name is in the face: otherwise the page says "You're signed in" alone
+	bool drawable(const std::string &value) const
+	{
+		const hui::gfx::Font *face = fonts_.semibold.font;
+		if (!face || value.empty()) return false;
+		for (size_t i = 0; i < value.size();) {
+			const unsigned char c = (unsigned char)value[i];
+			const int n = c < 0x80 ? 1 : c >= 0xf0 ? 4 : c >= 0xe0 ? 3 : c >= 0xc0 ? 2 : 0;
+			if (!n || i + n > value.size()) return false;
+			uint32_t code = n == 1 ? c : n == 2 ? c & 0x1f : n == 3 ? c & 0x0f : c & 0x07;
+			for (int k = 1; k < n; ++k) code = code << 6 | ((unsigned char)value[i + k] & 0x3f);
+			if (code != ' ' && !face->has_glyph(code)) return false;
+			i += n;
+		}
+		return true;
+	}
+
+	// bytes in megabytes to one decimal, in the language's way ("1.2", "1,2")
+	void megabytes(unsigned long long bytes, char *out, size_t size) const
+	{
+		const unsigned long long tenths = (bytes + 50000) / 100000;
+		snprintf(out, size, "%llu%s%llu", tenths / 10, text(PW_TEXT_DECIMAL), tenths % 10);
+	}
+
+	// The Aero glass tube in the kit's shapes: a frosted track, green liquid to fraction, a highlight on its upper half
+	void glassBar(hui::gfx::DrawList &list, const hui::ui::Theme &look, hui::gfx::Rect at, float fraction)
+	{
+		const float r = at.h * 0.5f;
+		list.rounded_rect(at, r, look.surface_high);
+		list.bordered_rect(at, r, hui::gfx::Color{ 0, 0, 0, 0 }, 1.5f, look.outline);
+		const float w = std::max(at.h, at.w * std::clamp(fraction, 0.0f, 1.0f));
+		if (fraction > 0.0f) {
+			list.rounded_rect({ at.x + 2, at.y + 2, w - 4, at.h - 4 }, r - 2, hui::gfx::Color::rgb(0x55d52a));
+			list.rounded_rect({ at.x + 8, at.y + 5, std::max(0.0f, w - 16), (at.h - 4) * 0.38f }, (at.h - 4) * 0.19f,
+				hui::gfx::Color::rgb(0xffffff, 0.45f));
+		}
+		list.rounded_rect({ at.x + 10, at.y + 3, at.w - 20, 2 }, 1, hui::gfx::Color::rgb(0xffffff, 0.5f));
+	}
+
+	void composeSteam(hui::gfx::DrawList &list, hui::ui::Painter &paint, const hui::ui::Theme &look)
+	{
+		const auto &fonts = fonts_;
+		const SteamFacts &f = steamFacts_;
+		switch (steamPage_) {
+		case PW_STEAM_PAGE_INTRO: {
+			card(list, paint, text(PW_TEXT_STEAM_TITLE), text(PW_TEXT_STEAM_BODY));
+			// The four stages in a row: a number, a name, a line
+			const PwSetupText stages[4][2] = { { PW_TEXT_STEAM_STEP_DOWNLOAD, PW_TEXT_STEAM_STEP_DOWNLOAD_BODY },
+				{ PW_TEXT_STEAM_STEP_INSTALL, PW_TEXT_STEAM_STEP_INSTALL_BODY },
+				{ PW_TEXT_STEAM_STEP_UPDATE, PW_TEXT_STEAM_STEP_UPDATE_BODY },
+				{ PW_TEXT_STEAM_STEP_SIGNIN, PW_TEXT_STEAM_STEP_SIGNIN_BODY } };
+			const float gap = 24, w = (kCard.w - 144 - 3 * gap) / 4, y = kCard.y + 236, h = 250;
+			for (int i = 0; i < 4; ++i) {
+				const hui::gfx::Rect r{ kCard.x + 72 + i * (w + gap), y, w, h };
+				paint.surface(r, look.radius_card, look.surface, look.outline, 1.0f);
+				list.circle(r.x + 46, r.y + 48, 22, look.primary);
+				char number[4];
+				snprintf(number, sizeof(number), "%d", i + 1);
+				hui::ui::text(list, fonts.semibold, number, r.x + 46, r.y + 57, 24, hui::ui::Painter::on(look.primary),
+					hui::gfx::Align::center);
+				// The name beside its number; one too long for the line (Polish's first start) takes two at a readable size
+				const char *name = text(stages[i][0]);
+				const float nameWidth = r.w - 106;
+				if (fonts.semibold.measure(name, 26) <= nameWidth)
+					hui::ui::text(list, fonts.semibold, name, r.x + 82, r.y + 57, 26, look.text);
+				else
+					wrapped(list, fonts.semibold, name, r.x + 82, r.y + 44, 21, nameWidth, look.text);
+				wrapped(list, fonts.regular, text(stages[i][1]), r.x + 26, r.y + 116, 21, r.w - 52, look.text_muted);
+			}
+			wrapped(list, fonts.regular, text(PW_TEXT_STEAM_NOTE), kCard.x + 72, y + h + 50, 22, kCard.w - 144, look.text_muted);
+			break;
+		}
+		case PW_STEAM_PAGE_DOWNLOAD: {
+			card(list, paint, text(starting_ ? PW_TEXT_STEAM_STARTING : PW_TEXT_STEAM_DOWNLOADING),
+				starting_ ? nullptr : text(PW_TEXT_STEAM_DOWNLOADING_BODY));
+			glassBar(list, look, { kCard.x + 72, kCard.y + 330, kCard.w - 144, 34 },
+				starting_ ? 1.0f : pw_steam_guide_download_fraction(f.bytes));
+			if (!starting_) {
+				char a[24], b[24], line[96];
+				megabytes(f.bytes, a, sizeof(a));
+				megabytes(PW_STEAM_INSTALLER_BYTES, b, sizeof(b));
+				const char *args[] = { a, b };
+				pw_setup_fill(line, sizeof(line), text(PW_TEXT_STEAM_MEGABYTES), args, 2);
+				hui::ui::text(list, fonts.semibold, line, kCard.x + 72, kCard.y + 412, 26, look.text);
+			}
+			break;
+		}
+		case PW_STEAM_PAGE_FAILED:
+			card(list, paint, text(PW_TEXT_STEAM_FAIL_TITLE), nullptr);
+			status(list, text((PwSetupText)pw_steam_guide_failure_text(failure_)), look.danger, kCard.y + 230);
+			break;
+		case PW_STEAM_PAGE_DONE: {
+			char title[256], seconds[8], line[96];
+			if (drawable(f.persona)) {
+				const char *args[] = { f.persona.c_str() };
+				pw_setup_fill(title, sizeof(title), text(PW_TEXT_STEAM_SIGNED_IN_AS), args, 1);
+			} else {
+				snprintf(title, sizeof(title), "%s", text(PW_TEXT_STEAM_SIGNED_IN));
+			}
+			card(list, paint, title, text(PW_TEXT_STEAM_DONE_BODY));
+			snprintf(seconds, sizeof(seconds), "%d", std::max(1, (int)std::ceil(countdown_)));
+			const char *args[] = { seconds };
+			pw_setup_fill(line, sizeof(line), text(PW_TEXT_STEAM_OPENING_IN), args, 1);
+			status(list, line, look.success, kCard.y + 380);
+			break;
+		}
+		}
+	}
+
 	void check()
 	{
-		install_ = engine_ ? engine_->find() : SetupInstall{};
-		proton_say("setup: drive check: phase %d problem %d, %llu bytes", (int)install_.phase, (int)install_.problem,
-			(unsigned long long)install_.total);
+		install_ = engine_ ? engine_->find(route_ == PW_SETUP_FTP) : SetupInstall{};
+		proton_say("setup: %s check: phase %d problem %d, %llu bytes", route_ == PW_SETUP_FTP ? "folder" : "drive",
+			(int)install_.phase, (int)install_.problem, (unsigned long long)install_.total);
 		if (install_.phase != SetupInstall::ready) feedback_.play(hui::audio::Cue::error);
 		layout();
 		if (install_.phase == SetupInstall::ready) focus_ = T_INSTALL;
@@ -787,7 +1069,7 @@ private:
 			pw_setup_gigabytes(language_, install_.available, b, sizeof(b));
 		}
 		const char *args[] = { a, b };
-		pw_setup_fill(out, sizeof(out), text(keys[install_.problem]), args, 2);
+		pw_setup_fill(out, sizeof(out), routed(keys[install_.problem]), args, 2);
 		return out;
 	}
 
@@ -859,10 +1141,10 @@ private:
 
 	// A line that reports an outcome: a tinted box, a mark, and the words in the colour darkened toward the ink, so
 	// they read at 4.5:1 or better on the box
-	void status(hui::gfx::DrawList &list, const char *value, hui::gfx::Color color, float y)
+	void status(hui::gfx::DrawList &list, const char *value, hui::gfx::Color color, float y, float width = kCard.w - 144)
 	{
 		const auto &fonts = fonts_;
-		const float width = step_ == PW_SETUP_USB ? 760 : kCard.w - 144, textWidth = width - 92;
+		const float textWidth = width - 92;
 		const int lines = (int)this->lines(fonts.semibold, value, 25, textWidth).size();
 		const hui::gfx::Rect box{ kCard.x + 72, y - 34, width, 44 + lines * 25 * 1.42f };
 		list.rounded_rect(box, 12, color.with_alpha(0.12f));
@@ -893,17 +1175,21 @@ private:
 		else wrapped(list, fonts_.regular, text(PW_TEXT_QR_CAPTION), at.x + size * 0.5f, at.y + size + 44, 22, size + 40, look.text_muted, hui::gfx::Align::center);
 	}
 
-	void progressDots(hui::gfx::DrawList &list, hui::ui::Painter &paint, const hui::ui::Theme &look)
+	// The setup's five steps (index from the step), or the Steam guide's four stages
+	void progressDots(hui::gfx::DrawList &list, hui::ui::Painter &paint, const hui::ui::Theme &look, int index = -1,
+		int count = 5)
 	{
-		const int index = step_ == PW_SETUP_LANGUAGE ? 1 : step_ <= PW_SETUP_INSTALLING ? 2 : step_ == PW_SETUP_PREPARING ? 3 : 4;
+		if (index < 0)
+			index = step_ == PW_SETUP_LANGUAGE ? 1 : step_ <= PW_SETUP_INSTALLING || step_ == PW_SETUP_FTP ? 2 :
+				step_ == PW_SETUP_PREPARING ? 3 : 4;
 		char a[4], b[4], line[64];
 		snprintf(a, sizeof(a), "%d", index + 1);
-		snprintf(b, sizeof(b), "%d", 5);
+		snprintf(b, sizeof(b), "%d", count);
 		const char *args[] = { a, b };
 		pw_setup_fill(line, sizeof(line), text(PW_TEXT_STEP_OF), args, 2);
 		hui::ui::text(list, fonts_.semibold, line, 1824, 92, 24, paint.page_text_muted(), hui::gfx::Align::right);
 		float x = 1824;
-		for (int i = 4; i >= 0; --i) {
+		for (int i = count - 1; i >= 0; --i) {
 			const float w = i == index ? 30.0f : 10.0f;
 			x -= w;
 			list.rounded_rect({ x, 112, w, 10 }, 5, i == index ? look.primary : i < index ? look.primary.with_alpha(0.45f) : paint.page_text_muted().with_alpha(0.35f));
@@ -948,7 +1234,7 @@ private:
 		case T_SKIP: button(text(PW_TEXT_SKIP_SETUP), hui::ui::ButtonKind::ghost, 24); break;
 		case T_CONTINUE: button(text(PW_TEXT_CONTINUE), hui::ui::ButtonKind::primary, 26); break;
 		case T_CHECK:
-			button(text(install_.problem != SetupInstall::none ? PW_TEXT_RETRY : PW_TEXT_CHECK_DRIVE),
+			button(install_.problem != SetupInstall::none ? text(PW_TEXT_RETRY) : routed(PW_TEXT_CHECK_DRIVE),
 				install_.phase == SetupInstall::ready ? hui::ui::ButtonKind::secondary : hui::ui::ButtonKind::primary, 26);
 			break;
 		case T_INSTALL: button(text(PW_TEXT_INSTALL), hui::ui::ButtonKind::primary, 26); break;
@@ -956,35 +1242,49 @@ private:
 		case T_BACK: button(text(PW_TEXT_HINT_BACK), hui::ui::ButtonKind::secondary, 26); break;
 		case T_PREPARE: button(text(PW_TEXT_PREPARE_START), hui::ui::ButtonKind::primary, 26); break;
 		case T_ENTER: button(text(PW_TEXT_ENTER), hui::ui::ButtonKind::primary, 30); break;
+		case T_STEAM_START: button(text(PW_TEXT_STEAM_START), hui::ui::ButtonKind::primary, 26); break;
+		case T_STEAM_NOT_NOW: button(text(PW_TEXT_STEAM_NOT_NOW), hui::ui::ButtonKind::secondary, 26); break;
+		case T_STEAM_RETRY: button(text(PW_TEXT_RETRY), hui::ui::ButtonKind::primary, 26); break;
 		case T_USB:
+		case T_FTP:
 		case T_INTERNET: {
+			// Three across: the icon and the name on top, a short line under them; "Coming soon" under the name
 			if (t.disabled) list.push_opacity(0.6f);
 			const auto &r = t.rect;
 			paint.surface(r, look.radius_card, look.surface, look.outline, 1.0f - (t.id == pressed_ ? press_ : 0.0f));
-			const float cx = r.x + 92, cy = r.y + r.h * 0.5f;
-			list.circle(cx, cy, 52, look.primary.with_alpha(0.12f));
+			const float cx = r.x + 66, cy = r.y + 68, k = 0.8f;   // the icons, drawn at 0.8 of their first size
+			list.circle(cx, cy, 44, look.primary.with_alpha(0.12f));
 			if (t.id == T_USB) {
 				// A USB drive, plug up
-				list.rounded_rect({ cx - 18, cy - 14, 36, 50 }, 8, look.primary);
-				list.rounded_rect({ cx - 12, cy - 34, 24, 22 }, 3, look.outline);
-				list.rounded_rect({ cx - 6, cy - 28, 4, 6 }, 1, look.surface);
-				list.rounded_rect({ cx + 2, cy - 28, 4, 6 }, 1, look.surface);
+				list.rounded_rect({ cx - 18 * k, cy - 14 * k, 36 * k, 50 * k }, 8 * k, look.primary);
+				list.rounded_rect({ cx - 12 * k, cy - 34 * k, 24 * k, 22 * k }, 3 * k, look.outline);
+				list.rounded_rect({ cx - 6 * k, cy - 28 * k, 4 * k, 6 * k }, 1, look.surface);
+				list.rounded_rect({ cx + 2 * k, cy - 28 * k, 4 * k, 6 * k }, 1, look.surface);
+			} else if (t.id == T_FTP) {
+				// A computer and the console, an arrow between them
+				list.rounded_rect({ cx - 30 * k, cy - 22 * k, 26 * k, 20 * k }, 3 * k, look.primary);
+				list.rounded_rect({ cx - 21 * k, cy - 1 * k, 8 * k, 6 * k }, 1, look.primary);
+				list.rounded_rect({ cx + 8 * k, cy - 4 * k, 20 * k, 30 * k }, 4 * k, look.primary);
+				list.line(cx - 14 * k, cy + 16 * k, cx + 2 * k, cy + 16 * k, 3, look.primary);
+				list.line(cx - 4 * k, cy + 10 * k, cx + 2 * k, cy + 16 * k, 3, look.primary);
+				list.line(cx - 4 * k, cy + 22 * k, cx + 2 * k, cy + 16 * k, 3, look.primary);
 			} else {
 				// A globe
-				list.ring(cx, cy, 30, 4, look.primary);
-				list.line(cx - 30, cy, cx + 30, cy, 3, look.primary);
-				list.ring(cx, cy, 30, 3, look.primary);
-				list.rounded_rect({ cx - 1.5f, cy - 30, 3, 60 }, 1.5f, look.primary);
-				list.arc(cx, cy, 17, 3, 0.0f, 6.2831853f, look.primary);
+				list.ring(cx, cy, 30 * k, 4, look.primary);
+				list.line(cx - 30 * k, cy, cx + 30 * k, cy, 3, look.primary);
+				list.rounded_rect({ cx - 1.5f, cy - 30 * k, 3, 60 * k }, 1.5f, look.primary);
+				list.arc(cx, cy, 17 * k, 3, 0.0f, 6.2831853f, look.primary);
 			}
-			hui::ui::text(list, fonts.semibold, text(t.id == T_USB ? PW_TEXT_METHOD_USB : PW_TEXT_METHOD_INTERNET), r.x + 176, r.y + 82, 34, look.text);
-			wrapped(list, fonts.regular, text(t.id == T_USB ? PW_TEXT_METHOD_USB_BODY : PW_TEXT_METHOD_INTERNET_BODY), r.x + 176, r.y + 126,
-				23, r.w - 210, look.text_muted);
+			const char *name = text(t.id == T_USB ? PW_TEXT_METHOD_USB : t.id == T_FTP ? PW_TEXT_METHOD_FTP : PW_TEXT_METHOD_INTERNET);
+			const float nameWidth = r.w - 150, measured = fonts.semibold.measure(name, 32);
+			hui::ui::text(list, fonts.semibold, name, r.x + 128, r.y + 80, measured > nameWidth ? 32 * nameWidth / measured : 32, look.text);
+			wrapped(list, fonts.regular, text(t.id == T_USB ? PW_TEXT_METHOD_USB_BODY : t.id == T_FTP ? PW_TEXT_METHOD_FTP_BODY :
+				PW_TEXT_METHOD_INTERNET_BODY), r.x + 32, r.y + 150, 21, r.w - 64, look.text_muted);
 			if (t.disabled) {
 				const char *soon = text(PW_TEXT_COMING_SOON);
-				const float w = fonts.semibold.measure(soon, 19) + 28;
-				list.rounded_rect({ r.x + r.w - w - 20, r.y + 20, w, 34 }, 17, look.surface_high);
-				hui::ui::text(list, fonts.semibold, soon, r.x + r.w - w * 0.5f - 20, r.y + 43, 19, look.text, hui::gfx::Align::center);
+				const float w = fonts.semibold.measure(soon, 17) + 24;
+				list.rounded_rect({ r.x + 128, r.y + 94, w, 30 }, 15, look.surface_high);
+				hui::ui::text(list, fonts.semibold, soon, r.x + 128 + w * 0.5f, r.y + 115, 17, look.text, hui::gfx::Align::center);
 				list.pop_opacity();
 			}
 			paint.focus_ring(r, look.radius_card, focus);
@@ -999,8 +1299,12 @@ private:
 		std::vector<hui::ui::Hint> row;
 		if (targets_.size() > 1) row.push_back({ hui::ui::Button::dpad, text(PW_TEXT_HINT_MOVE) });
 		if (!targets_.empty()) row.push_back({ hui::ui::Button::cross, text(PW_TEXT_HINT_SELECT) });
-		if (pw_setup_back(step_) != PW_SETUP_NONE && !busy()) row.push_back({ hui::ui::Button::circle, text(PW_TEXT_HINT_BACK) });
-		if (skippable() && step_ != PW_SETUP_WELCOME) row.push_back({ hui::ui::Button::triangle, text(PW_TEXT_SKIP_SETUP) });
+		if (steam_) {
+			if (steamPage_ != PW_STEAM_PAGE_DOWNLOAD) row.push_back({ hui::ui::Button::circle, text(PW_TEXT_HINT_BACK) });
+		} else {
+			if (pw_setup_back(step_) != PW_SETUP_NONE && !busy()) row.push_back({ hui::ui::Button::circle, text(PW_TEXT_HINT_BACK) });
+			if (skippable() && step_ != PW_SETUP_WELCOME) row.push_back({ hui::ui::Button::triangle, text(PW_TEXT_SKIP_SETUP) });
+		}
 		hui::ui::GlyphStyle style = look.dark ? hui::ui::GlyphStyle::dark() : hui::ui::GlyphStyle::light();
 		style.label = hui::ui::Painter(list, fonts_, look).page_text(); // full ink: the row lies on the green hill
 		hui::ui::HintLayout layout;
@@ -1018,6 +1322,7 @@ private:
 	std::unique_ptr<SetupEngine> engine_;
 	PwSetupFacts facts_{};
 	PwSetupStep step_{ PW_SETUP_WELCOME };
+	PwSetupStep route_{ PW_SETUP_USB };                           // the way the pieces come: the USB or the FTP step
 	const PwSetupLanguage *language_{ nullptr };
 	std::vector<const PwSetupLanguage *> shown_;
 	std::vector<uint32_t> flags_;
@@ -1030,4 +1335,11 @@ private:
 	float clock_{ 0.0f }, entered_{ 1.0f }, press_{ 0.0f }, doneAt_{ 0.0f };
 	float pointerX_{ 960.0f }, pointerY_{ 540.0f }, pointerShown_{ 0.0f }, lastTouchX_{ 0.0f }, lastTouchY_{ 0.0f };
 	bool touching_{ false }, prepareFailed_{ false }, simulated_{ false }, test_{ false }, cover_{ false };
+	std::string assets_;                                          // the title's assets folder (the faces, the flags)
+	// The Steam guide's mode
+	bool steam_{ false }, starting_{ false }, held_{ false };
+	PwSteamPage steamPage_{ PW_STEAM_PAGE_INTRO };
+	PwSteamFailure failure_{ PW_STEAM_FAIL_NONE };
+	SteamFacts steamFacts_;
+	float countdown_{ 0.0f };                                     // the done page's seconds to Big Picture
 };

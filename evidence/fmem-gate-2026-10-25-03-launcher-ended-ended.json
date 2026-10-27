@@ -1,0 +1,49 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.172,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.159,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": false,
+  "title": "PPSA99170",
+  "identity": "ac6d6a705e9c48b4a881fa50e6d4ec81",
+  "frames_requested": 120,
+  "eboot_sha256": "6c9b3d1be82928abb32ddf0c8967f55e6cdb660f63775822d393a1b00ee91f09",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)",
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 120 frames in 2.28 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "3 game(s); searched: /data/ps5proton/games (2 entries); /data/homebrew/PPSA99170/games (not there)",
+    "library shows 1 of 3 (Mihawk OS and entries with a prefix of their own; /data/ps5proton/library-show-all shows them all)",
+    "Last session ended: Wine: requested profile gate-no-such-entry is not in the library"
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.43,
+    "elevation": 0.43,
+    "library": 2.13,
+    "ui": 2.21
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": null,
+  "passed": true,
+  "capture": "klog/fmem-gate-2026-10-25-03-launcher-ended-ended",
+  "forced_close": false,
+  "storage_errors": 0
+}

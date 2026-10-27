@@ -521,7 +521,7 @@ Every component is the WinUI or shell control it names, with WinUI's metrics (`w
 - **Do** show the arrow cursor over buttons, menu items and the taskbar; the link hand belongs to hyperlinks.
 
 ### Don't:
-- **Don't** put Microsoft fonts, icons, artwork, wallpaper or binaries in the repository; the desktop's wallpaper is the project's own Aero Meadow, which `serve.sh` draws with `tools/make-mihawk-wallpaper.py` (light and night).
+- **Don't** put Microsoft fonts, icons, artwork, wallpaper or binaries in the repository; the desktop's wallpaper is the project's own Bubble Earth (`tools/make-aero-wallpapers.py`, since 2026-10-25); the browser prototype's `serve.sh` still draws the earlier Aero Meadow with `tools/make-mihawk-wallpaper.py` (light and night).
 - **Don't** hand-edit `css/tokens.css` or write ad-hoc hex values in a module; a fixed Windows colour gets a named local token with its source.
 - **Don't** replace Mica or Acrylic with flat stand-ins, or render a control as a generic web widget; each control is the WinUI or Win32 control it names, with its metrics and states.
 - **Don't** add curves or durations outside Windows' grammar; the taskbar glyph's release spring is Windows' own and stays there.

@@ -27,6 +27,11 @@ for reason in ['OPEN: broken mapper', 'no child processes (patch 0550)', 'winede
                                      {'virtual': {'virtual.c:20': reason}})['passed']
 assert runner.compare_records({'virtual': entry()}, {'virtual': entry(failures=[failure])},
                               {'virtual': {'virtual.c:20': 'qualified platform limitation'}})['passed']
+# A file whose PC run cannot complete passes only complete on the console without a failure line.
+assert runner.compare_records({'volume': entry('incomplete')}, {'volume': entry()}, {}, {'volume': 'oracle crash'})['passed']
+assert not runner.compare_records({'volume': entry('incomplete')}, {'volume': entry(failures=[failure])}, {}, {'volume': 'x'})['passed']
+assert not runner.compare_records({'volume': entry('incomplete')}, {'volume': entry('timeout')}, {}, {'volume': 'x'})['passed']
+assert not runner.compare_records({'volume': entry('incomplete')}, {'volume': entry()}, {})['passed']
 # Slice provenance is preserved only if every slice came from one test build.
 slices = {'d3d11@0-1': entry(), 'd3d11@1-2': entry()}
 assert runner.merge_slices(slices, 'd3d11')['d3d11']['context'] == context
@@ -37,6 +42,10 @@ text = ('virtual.c:20: Test failed: wrong protection\n'
 parsed = runner.parse(text)
 assert parsed['status'] == 'complete' and parsed['failure_count'] == 1
 assert runner.parse('winetest-batch: begin virtual\n')['status'] == 'incomplete'
+# A child that re-runs the whole batch (its argv[1] was the list) must not overwrite or pass the file.
+segments, order, repeated = runner.split_batch('winetest-batch: begin info\nwinetest-batch: begin file\n'
+                                               'winetest-batch: end file 0\nwinetest-batch: begin info\n')
+assert order == ['info', 'file'] and repeated == {'info'}
 runner.ARCH = 'i386'
 assert runner.test_exe('ntdll').name == 'ntdll_test32.exe'
 runner.ARCH = 'x86_64'
@@ -71,4 +80,13 @@ a, b = entry(), entry()
 a['context']['graphics_sha256'] = 'one'
 b['context']['graphics_sha256'] = 'two'
 assert not runner.compare_records({'d3d11': a}, {'d3d11': b}, {})['passed']
+# FILE@ARCH skips one architecture only (quartz's 32-bit helpers left stopped, 2026-10-25); FILE skips both
+saved_skip = runner.load
+runner.load = lambda path: {'q': {'a@i386': 'r', 'b': 's'}} if path == runner.SKIP else saved_skip(path)
+assert runner.skips('q', 'i386') == {'a': 'r', 'b': 's'} and runner.skips('q', 'x86_64') == {'b': 's'}
+runner.load = saved_skip
+
+# a file accepted unfinished for a recorded cause is a known limitation, not unfinished (dinput hid: no plug-and-play)
+v = runner.compare_records({'hid': entry()}, {'hid': entry('incomplete')}, {}, None, {'hid': 'no plug-and-play'})
+assert v['passed'] and not v.get('unfinished'), v
 print('wine conformance verdict: PASS (provenance, missing evidence, timeouts, repeated failures, skips, slices, watchdog rejection)')

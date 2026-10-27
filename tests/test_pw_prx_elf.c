@@ -23,6 +23,7 @@ enum {
 };
 
 static _Alignas(16) uint8_t arena[ARENA_SIZE];
+static uint8_t map_fill;   /* what test_map's memory holds: 0, or a sentinel the loader must not overwrite */
 static _Alignas(16) uint8_t file[IMAGE_SIZE];
 
 typedef struct Call { uintptr_t address; size_t bytes; int prot; } Call;
@@ -55,6 +56,7 @@ static void *test_map(void *opaque, uintptr_t address, size_t bytes, int prot)
      * address. The image is linked at 0, so this is one shared bias. */
     if (address > (uintptr_t)ARENA_SIZE || bytes > (size_t)ARENA_SIZE - (size_t)address)
         return (void *)(uintptr_t)-1;
+    memset(arena + address, map_fill, bytes);   /* a fresh mapping reads as zero (PwPrxElfMap) */
     return arena + address;
 }
 static void *fixed_map(void *opaque, uintptr_t address, size_t bytes, int prot)
@@ -225,6 +227,15 @@ int main(void)
     assert(!strcmp(seen_name[2], "NID12345678") && seen_has_library[2] &&
            !strcmp(seen_library[2], "libtest"));
 
+    /* The zero-filled tail is the map's (fresh anonymous memory reads as zero): the loader never writes it, since each
+     * page it wrote became resident, ntdll's 11.4 MiB in every helper (fmem-steam-kinds-2026-10-25-01). */
+    reset();
+    build_image(PF_R | PF_W | PF_X, 1);
+    map_fill = 0x5a;
+    assert(pw_prx_elf_load(file, sizeof file, 0, test_map, test_protect, test_resolve, NULL, &image) == PW_PRX_ELF_OK);
+    map_fill = 0;
+    for (size_t i = LOAD_FILESZ; i < LOAD_MEMSZ; i++) assert(arena[i] == 0x5a);
+
     /* Fixed mapping at a caller-selected base, with the converter's 0xFE18
      * module type; text only, so protect is RX. */
     reset();
@@ -274,7 +285,26 @@ int main(void)
     assert(pw_prx_elf_load(NULL, sizeof file, 0, test_map, test_protect, test_resolve, NULL,
                            &image) == PW_PRX_ELF_ERR_ARGUMENT);
 
+    /* The helper's loader choice: this loader unless the environment says WINE_PS5_PRX_LOADER=0. */
+    {
+        const char *reason = NULL;
+        static const char none[] = "WINEDEBUG=-all\0WINE_PS5_CHILD=1\0";
+        static const char off[] = "WINEDEBUG=-all\0WINE_PS5_PRX_LOADER=0\0";
+        static const char on[] = "WINE_PS5_PRX_LOADER=1\0";
+        static const char other[] = "WINE_PS5_PRX_LOADER=00\0WINE_PS5_PRX_LOADER=0\0";  /* first entry wins */
+        static const char empty_value[] = "WINE_PS5_PRX_LOADER=\0";
+        static const char unended[] = {'W','I','N','E','_','P','S','5','_','P','R','X','_','L','O','A','D','E','R','=','0'};
+        assert(pw_prx_elf_wanted(none, sizeof none, &reason) == 1 && !strcmp(reason, "default"));
+        assert(pw_prx_elf_wanted(off, sizeof off, &reason) == 0 && !strcmp(reason, "WINE_PS5_PRX_LOADER=0"));
+        assert(pw_prx_elf_wanted(on, sizeof on, &reason) == 1 && !strcmp(reason, "WINE_PS5_PRX_LOADER=1"));
+        assert(pw_prx_elf_wanted(other, sizeof other, &reason) == 1 && !strcmp(reason, "WINE_PS5_PRX_LOADER=00"));
+        assert(pw_prx_elf_wanted(empty_value, sizeof empty_value, &reason) == 1 && !strcmp(reason, "default"));
+        assert(pw_prx_elf_wanted(unended, sizeof unended, &reason) == 1 && !strcmp(reason, "default"));
+        assert(pw_prx_elf_wanted(off, 0, &reason) == 1 && pw_prx_elf_wanted(NULL, 64, NULL) == 1);
+    }
+
     printf("prx elf passed: PT_LOAD map/copy/BSS, RELATIVE/GLOB_DAT/JUMP_SLOT/R_X86_64_64, "
-           "RX/RW protection after relocation, descriptor and module_start, typed failures\n");
+           "RX/RW protection after relocation, descriptor and module_start, typed failures, "
+           "loader choice (default and WINE_PS5_PRX_LOADER=0)\n");
     return 0;
 }

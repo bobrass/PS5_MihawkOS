@@ -19,7 +19,9 @@
 enum {
     PW_VM_RECORD = 72,
     PW_VM_FLEXIBLE = 1u, PW_VM_DIRECT = 2u, PW_VM_STACK = 4u, PW_VM_POOLED = 8u, PW_VM_COMMITTED = 16u,
-    PW_VM_NAME = 32, PW_VM_GROUPS = 48, PW_VM_BIG = 8,
+    PW_VM_NAME = 32, PW_VM_GROUPS = 48, PW_VM_BIG = 8, PW_VM_FLEXBIG = 8,
+    PW_VM_PROTS = 4, PW_VM_SIZES = 4,   /* flexible_kind: r / rw / rx / other by <64 KiB / <1 MiB / <8 MiB / more */
+    PW_VM_CLASS_FLEXIBLE = 0, PW_VM_CLASS_DIRECT = 1, PW_VM_CLASS_RESERVED = 2, PW_VM_CLASSES = 3,   /* a mapping's class, below */
     PW_VM_WALK_LIMIT = 65536,     /* mappings walked at most; a walk that reaches it says so */
 };
 
@@ -52,12 +54,24 @@ typedef struct PwVmBig {
     char name[PW_VM_NAME + 1];
 } PwVmBig;
 
+/* The flexible mappings of one protection and size class: what the counted memory is made of (flexible memory is what
+ * the census counts), when the group names do not say. */
+typedef struct PwVmKind {
+    uint32_t mappings;
+    uint64_t bytes, resident;
+} PwVmKind;
+
 typedef struct PwVmCensus {
     PwVmGroup groups[PW_VM_GROUPS];
     PwVmBig big[PW_VM_BIG];      /* the largest accessible mappings, largest first */
     unsigned big_count;
+    PwVmBig flexbig[PW_VM_FLEXBIG]; /* the largest accessible flexible mappings, largest first */
+    unsigned flexbig_count;
+    PwVmKind flexible_kind[PW_VM_PROTS][PW_VM_SIZES];
     unsigned count;              /* groups kept */
     unsigned mappings;           /* mappings walked */
+    unsigned class_mappings[PW_VM_CLASSES]; /* of them, by class (flexible, direct, reserved) */
+    uint64_t class_bytes[PW_VM_CLASSES];
     uint64_t flexible, direct, other; /* bytes, by kind (flexible wins when both bits are set) */
     uint64_t resident;           /* resident bytes of the accessible mappings that are not direct memory */
     uint64_t reserved_resident;  /* resident bytes of the inaccessible mappings (protection 0), asked from 2026-10-11 */
@@ -71,7 +85,13 @@ typedef struct PwVmCensus {
 typedef int (*PwVmQuery)(void *context, uintptr_t address, uint8_t raw[PW_VM_RECORD]);
 /* Resident bytes in [start, end) (mincore on the console); called for each mapping,
  * direct memory and reservations too, whose pages are counted apart. NULL: not counted. */
-typedef uint64_t (*PwVmResident)(void *context, uintptr_t start, uintptr_t end);
+typedef uint64_t (*PwVmResident)(void *context, uintptr_t start, uintptr_t end, unsigned klass);
+/* The class of a mapping, passed to the residency callback so each class can have its own time budget: a walk in address order
+ * with one budget spent its 100 ms on the PROT_NONE reservations (12,000 of 18,787 mappings) and measured 3,133 mappings of a
+ * browser helper (2026-10-24, docs/PLAN.md): the flexible ones, which are what the console counts, came after it. */
+/* WINE_PS5_CENSUS_MS: "N" is one budget shared by every class (the behaviour before), "F:D:R" a budget in ms for each class, flexible,
+ * direct, reserved. Returns 1 for the per-class form, 0 for one number, -1 for text it does not read (ms keeps 100 for each). */
+int pw_vm_budget_parse(const char *text, long long ms[PW_VM_CLASSES]);
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,6 +103,11 @@ void pw_vm_record_decode(const uint8_t raw[PW_VM_RECORD], PwVmRecord *out);
 void pw_vm_census_walk(PwVmCensus *census, PwVmQuery query, PwVmResident resident, void *context);
 /* "start+MiB:flags/protection:name ..." for the largest mappings (what PwVmCensus.big holds), into out. */
 size_t pw_vm_census_format_big(const PwVmCensus *census, char *out, size_t size);
+/* "start+MiB:flags/protection:name ..." for the largest flexible mappings (PwVmCensus.flexbig), into out. */
+size_t pw_vm_census_format_flexbig(const PwVmCensus *census, char *out, size_t size);
+/* "prot.size=mappings/mapped MiB/resident MiB ..." for the flexible mappings by protection (r rw rx o) and size
+ * (s <64 KiB, m <1 MiB, l <8 MiB, x more), the classes that hold any, MiB to a tenth, into out. */
+size_t pw_vm_census_format_flexible(const PwVmCensus *census, char *out, size_t size);
 /* "name:flags/protection=resident/mapped MiB/mappings ..." for the n first groups with flags & mask (0: every group),
  * into out. */
 size_t pw_vm_census_format(const PwVmCensus *census, unsigned n, uint8_t mask, char *out, size_t size);

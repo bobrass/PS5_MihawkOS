@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PS5_Proton
+Subject: [PATCH] server: ps5: say which asyncs a destroyed process still has.
+
+process_destroy asserts that a process has no asyncs left. On the PS5 Pro that
+assertion aborted the title (and the whole Windows session with it) twice in
+a day of store-client runs (2026-10-23/24: a helper's death while its I/O was
+pending, once in the 32-bit game's session, once at the client's update restart),
+and the console's crash report only names the assertion, not whose I/O it was.
+Before the assertion, print the process and its remaining asyncs
+(dump_process_asyncs, the wait watchdog's own dump). Nothing else changes: the
+assertion still fires, and its cause is found from the next record.
+
+diff --git a/server/process.c b/server/process.c
+--- a/server/process.c
++++ b/server/process.c
+@@ -828,6 +828,17 @@
+ 
+     /* we can't have a thread remaining */
+     assert( list_empty( &process->thread_list ));
++#ifdef __PROSPERO__
++    if (!list_empty( &process->asyncs ))
++    {
++        /* The assertion below ended a whole session twice (a helper's death with I/O pending): say whose asyncs these
++         * are before it aborts, so the next record names the cause. */
++        extern void dump_process_asyncs( struct process *process );
++        fprintf( stderr, "wine-ps5: process %04x (unix pid %d, %d threads running, system %u) is destroyed with asyncs"
++                 " left:\n", process->id, process->unix_pid, process->running_threads, process->is_system );
++        dump_process_asyncs( process );
++    }
++#endif
+     assert( list_empty( &process->asyncs ));
+ 
+     assert( !process->sigkill_timeout );  /* timeout should hold a reference to the process */

@@ -1,0 +1,48 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.149,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.137,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": false,
+  "title": "PPSA99170",
+  "identity": "f7652aa50d9447bfae0b76fa42cc87ce",
+  "frames_requested": 120,
+  "eboot_sha256": "a312772a5ea0eb8659367b819aaf5b7c9cb99ce6785a4662d78ccffb7cdcda65",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)",
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 120 frames in 2.26 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "Last session ended: Wine: requested profile gate-no-such-entry is not in the library"
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.56,
+    "elevation": 0.58,
+    "library": 2.28,
+    "ui": 2.34
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": null,
+  "passed": true,
+  "capture": "klog/gate-merge-2026-10-26-03-launcher-ended-ended",
+  "forced_close": false,
+  "storage_errors": 0
+}

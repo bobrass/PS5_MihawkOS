@@ -1,0 +1,20 @@
+{
+ "context": {
+  "arch": "x86_64",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "2f86ff99a7b5247ffcacba3f80d0ada08ab3bfe2790deec5f29e2a0d4a73f7ac",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "xinput": {
+   "xinput.c:239": "Wine's own xinput answers a connected pad's battery and headset GUIDs with ERROR_NOT_SUPPORTED (a stub upstream too); the console has a DualSense connected, the PC's oracle no pad, so only the console reaches these checks",
+   "xinput.c:248": "Wine's own xinput answers a connected pad's battery and headset GUIDs with ERROR_NOT_SUPPORTED (a stub upstream too); the console has a DualSense connected, the PC's oracle no pad, so only the console reaches these checks",
+   "xinput.c:253": "Wine's own xinput answers a connected pad's battery and headset GUIDs with ERROR_NOT_SUPPORTED (a stub upstream too); the console has a DualSense connected, the PC's oracle no pad, so only the console reaches these checks",
+   "xinput.c:279": "Wine's own xinput answers a connected pad's battery and headset GUIDs with ERROR_NOT_SUPPORTED (a stub upstream too); the console has a DualSense connected, the PC's oracle no pad, so only the console reaches these checks"
+  }
+ },
+ "unfinished_ok": {}
+}

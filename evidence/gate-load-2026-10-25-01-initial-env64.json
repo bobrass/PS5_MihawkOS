@@ -1,0 +1,22 @@
+{
+ "run": "gate-load-2026-10-25-01-initial-env64",
+ "what": "initial-env64-probe.exe",
+ "env": [
+  "MIHAWK_ENV_ROOT=launch selected",
+  "MIHAWK_ENV_UTF8=caf\u00e9 \u03a9",
+  "MIHAWK_ENV_EMPTY=",
+  "MIHAWK_ENV_CASE=first",
+  "mihawk_env_case=last wins",
+  "PATH=C:\\Selected Tools;C:\\windows\\system32",
+  "PROTON_LAYOUT=launcher",
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "timed out",
+ "loaded": false,
+ "probe_verdict": null,
+ "stop_requested": null,
+ "cleanup_verified": false,
+ "hooks_removed": false
+}

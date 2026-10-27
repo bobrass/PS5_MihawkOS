@@ -1,0 +1,33 @@
+{
+  "run": "guide-owner-2026-10-26-02",
+  "console": "base PS5, firmware 13.60",
+  "prefix": "a new one, through the test hook",
+  "build": "6c54dca6b57d278e (commit 0ef8ac3)",
+  "controller": "xbox-one",
+  "who": "the owner, at the controller, with the phone app; the harness only followed klog",
+  "owner_report": "satisfied with all the fixes; the guided setup tested end to end",
+  "stages_seconds_from_intro": {
+    "intro_page": 0.0,
+    "start_pressed": 2.6,
+    "install_session": 4.3,
+    "install_back": 114.4,
+    "signin_session": 115.5,
+    "updating_screen": 118.4,
+    "browser_phone_screen": 443.2,
+    "client_qr_window": 468.9,
+    "signin_saved": 487.3,
+    "client_ended": 513.1,
+    "session_end": 515.5,
+    "done_page": 517.2,
+    "continue_pressed": 521.6,
+    "big_picture_session": 522.7
+  },
+  "install_session_seconds": 110.1,
+  "signin_after_qr_window_seconds": 18.4,
+  "client_ended_after_signin_seconds": 25.8,
+  "session_end_after_signin_seconds": 28.2,
+  "previous_run_session_end_after_signin_seconds": 50.0,
+  "token_wait": "the client's local.vdf was not written in the 25 s after the close, so the cap ended the client; its time on the console (minute only) and the klog place the write after the next session's start, as in the first run: the file is no sign of a saved sign-in, and the wait is the cap alone",
+  "klog_exhaustion_lines": 0,
+  "passed": true
+}

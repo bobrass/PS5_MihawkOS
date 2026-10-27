@@ -499,6 +499,18 @@ PW_IA32_FORM(nop_Ev_0D,  "nop",  0F, 0x0D, SEL(X,ANY,X), ANY, ANY, OPS(Ev,NONE,N
 /* Segment checks a user-mode program may use; XSAVE family (user mode, state in memory). */
 PW_IA32_FORM(lar_Gv_Ew,  "lar",  0F, 0x02, SEL(X,ANY,X), ANY, ANY, OPS(Gv,Ew,NONE), NOF, Z, NOF, NOATT)
 PW_IA32_FORM(lsl_Gv_Ew,  "lsl",  0F, 0x03, SEL(X,ANY,X), ANY, ANY, OPS(Gv,Ew,NONE), NOF, Z, NOF, NOATT)
+/* Descriptor-table stores: user-mode instructions a CPU with CR4.UMIP faults (#GP(0)) and the console's kernel
+ * leaves to the program; src/pw_umip.h emulates them. SGDT/SIDT store a 16-bit limit and a base of 4 bytes (8 in
+ * long mode); SLDT, STR and SMSW store a word in memory, or the operand size in a register. */
+PW_IA32_FORM(sldt_Evw,   "sldt", 0F, 0x00, SEL(0,ANY,X), ANY, ANY, OPS(Evw,NONE,NONE), NOF, NOF, NOF, NOATT)
+PW_IA32_FORM(str_Evw,    "str",  0F, 0x00, SEL(1,ANY,X), ANY, ANY, OPS(Evw,NONE,NONE), NOF, NOF, NOF, NOATT)
+PW_IA32_FORM(sgdt_M64,   "sgdt",  0F, 0x01, SEL(0,MEM,X), ANY, ANY, OPS(M,NONE,NONE),  NOF, NOF, NOF, IMPL|X64)
+PW_IA32_FORM(sgdtw_M,    "sgdtw", 0F, 0x01, SEL(0,MEM,X), ANY, O16, OPS(M,NONE,NONE),  NOF, NOF, NOF, IMPL)
+PW_IA32_FORM(sgdtd_M,    "sgdtd", 0F, 0x01, SEL(0,MEM,X), ANY, ANY, OPS(M,NONE,NONE),  NOF, NOF, NOF, IMPL)
+PW_IA32_FORM(sidt_M64,   "sidt",  0F, 0x01, SEL(1,MEM,X), ANY, ANY, OPS(M,NONE,NONE),  NOF, NOF, NOF, IMPL|X64)
+PW_IA32_FORM(sidtw_M,    "sidtw", 0F, 0x01, SEL(1,MEM,X), ANY, O16, OPS(M,NONE,NONE),  NOF, NOF, NOF, IMPL)
+PW_IA32_FORM(sidtd_M,    "sidtd", 0F, 0x01, SEL(1,MEM,X), ANY, ANY, OPS(M,NONE,NONE),  NOF, NOF, NOF, IMPL)
+PW_IA32_FORM(smsw_Evw,   "smsw", 0F, 0x01, SEL(4,ANY,X), ANY, ANY, OPS(Evw,NONE,NONE), NOF, NOF, NOF, NOATT)
 PW_IA32_FORM(verr_Ew,    "verr", 0F, 0x00, SEL(4,ANY,X), ANY, ANY, OPS(Ew,NONE,NONE), NOF, Z, NOF, MRO)
 PW_IA32_FORM(verw_Ew,    "verw", 0F, 0x00, SEL(5,ANY,X), ANY, ANY, OPS(Ew,NONE,NONE), NOF, Z, NOF, MRO)
 PW_IA32_FORM(xsave64_M, "xsave64", 0F, 0xAE, SEL(4,MEM,X), NP, O64, OPS(M,NONE,NONE), NOF, NOF, NOF, IMPL)

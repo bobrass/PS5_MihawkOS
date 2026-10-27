@@ -112,6 +112,9 @@ def home(theme, state='home'):
         mask[144:672, :165] = True
         mask[144:178, 165:] = True
         mask[144:660, 165:177] = mask[144:660, 1090:] = True
+        # The Desktop lists the user's own shortcuts: past 13 or so items its vertical scrollbar takes this column, over
+        # the column header too (19 items on 2026-10-24 failed the gate on these 141 pixels).
+        mask[144:672, 1073:1090] = False
         mask[672:, 1000:] = True
     elif state in ('filter', 'pane'):
         for name in FOLDER_TITLE: put(name, opaque_only=True)

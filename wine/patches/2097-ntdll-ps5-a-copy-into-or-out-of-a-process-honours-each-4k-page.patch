@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 13:00:00 -0400
+Subject: [PATCH] ntdll: PS5: a copy into or out of a process honours each 4 KiB page.
+
+The memory service copies whole 16 KiB host pages, so a no-access or read-only 4 KiB page beside an accessible one was
+read or written through: kernel32 virtual.c:244, 256 (WriteProcessMemory into a child's read-only pages) and
+4536-4538 (ReadProcessMemory across a no-access page of the process itself), both builds (docs/HOST_PAGES.md, group D).
+A read of the process itself now checks its source page by page (patch 2088's check); a copy through the server
+asks the target which pages allow it (NtQueryVirtualMemory, Wine's APC_VIRTUAL_QUERY): a read that reaches a page it
+may not read copies nothing, a write writes the part it may and returns STATUS_PARTIAL_COPY, as on Windows. A query
+that fails (a handle without PROCESS_QUERY_INFORMATION) leaves the range to the copy, as before.
+---
+--- a/dlls/ntdll/unix/virtual.c	2026-10-26 06:28:13.239139176 -0400
++++ b/dlls/ntdll/unix/virtual.c	2026-10-26 06:28:13.240155348 -0400
+@@ -8841,6 +8841,32 @@
+  *             NtReadVirtualMemory   (NTDLL.@)
+  *             ZwReadVirtualMemory   (NTDLL.@)
+  */
++#ifdef __PROSPERO__
++/* How much of [addr, addr + size) another process allows to be read or written, page by page as its own VirtualQuery
++ * reports them: the server's copy (the memory service) goes by whole 16 KiB host pages, so a no-access or read-only
++ * 4 KiB page beside an accessible one was copied through (kernel32 virtual.c:244, 256). A query that fails (a handle
++ * with no PROCESS_QUERY_INFORMATION) leaves the range to the copy, as before. */
++static SIZE_T ps5_remote_allowed( HANDLE process, const char *addr, SIZE_T size, BOOL write )
++{
++    const ULONG writable = PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
++    const char *p = addr, *end = addr + size;
++
++    while (p < end)
++    {
++        MEMORY_BASIC_INFORMATION info;
++
++        if (NtQueryVirtualMemory( process, p, MemoryBasicInformation, &info, sizeof(info), NULL )) return size;
++        /* a read takes any committed page but a no-access or guard one, an execute-only one too (kernel32
++         * loader.c:2041 reads an image's PAGE_EXECUTE section); a write only a writable one */
++        if (info.State != MEM_COMMIT || !info.Protect || (info.Protect & (PAGE_GUARD | PAGE_NOACCESS)) ||
++            (write && !(info.Protect & writable)))
++            break;
++        p = (const char *)info.BaseAddress + info.RegionSize;
++    }
++    return p >= end ? size : (SIZE_T)(p - addr);
++}
++#endif
++
+ NTSTATUS WINAPI NtReadVirtualMemory( HANDLE process, const void *addr, void *buffer,
+                                      SIZE_T size, SIZE_T *bytes_read )
+ {
+@@ -8851,6 +8877,16 @@
+         status = STATUS_ACCESS_VIOLATION;
+         size = 0;
+     }
++#ifdef __PROSPERO__
++    /* as on Windows, a read that reaches a page it may not read copies nothing (kernel32 virtual.c:4536-4538): the
++     * memmove below goes by host pages, which let a no-access 4 KiB page beside a readable one be read */
++    else if (process == GetCurrentProcess() ? !virtual_check_buffer_for_read( addr, size )
++                                            : ps5_remote_allowed( process, addr, size, FALSE ) < size)
++    {
++        status = STATUS_PARTIAL_COPY;
++        size = 0;
++    }
++#endif
+     else if (process == GetCurrentProcess())
+     {
+         __TRY
+@@ -8892,15 +8928,27 @@
+ 
+     if (virtual_check_buffer_for_read( buffer, size ))
+     {
+-        SERVER_START_REQ( write_process_memory )
++#ifdef __PROSPERO__
++        /* the part the target allows is written, the rest refused, as on Windows (kernel32 virtual.c:244, 256) */
++        SIZE_T allowed = ps5_remote_allowed( process, addr, size, TRUE );
++#else
++        SIZE_T allowed = size;
++#endif
++        status = STATUS_SUCCESS;
++        if (allowed)
+         {
+-            req->handle     = wine_server_obj_handle( process );
+-            req->addr       = wine_server_client_ptr( addr );
+-            wine_server_add_data( req, buffer, size );
+-            status = wine_server_call( req );
+-            size = reply->written;
++            SERVER_START_REQ( write_process_memory )
++            {
++                req->handle     = wine_server_obj_handle( process );
++                req->addr       = wine_server_client_ptr( addr );
++                wine_server_add_data( req, buffer, allowed );
++                status = wine_server_call( req );
++                allowed = reply->written;
++            }
++            SERVER_END_REQ;
+         }
+-        SERVER_END_REQ;
++        if (!status && allowed < size) status = STATUS_PARTIAL_COPY;
++        size = allowed;
+     }
+     else
+     {

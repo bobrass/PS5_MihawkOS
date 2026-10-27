@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 04:00:00 -0400
+Subject: [PATCH] ntdll: PS5: name a process's slow opens and attribute queries
+ when asked.
+
+WINE_PS5_FILE_TRACE=N writes the first N opens and attribute queries of a
+process to its log, each with its name, status and microseconds. The
+2D game's load asked 44,700 attribute queries at about 380 us
+and 24,000 opens at about 190 us (isaac-load-fix1-2026-10-25-01); their
+names say which lookups to make cheaper. Nothing is written without the
+variable.
+---
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index 8d6c872..fbed4e9 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -9112,6 +9112,34 @@ static void file_call_end( int kind, ULONG64 bytes, const struct timespec *begin
+     if (ns > stats[FILE_CALL_SLOWEST_NS]) stats[FILE_CALL_SLOWEST_NS] = ns;
+ }
+ 
++/* WINE_PS5_FILE_TRACE=N: the first N opens and attribute queries of this process, each with its name, status and
++ * microseconds, on standard error (the helper's log). A 2D game's load asked 44,700 attribute queries at
++ * about 380 us each and 24,000 opens at about 190 us; their names say which lookups to make cheaper. */
++static void file_trace( const char *kind, const OBJECT_ATTRIBUTES *attr, NTSTATUS status, const struct timespec *begin )
++{
++    static int left = -1;
++    struct timespec end;
++    char name[1024];
++    int length = 0;
++
++    if (!left) return;
++    if (left < 0)
++    {
++        const char *value = getenv( "WINE_PS5_FILE_TRACE" );
++        left = value ? atoi( value ) : 0;
++        if (left <= 0) { left = 0; return; }
++    }
++    clock_gettime( CLOCK_MONOTONIC, &end );
++    if (attr && attr->ObjectName && attr->ObjectName->Buffer)
++        length = ntdll_wcstoumbs( attr->ObjectName->Buffer, attr->ObjectName->Length / sizeof(WCHAR), name,
++                                  sizeof(name) - 1, FALSE );
++    name[length > 0 ? length : 0] = 0;
++    fprintf( stderr, "file-trace %s root=%d status=%#x us=%lld %s\n", kind, attr && attr->RootDirectory ? 1 : 0,
++             (unsigned int)status, (long long)((end.tv_sec - begin->tv_sec) * 1000000ll + (end.tv_nsec - begin->tv_nsec) / 1000),
++             name );
++    left--;
++}
++
+ /* Copy up to count counters (kind-major: calls, ns, slowest ns, bytes); returns how many exist. */
+ DECLSPEC_EXPORT unsigned int __wine_file_call_stats( ULONG64 *out, unsigned int count )
+ {
+@@ -9225,6 +9253,7 @@ NTSTATUS WINAPI NtCreateFile( HANDLE *handle, ACCESS_MASK access, OBJECT_ATTRIBU
+     file_call_begin( &begin );
+     status = real_NtCreateFile( handle, access, attr, io, alloc_size, attributes, sharing, disposition, options, ea_buffer, ea_length );
+     file_call_end( FILE_CALL_CREATE, 0, &begin );
++    file_trace( "create", attr, status, &begin );
+     return status;
+ }
+ 
+@@ -9255,6 +9284,7 @@ NTSTATUS WINAPI NtQueryAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_BASIC
+     file_call_begin( &begin );
+     status = real_NtQueryAttributesFile( attr, info );
+     file_call_end( FILE_CALL_ATTRIBUTES, 0, &begin );
++    file_trace( "attributes", attr, status, &begin );
+     return status;
+ }
+ 
+@@ -9267,6 +9297,7 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_N
+     file_call_begin( &begin );
+     status = real_NtQueryFullAttributesFile( attr, info );
+     file_call_end( FILE_CALL_ATTRIBUTES, 0, &begin );
++    file_trace( "full-attributes", attr, status, &begin );
+     return status;
+ }
+ 

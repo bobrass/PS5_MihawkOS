@@ -1,0 +1,21 @@
+{
+ "context": {
+  "arch": "x86_64",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "a46bb4d6e5391bd0186e5eee9a98f2fa9cb2bc4e057476f60b77cf9b99abe58c",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "service": {
+   "service.c:2922": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): the event log service and plug-and-play are off on the console, each Wine system process costing about 15 MiB of the 990 MiB budget; the EventLog service is disabled and stopped",
+   "service.c:2958": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): the event log service and plug-and-play are off on the console, each Wine system process costing about 15 MiB of the 990 MiB budget; the EventLog service is disabled and stopped",
+   "service.c:2959": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): the event log service and plug-and-play are off on the console, each Wine system process costing about 15 MiB of the 990 MiB budget; the EventLog service is disabled and stopped",
+   "service.c:2963": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): the event log service and plug-and-play are off on the console, each Wine system process costing about 15 MiB of the 990 MiB budget; the EventLog service is disabled and stopped",
+   "service.c:2964": "AWAITING OWNER (rests on our own choice): deliberate (docs/STEAM.md): the event log service and plug-and-play are off on the console, each Wine system process costing about 15 MiB of the 990 MiB budget; the EventLog service is disabled and stopped"
+  }
+ },
+ "unfinished_ok": {}
+}

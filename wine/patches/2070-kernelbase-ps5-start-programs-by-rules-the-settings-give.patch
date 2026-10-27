@@ -1,0 +1,162 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PS5_Proton
+Subject: [PATCH] kernelbase: Start programs by rules the application's settings
+ give, for the PS5.
+
+A vendor's updater (a game store's client) verifies the checksum of every
+program file it installed and restores any it finds changed (measured on the
+PS5 Pro, 2026-10-23: six start-up helper programs replaced by a stub were
+restored from the updater's package cache before the client started), and the
+helper programs that client starts cost 14 to 25 MiB of the console's 1 GiB
+flexible memory each, many at once at start-up. Changing the files does not
+work; changing how they are started does.
+
+WINE_PS5_PROCESS_RULES, in the Windows environment of a process (so in the
+processes it starts), holds rules separated by ';', each "NAME|ACTION|VALUE":
+NAME is a program's file name (any case); `run` starts the image VALUE in its
+place with the caller's command line, `add` appends VALUE to its command line, `fail` does not start it (the
+caller sees a missing file).
+They are applied in CreateProcessInternalW beside Proton's own per-program
+command line and launcher hacks, and logged as fixme lines. Without the
+variable nothing is read and nothing changes. The rules are the application's
+settings on the console (its catalog entry's environment), so no program is
+named here.
+
+The rule parsing is compiled by tests/test_process_rules.c straight out of
+this patch.
+
+diff --git a/dlls/kernelbase/process.c b/dlls/kernelbase/process.c
+--- a/dlls/kernelbase/process.c
++++ b/dlls/kernelbase/process.c
+@@ -599,6 +599,83 @@
+     return 1;
+ }
+ 
++/* PW_PROCESS_RULES_BEGIN */
++/* WINE_PS5_PROCESS_RULES, in a process's environment (so in every process it starts), changes how a program is started
++ * without touching its files: rules separated by ';', each "NAME|ACTION|VALUE".
++ *   NAME    a program's file name, any case ("tool.exe")
++ *   run     VALUE is the image started in its place ("C:\windows\system32\hostname.exe"); the command line stays the caller's
++ *   add     VALUE is appended to the program's command line (" --a --b")
++ *   fail    the program is not started at all: the caller's CreateProcess fails as for a missing file (VALUE unused)
++ * For programs whose files a vendor's updater checks and restores, or whose helper processes cost the console more
++ * memory than they are worth: the rules live in the application's settings on the console, not here. Nothing is read
++ * without the variable. */
++struct ps5_rule { WCHAR *name, *action, *value; };
++static struct ps5_rule ps5_rules[16];
++static unsigned int ps5_rule_count;
++static volatile LONG ps5_rules_state;   /* 0 not read, 1 being read, 2 read */
++
++static void ps5_rules_read(void)
++{
++    DWORD size;
++    WCHAR *text, *rule, *next;
++
++    if (InterlockedCompareExchange( &ps5_rules_state, 1, 0 ))
++    {
++        while (ps5_rules_state != 2) Sleep( 0 );
++        return;
++    }
++    if ((size = GetEnvironmentVariableW( L"WINE_PS5_PROCESS_RULES", NULL, 0 )) &&
++        (text = HeapAlloc( GetProcessHeap(), 0, size * sizeof(WCHAR) )))
++    {
++        if (GetEnvironmentVariableW( L"WINE_PS5_PROCESS_RULES", text, size ) < size)
++        {
++            for (rule = text; *rule && ps5_rule_count < ARRAY_SIZE(ps5_rules); rule = next)
++            {
++                WCHAR *action, *value;
++
++                if ((next = wcschr( rule, ';' ))) *next++ = 0;
++                else next = rule + wcslen( rule );
++                if (!(action = wcschr( rule, '|' ))) continue;
++                *action++ = 0;
++                if (!(value = wcschr( action, '|' ))) continue;
++                *value++ = 0;
++                if (!*rule) continue;
++                ps5_rules[ps5_rule_count].name = rule;
++                ps5_rules[ps5_rule_count].action = action;
++                ps5_rules[ps5_rule_count++].value = value;
++            }
++        }
++        if (!ps5_rule_count) HeapFree( GetProcessHeap(), 0, text );   /* no rule points into it */
++    }
++    InterlockedExchange( &ps5_rules_state, 2 );
++}
++
++/* The value of the first rule of this action for the program that image names (a path, or a command line that starts
++ * with one): the program's file name as a whole path component, then the end, a space or a quote. NULL when none. */
++static const WCHAR *ps5_process_rule( const WCHAR *image, const WCHAR *action )
++{
++    unsigned int i;
++    const WCHAR *at;
++
++    if (!image) return NULL;
++    ps5_rules_read();
++    for (i = 0; i < ps5_rule_count; i++)
++    {
++        size_t len = wcslen( ps5_rules[i].name );
++
++        if (wcsicmp( ps5_rules[i].action, action )) continue;
++        for (at = image; *at; at++)
++        {
++            if (wcsnicmp( at, ps5_rules[i].name, len )) continue;
++            if (at != image && at[-1] != '\\' && at[-1] != '/' && at[-1] != '"') continue;
++            if (at[len] && at[len] != ' ' && at[len] != '"') continue;
++            return ps5_rules[i].value;
++        }
++    }
++    return NULL;
++}
++/* PW_PROCESS_RULES_END */
++
+ static const WCHAR *hack_append_command_line( const WCHAR *cmd )
+ {
+     static const struct
+@@ -641,6 +718,7 @@
+         {L"UnrealCEFSubProcess.exe", L" --use-gl=swiftshader", "2316580"},
+         {L"UnrealCEFSubProcess.exe", L" --use-angle=d3d9", "2684500"},
+     };
++    const WCHAR *append;
+     unsigned int i;
+     char sgi[64];
+ 
+@@ -657,7 +735,9 @@
+             return options[i].append;
+         }
+     }
+-    return NULL;
++    if ((append = ps5_process_rule( cmd, L"add" )))
++        FIXME( "HACK: appending %s to command line (WINE_PS5_PROCESS_RULES).\n", debugstr_w(append) );
++    return append;
+ }
+ 
+ static void sync_env_var_to_unix( WCHAR *env, const char *name )
+@@ -708,7 +788,7 @@
+     RTL_USER_PROCESS_INFORMATION rtl_info = { 0 };
+     HANDLE parent = 0, debug = 0;
+     char *product_name = NULL;
+-    const WCHAR *append;
++    const WCHAR *append, *run_in_place;
+     ULONG nt_flags = 0;
+     USHORT machine = 0;
+     NTSTATUS status;
+@@ -766,6 +846,19 @@
+     product_name = get_product_name( app_name );
+     if (battleye_launcher_redirect_hack( app_name, name, ARRAY_SIZE(name), &orig_app_name, product_name ))
+         app_name = name;
++    else if ((run_in_place = ps5_process_rule( app_name, L"run" )) && wcslen( run_in_place ) < ARRAY_SIZE(name))
++    {
++        FIXME( "HACK: running %s in place of %s (WINE_PS5_PROCESS_RULES).\n", debugstr_w(run_in_place), debugstr_w(app_name) );
++        wcscpy( name, run_in_place );
++        app_name = name;
++    }
++    if (ps5_process_rule( app_name, L"fail" ))
++    {
++        FIXME( "HACK: not starting %s (WINE_PS5_PROCESS_RULES).\n", debugstr_w(app_name) );
++        HeapFree( GetProcessHeap(), 0, orig_app_name );
++        status = STATUS_OBJECT_NAME_NOT_FOUND;
++        goto done;
++    }
+ 
+     /* Warn if unsupported features are used */
+ 

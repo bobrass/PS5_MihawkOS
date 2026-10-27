@@ -1,0 +1,232 @@
+{
+  "raise": "980:1010",
+  "brake": "swap out 112.7 above 64.1 + 8",
+  "kernel_series_rss_swap_pt": [
+    [
+      143.4,
+      64.1,
+      2301
+    ],
+    [
+      149.9,
+      64.1,
+      2306
+    ],
+    [
+      143.5,
+      64.1,
+      2293
+    ],
+    [
+      216.9,
+      64.1,
+      2497
+    ],
+    [
+      197.9,
+      64.1,
+      2444
+    ],
+    [
+      208.0,
+      64.1,
+      2473
+    ],
+    [
+      237.6,
+      64.1,
+      2534
+    ],
+    [
+      287.3,
+      64.2,
+      2861
+    ],
+    [
+      432.5,
+      64.2,
+      3131
+    ],
+    [
+      517.9,
+      64.2,
+      3328
+    ],
+    [
+      526.4,
+      64.2,
+      3465
+    ],
+    [
+      579.4,
+      64.2,
+      3584
+    ],
+    [
+      582.9,
+      64.2,
+      3589
+    ],
+    [
+      573.2,
+      64.2,
+      3590
+    ],
+    [
+      573.1,
+      64.2,
+      3588
+    ],
+    [
+      573.1,
+      64.2,
+      3590
+    ],
+    [
+      876.4,
+      64.3,
+      3773
+    ],
+    [
+      891.8,
+      112.7,
+      3836
+    ],
+    [
+      800.9,
+      158.1,
+      3854
+    ],
+    [
+      743.1,
+      158.0,
+      3851
+    ],
+    [
+      653.0,
+      157.8,
+      3836
+    ],
+    [
+      656.0,
+      157.8,
+      3844
+    ],
+    [
+      702.0,
+      157.7,
+      3857
+    ],
+    [
+      724.7,
+      157.7,
+      3858
+    ],
+    [
+      694.0,
+      157.7,
+      3859
+    ],
+    [
+      723.7,
+      157.7,
+      3869
+    ],
+    [
+      656.5,
+      150.0,
+      3491
+    ],
+    [
+      342.9,
+      150.0,
+      3291
+    ],
+    [
+      130.2,
+      68.0,
+      2302
+    ],
+    [
+      137.1,
+      65.3,
+      2295
+    ],
+    [
+      134.5,
+      65.2,
+      2286
+    ],
+    [
+      128.9,
+      64.9,
+      2248
+    ]
+  ],
+  "real_signin": true,
+  "signin_saved_at_s": 56,
+  "logon_line_at_s": null,
+  "census_peak_mib": 743,
+  "census_series_mib": [
+    160,
+    160,
+    240,
+    266,
+    588,
+    578,
+    578,
+    743
+  ],
+  "leg": "signin",
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.148,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.138,
+    "previous_cleanup_verified": false
+  },
+  "identity_seen": true,
+  "steps": {
+    "pressed": true,
+    "signin_queued": true,
+    "restart_to_client": true,
+    "back_to_launcher": true,
+    "signin_saved": true
+  },
+  "installed_after": true,
+  "downloads_folder": [
+    "SteamSetup.exe"
+  ],
+  "pictures": [
+    "capture-01.png",
+    "capture-02.png",
+    "capture-03.png"
+  ],
+  "press_flag_left": false,
+  "shell_idle_after_run": true,
+  "seconds": 99.2,
+  "lines": [
+    "[MihawkOS] launcher: 15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "[MihawkOS] launcher: the client-press flag pressed CROSS on the option",
+    "[MihawkOS] launcher: Steam sign-in session",
+    "[MihawkOS] restart: to=steam cycle=0 reason=sign-in eboot=/app0/eboot.bin",
+    "[MihawkOS] launch: mode=game profile=steam path= cycle=0 argc=3 env=0",
+    "[MihawkOS] loading screen: shown for \"Steam\"",
+    "[MihawkOS] Wine: shader cache namespace /data/ps5proton/caches/steam/822028b49339f1fd7a80bcf6bc071b8b640717c3610a3dd5cfd610bb454093c1/gl",
+    "[MihawkOS] Wine: process steamwebhelper.exe command line 1/2: \"C:\\Program Files (x86)\\Steam\\bin\\cef\\cef.win64\\steamwebhelper.exe\" -nocrashdialog \"-lang=en_US\" \"-cachedir=C:\\users\\Mihawk\\AppData\\Local\\Steam\\htmlcache\" \"-steampid=32\" \"-buildid=1792618285\" \"-steamid=0\" \"-logdir=C:\\Program Files (x86)\\Steam\\logs\" \"-uimode=7\" \"-startcount=0\" \"-steamuniverse=Public\" \"-realm=Global\" \"-clientui=C:\\Program Files (x86)\\Steam\\clientui\" \"-steampath=C:\\Program Files (x86)\\Steam\\steam.exe\" \"-launcher=0\" \"--valve-initial-threadpool-size=9\" --valve-enable-site-isolation \"--crl-sets-path=C:\\Program Files (x86)\\Steam\\resource\\crl-set\" --enable-smooth-scrolling \"--log-file=C:\\Program Files (x86)\\Steam\\logs\\cef_log.txt\" --disable-quick-menu --disable-component-update \"--gaia-url=http://disabled.invalid\" \"--enable-features=PlatformHEVCDecoderSupport\" \"--disable-features=",
+    "[MihawkOS] Wine: process steamwebhelper.exe command line 2/2: WinRetrieveSuggestionsOnlyOnDemand,SpareRendererForSitePerProcess,BlockPromptsIfIgnoredOften,WebUsbDeviceDetection,ValveFFmpegAllowLowDelayHEVC\" --single-process",
+    "[MihawkOS] Wine: process steamservice.exe command line 1/1: \"C:\\Program Files (x86)\\Common Files\\Steam\\steamservice.exe\" /RunAsService",
+    "[MihawkOS] wine-ps5: process pid=0020 unix=2596 system=0 threads=43 ended=0 name=steam.exe",
+    "[MihawkOS] wine-ps5: process pid=00a4 unix=2601 system=0 threads=75 ended=0 name=steamwebhelper.exe",
+    "[MihawkOS] wine-ps5: process pid=00c4 unix=2602 system=1 threads=4 ended=0 name=steamservice.exe",
+    "[MihawkOS] restart: to=launcher cycle=1 reason=wine-ended eboot=/app0/eboot.bin",
+    "[MihawkOS] launcher: 15 game(s); searched: /data/ps5proton/games (14 entries); /data/homebrew/PPSA99170/games (not there)",
+    "[MihawkOS] launcher: Last session ended: the title ended the game (stop)",
+    "[MihawkOS] launcher: the Aurelia-open flag opened the page on its Accounts rows",
+    "[MihawkOS] launcher: Aurelia page, 59 game(s) from the session snapshot, account freshpotato99",
+    "[MihawkOS] ends: status 0"
+  ],
+  "storage_errors": 0,
+  "capture": "klog/steam-signin-raise-2026-10-24-02",
+  "passed": true
+}

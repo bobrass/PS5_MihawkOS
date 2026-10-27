@@ -603,6 +603,94 @@ for arch in x86_64-windows i386-windows; do
         -o "$root/.deps/probes/file-write$suffix-probe.exe"
 done
 
+# Directories opened relative to a handle while the title's server holds over 4096 descriptors (pw_wine_cwd's path table).
+for arch in x86_64-windows i386-windows; do
+    target=x86_64-windows; suffix=64
+    if [[ $arch == i386-windows ]]; then target=i686-windows; suffix=32; fi
+    clang --target="$target" --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+        -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+        -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+        "$root/tests/nt-relative-dir-probe.c" "$wine/build/dlls/kernel32/$arch/libkernel32.a" \
+        "$wine/build/dlls/msvcrt/$arch/libmsvcrt.a" -o "$root/.deps/probes/relative-dir$suffix-probe.exe"
+done
+
+# The descriptor-table instructions the console's CPU refuses in user mode (UMIP), emulated by patch 2102.
+for arch in x86_64-windows i386-windows; do
+    target=x86_64-windows; suffix=64
+    if [[ $arch == i386-windows ]]; then target=i686-windows; suffix=32; fi
+    clang --target="$target" --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+        -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+        -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+        "$root/tests/umip-probe.c" "$wine/build/dlls/kernel32/$arch/libkernel32.a" \
+        "$wine/build/dlls/msvcrt/$arch/libmsvcrt.a" -o "$root/.deps/probes/umip$suffix-probe.exe"
+done
+
+# What file calls and plain system calls cost a program in a helper (tests/file-cost-probe.c, tests/syscall-cost-probe.c),
+for arch in x86_64-windows i386-windows; do
+    target=x86_64-windows; suffix=64
+    if [[ $arch == i386-windows ]]; then target=i686-windows; suffix=32; fi
+    # and thousands of files and handles held together, renamed and deleted while open, deep paths in the other case
+    # and a cancelled overlapped pipe read that must leave the pipe working (ntdll pipe.c:1405 on the console)
+    for probe in file-cost syscall-cost handles-paths pipe-cancel; do
+        clang --target="$target" --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+            -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+            -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+            "$root/tests/$probe-probe.c" "$wine/build/dlls/kernel32/$arch/libkernel32.a" \
+            "$wine/build/dlls/msvcrt/$arch/libmsvcrt.a" -o "$root/.deps/probes/$probe$suffix-probe.exe"
+    done
+done
+
+# Byte-range locks as structured storage takes them, and StgOpenStorage's time (tests/lock-probe.c): ole32 storage32
+# ran past 90 s on the console, 2 s on the PC (2026-10-25).
+for arch in x86_64-windows i386-windows; do
+    target=x86_64-windows; suffix=64
+    if [[ $arch == i386-windows ]]; then target=i686-windows; suffix=32; fi
+    clang --target="$target" --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+        -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+        -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+        "$root/tests/lock-probe.c" "$wine/build/dlls/kernel32/$arch/libkernel32.a" "$wine/build/dlls/ole32/$arch/libole32.a" \
+        "$wine/build/dlls/msvcrt/$arch/libmsvcrt.a" "$wine/build/dlls/ntdll/$arch/libntdll.a" \
+        -o "$root/.deps/probes/lock$suffix-probe.exe"
+done
+
+# The longest path the console lets a program make (tests/path-limit-probe.c): 33 Unix components, 2026-10-25.
+clang --target=x86_64-windows --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+    -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+    -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+    "$root/tests/path-limit-probe.c" "$wine/build/dlls/kernel32/x86_64-windows/libkernel32.a" -o "$root/.deps/probes/path-limit64-probe.exe"
+
+# NtContinue back into the code that called it, ntdll exception's test_continue alone (tests/continue-probe.c): the test
+# ended in an access violation on the console after its first NtContinue (2026-10-26).
+clang --target=x86_64-windows --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+    -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+    -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+    "$root/tests/continue-probe.c" "$wine/build/dlls/kernel32/x86_64-windows/libkernel32.a" \
+    "$wine/build/dlls/msvcrt/x86_64-windows/libmsvcrt.a" -o "$root/.deps/probes/continue64-probe.exe"
+
+# A deep stack keeps its exception handling (tests/stack-limit-probe.c): kernel32 heap's 512 KiB of locals ended in
+# "Exception frame is not in stack limits" on the console (2026-10-26).
+clang --target=x86_64-windows --no-default-config -fuse-ld=lld -nostdlib -O2 -mno-stack-arg-probe -Wall -Wextra -Werror \
+    -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+    -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+    "$root/tests/stack-limit-probe.c" "$wine/build/dlls/kernel32/x86_64-windows/libkernel32.a" \
+    "$wine/build/dlls/msvcrt/x86_64-windows/libmsvcrt.a" -o "$root/.deps/probes/stack-limit64-probe.exe"
+
+# A stand-in for a session's program (tests/session-fixture-probe.c), under the two names the title chooses a session by: the
+# Aurelia and Steam-runtime screens drawn from its output, with no signed-in account (2026-10-26).
+clang --target=x86_64-windows --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror \
+    -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+    -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+    "$root/tests/session-fixture-probe.c" "$wine/build/dlls/kernel32/x86_64-windows/libkernel32.a" \
+    -o "$root/.deps/probes/aurelia_windows-fixture.exe"
+cp "$root/.deps/probes/aurelia_windows-fixture.exe" "$root/.deps/probes/steamcmd-fixture.exe"
+
+# The persistent test session: Wine's tests from a queue, many at a time, in one title launch (tools/run-wine-session.py).
+clang --target=x86_64-windows --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Wno-missing-field-initializers -Werror \
+    -I"$wine/source/include" -I"$wine/build/include" -I"$wine/source/include/msvcrt" \
+    -Wl,/entry:mainCRTStartup -Wl,/subsystem:console \
+    "$root/tests/wt-session.c" "$wine/build/dlls/kernel32/x86_64-windows/libkernel32.a" \
+    "$wine/build/dlls/msvcrt/x86_64-windows/libmsvcrt.a" -o "$root/.deps/probes/wt-session.exe"
+
 # How fast data moves: recv at several sizes, a select loop, four connections, the disk.
 for arch in x86_64-windows i386-windows; do
     target=x86_64-windows; suffix=64

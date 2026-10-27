@@ -99,3 +99,4 @@ STORE_MISSED 0F:AE/2 LDMXCSR loads MXCSR from memory and stores nothing; LLVM ma
 STORE_MISSED 0F:AE/5 LFENCE stores nothing; LLVM marks fences as touching memory.
 STORE_MISSED 0F:AE/6 MFENCE stores nothing; LLVM marks fences as touching memory.
 STORE_MISSED 0F:AE/7 SFENCE stores nothing; LLVM marks fences as touching memory.
+STORE_EXTRA 0F:01/4 SMSW m16 stores the word it reads from CR0 (Intel SDM, AMD APM vol. 3); LLVM does not mark it as storing. src/pw_umip.h writes it.

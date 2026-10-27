@@ -29,6 +29,7 @@ option(PS5_SERVICE_PREFLIGHT "include service queries and rejected requests; no 
 option(PS5_GPU_BROKER "include the GPU broker that lets Wine programs in helper processes draw (the launcher layout)" ON)
 option(PS5_SERVICE_NATIVE "include the isolated service-owned native helper test" OFF)
 option(PS5_INSTALL_PROBE "include the self-install probe round (docs/SELF_INSTALL.md phase 0)" OFF)
+option(PS5_TESTER_PROBE "the tester probe title PPSA99171 (native/proton_tester_probe.h); needs PS5_SERVICE_NATIVE" OFF)
 set(PS5_HOST_APP_ROOT "${CMAKE_BINARY_DIR}/app" CACHE PATH "the host reference build's title folder")
 
 # The samples: one SAMPLE(id, ...) line each in src/samples.cpp
@@ -62,6 +63,22 @@ if(NOT mbedtls_status EQUAL 0)
 	message(FATAL_ERROR "Cannot prepare the pinned Mbed TLS (tools/setup-mbedtls.sh)")
 endif()
 file(GLOB mbedtls_sources ${mbedtls_dir}/library/*.c)
+# The WebUI's HTTP server (src/pw_webui_http.cpp): the pinned libmicrohttpd, built static for this build's target by
+# tools/build-webui-http.sh (the title's SDK, or the host for the host reference build).
+if(PS5_HOST_REFERENCE)
+	set(webui_http_mode host)
+else()
+	set(webui_http_mode ps5)
+endif()
+execute_process(COMMAND bash ${ROOT}/tools/build-webui-http.sh ${webui_http_mode} RESULT_VARIABLE webui_http_status
+	OUTPUT_VARIABLE webui_http_archive OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT webui_http_status EQUAL 0)
+	message(FATAL_ERROR "Cannot build the pinned libmicrohttpd (tools/build-webui-http.sh)")
+endif()
+# microhttpd.h for the one file that serves HTTP: the folder also holds an MHD platform.h, which must not shadow the
+# title's own.
+set_source_files_properties(${ROOT}/src/pw_webui_http.cpp PROPERTIES INCLUDE_DIRECTORIES
+	${ROOT}/.deps/webui/libmicrohttpd-1.0.10/src/include)
 # Its internal headers for its own files only; the title sees include/ alone.
 set_source_files_properties(${mbedtls_sources} PROPERTIES INCLUDE_DIRECTORIES ${mbedtls_dir}/library)
 list(FILTER base_sources EXCLUDE REGEX "VulkanAndroid|VulkanOHOS")
@@ -103,8 +120,8 @@ if(PS5_HOST_REFERENCE)
 else()
 	set(platform_source src/platform.c)
 	list(APPEND platform_source
-		${ROOT}/native/proton_wine.cpp ${ROOT}/native/proton_loading.cpp ${ROOT}/native/proton_limits_probe.cpp ${ROOT}/native/proton_sched_probe.cpp ${ROOT}/native/pw_audio_ps5.c
-		${ROOT}/src/pw_wine_start.c ${ROOT}/src/pw_environment.c ${ROOT}/src/pw_wine_launch.c ${ROOT}/src/pw_wine_profile.c ${ROOT}/src/pw_shader_cache.c ${ROOT}/src/pw_fd_census.c ${ROOT}/src/pw_pipe_memory.c ${ROOT}/src/pw_pad_script.c ${ROOT}/src/pw_memory_guard.c ${ROOT}/src/pw_desktop_session.c ${ROOT}/src/pw_app_environment.c ${ROOT}/src/pw_shell_link.c ${ROOT}/src/pw_game_folders.c ${ROOT}/src/pw_usb_input.c ${ROOT}/native/pw_usb_input_ps5.c
+		${ROOT}/native/proton_wine.cpp ${ROOT}/native/proton_loading.cpp ${ROOT}/src/pw_loading_art.c ${ROOT}/src/pw_steam_screen.c ${ROOT}/native/proton_limits_probe.cpp ${ROOT}/native/proton_sched_probe.cpp ${ROOT}/native/pw_audio_ps5.c
+		${ROOT}/src/pw_wine_start.c ${ROOT}/src/pw_environment.c ${ROOT}/src/pw_wine_launch.c ${ROOT}/src/pw_wine_profile.c ${ROOT}/src/pw_shader_cache.c ${ROOT}/src/pw_fd_census.c ${ROOT}/src/pw_pipe_memory.c ${ROOT}/src/pw_pad_script.c ${ROOT}/src/pw_memory_guard.c ${ROOT}/src/pw_desktop_session.c ${ROOT}/src/pw_app_environment.c ${ROOT}/src/pw_shell_link.c ${ROOT}/src/pw_game_folders.c ${ROOT}/src/pw_usb_input.c ${ROOT}/src/pw_aurelia.c ${ROOT}/src/pw_steamcmd.c ${ROOT}/src/pw_steamcmd_setup.c ${ROOT}/native/pw_usb_input_ps5.c
 		${ROOT}/src/pw_elfldr.c ${ROOT}/wine/ps5/pw_wine_prx.c
 		${ROOT}/src/pw_hang_breaker.c ${ROOT}/src/pw_start_failure.c ${ROOT}/src/pw_firmware.c ${ROOT}/native/pw_firmware_ps5.c ${ROOT}/src/pw_flight_probe.c ${ROOT}/native/proton_flight_recorder.cpp)
 	# main selects the foundation's runtime resourcePath after elevation.
@@ -129,6 +146,9 @@ else()
             ${ROOT}/src/pw_frame_pacing.c ${ROOT}/src/pw_window_direct.c)
         list(APPEND surface_platform PS5_GPU_BROKER)
     endif()
+    if(PS5_TESTER_PROBE AND NOT PS5_SERVICE_NATIVE)
+        message(FATAL_ERROR "PS5_TESTER_PROBE needs PS5_SERVICE_NATIVE (its Sony helper)")
+    endif()
     if(PS5_SERVICE_PREFLIGHT OR PS5_SERVICE_NATIVE)
         if(PS5_CHILD_PROBE OR (PS5_SERVICE_PREFLIGHT AND PS5_SERVICE_NATIVE))
             message(FATAL_ERROR "Enable only one isolated process probe")
@@ -139,7 +159,16 @@ else()
                 ${ROOT}/native/proton_fd_budget_probe.cpp ${ROOT}/native/proton_channel_probe.cpp
                 ${ROOT}/native/proton_gpu_server_probe.cpp ${ROOT}/native/proton_gpu_display.cpp
                 ${graphics_foundation}/tooling/gpu-broker/packet_io.c ${ROOT}/wine/ps5/pw_wine_process_io.c)
+            # The broker's server (in proton_gpu_server_probe.cpp) composes windows and paces frames.
+            if(NOT PS5_GPU_BROKER)
+                list(APPEND platform_source ${ROOT}/src/pw_window_page.c ${ROOT}/src/pw_window_scene.c ${ROOT}/src/pw_window_compose.c
+                    ${ROOT}/src/pw_window_effects.c ${ROOT}/src/pw_frame_pacing.c ${ROOT}/src/pw_window_direct.c)
+            endif()
             list(APPEND surface_platform PS5_SERVICE_NATIVE)
+            if(PS5_TESTER_PROBE)
+                list(APPEND platform_source ${ROOT}/native/proton_tester_probe.cpp)
+                list(APPEND surface_platform PS5_TESTER_PROBE)
+            endif()
         else()
             list(APPEND surface_platform PS5_SERVICE_PREFLIGHT)
         endif()
@@ -166,18 +195,28 @@ add_library(samples OBJECT
 	src/proton_install.cpp
 	src/proton_fetch.cpp
 	src/proton_update.cpp
+	src/proton_steam.cpp
 	${ROOT}/src/pw_https.c
 	${ROOT}/src/pw_release.c
 	${ROOT}/src/pw_update.c
+	${ROOT}/src/pw_steam.c
+	${ROOT}/src/pw_steam_guide.c
+	${ROOT}/src/pw_path_nocase.c
 	${ROOT}/src/pw_pack.c
 	${ROOT}/src/pw_first_run.c
 	${ROOT}/src/pw_sha256.c
 	${ROOT}/src/pw_pe_arch.c
 	${ROOT}/src/pw_controls.c
 	${ROOT}/src/pw_game_mode.c
+	${ROOT}/src/pw_high_refresh.c
+	${ROOT}/src/pw_controller.c
 	${ROOT}/src/pw_detailed_logs.c
 	${ROOT}/src/pw_log_sessions.c
 	${ROOT}/src/pw_setup.c
+	${ROOT}/src/pw_qrcodegen.c
+	${ROOT}/src/pw_webui.cpp
+	${ROOT}/src/pw_webui_http.cpp
+	src/proton_webui.cpp
 	src/example_ps5.cpp
 	${platform_source})
 target_compile_definitions(samples PRIVATE
@@ -219,22 +258,28 @@ include(ui/ui.cmake)
 if(PS5_HOST_REFERENCE)
 	target_sources(samples PRIVATE ${ROOT}/src/pw_wine_launch.c ${ROOT}/src/pw_environment.c)
 	add_executable(ps5-samples-host $<TARGET_OBJECTS:samples>)
-	target_link_libraries(ps5-samples-host PRIVATE dl pthread)
+	target_link_libraries(ps5-samples-host PRIVATE ${webui_http_archive} dl pthread)
 	add_executable(ps5-proton-ui-test ${ROOT}/tests/test_proton_ui.cpp
 		$<FILTER:$<TARGET_OBJECTS:samples>,EXCLUDE,/src/main.cpp.o$>)
 	foreach(property INCLUDE_DIRECTORIES COMPILE_DEFINITIONS COMPILE_OPTIONS)
 		set_property(TARGET ps5-proton-ui-test PROPERTY ${property} $<TARGET_PROPERTY:samples,${property}>)
 	endforeach()
 	set_target_properties(ps5-proton-ui-test PROPERTIES CXX_STANDARD 20)
-	target_link_libraries(ps5-proton-ui-test PRIVATE dl pthread)
+	target_link_libraries(ps5-proton-ui-test PRIVATE ${webui_http_archive} dl pthread)
 	return()
 endif()
 
 # Link, sign and package: the title folder in dist/<TITLE_ID>/
 add_custom_command(
 	OUTPUT ${CMAKE_BINARY_DIR}/eboot.elf
-	COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tools/link-title.sh ${CMAKE_BINARY_DIR} ${PS5_VULKAN_DIR} ${PS5_PAYLOAD_SDK} "$<TARGET_OBJECTS:samples>"
-	DEPENDS samples "$<TARGET_OBJECTS:samples>" ${CMAKE_CURRENT_SOURCE_DIR}/tools/link-title.sh
+	COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tools/link-title.sh ${CMAKE_BINARY_DIR} ${PS5_VULKAN_DIR} ${PS5_PAYLOAD_SDK} "$<TARGET_OBJECTS:samples>" ${webui_http_archive}
+	DEPENDS samples "$<TARGET_OBJECTS:samples>" ${CMAKE_CURRENT_SOURCE_DIR}/tools/link-title.sh ${webui_http_archive}
+		${ROOT}/webui/index.html ${ROOT}/webui/app.css ${ROOT}/webui/app.js ${ROOT}/webui/i18n.js
+		# the tiles' programs link-title.sh builds and copies (tools/build-forwarder.sh): a change to one alone
+		# relinks, or the title folder keeps the old ones
+		${ROOT}/forwarder/forwarder.h ${ROOT}/forwarder/tile.c ${ROOT}/forwarder/launch.c ${ROOT}/forwarder/worker.c
+		${ROOT}/tools/build-forwarder.sh
+		${CMAKE_CURRENT_SOURCE_DIR}/sce_sys/param.json
 	COMMAND_EXPAND_LISTS
 	VERBATIM)
 add_custom_target(title ALL DEPENDS ${CMAKE_BINARY_DIR}/eboot.elf)

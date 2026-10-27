@@ -229,6 +229,15 @@ int main(void)
     assert(after.server_ticks - before.server_ticks == 1200005);
     assert(after.request_calls[7] == 400000 && after.request_ticks[7] == 1200000);
     assert(!strcmp(after.request_names[7], "select"));
+    /* A request without a name (a WoW64 one, patch 2079) leaves the label to the first that has one: a stack's bytes
+     * kept as the label crashed a 32-bit game's census (isaac-load-fix1-2026-10-25-01). */
+    pw_wine_perf_request(9, "", 1);
+    pw_wine_perf_request(9, NULL, 1);
+    pw_wine_perf_snapshot(&after);
+    assert(!after.request_names[9]);
+    pw_wine_perf_request(9, "get_handle_fd", 1);
+    pw_wine_perf_snapshot(&after);
+    assert(!strcmp(after.request_names[9], "get_handle_fd"));
 
     pw_wine_perf_select(0, 10, 0);
     pw_wine_perf_select(1, 30, 20);

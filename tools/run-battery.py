@@ -49,7 +49,9 @@ a drop, storage damage, an unverified deploy), instead of running every
 remaining case into the same refusal.
 """
 import argparse
+import importlib.util
 import json
+import runpy
 import re
 import subprocess
 import sys
@@ -126,6 +128,31 @@ CASES = [
     # WriteFile's contents, sizes and visibility to other handles and processes (the PS5 writes through a mapping, patch 1007).
     ('file-write32', ['--exe', 'file-write32-probe.exe', '--marker', 'PS5_PROTON_FILE_WRITE']),
     ('file-write64', ['--exe', 'file-write64-probe.exe', '--marker', 'PS5_PROTON_FILE_WRITE']),
+    # Directories opened relative to a handle, as .NET lists a folder, with 4400 files held first so the title's server
+    # descriptors pass 4096: pw_wine_cwd's path table stopped there and a .NET game's fonts were refused (2026-10-24).
+    ('relative-dir32', ['--exe', 'relative-dir32-probe.exe', '--marker', 'PS5_PROTON_NT_RELDIR_PROBE'] + LAUNCHER),
+    ('relative-dir64', ['--exe', 'relative-dir64-probe.exe', '--marker', 'PS5_PROTON_NT_RELDIR_PROBE'] + LAUNCHER),
+    # Thousands of files past the console's ~256 descriptors (parked and reopened, pw_wine_fdv.h) and 6000 events held together,
+    # renamed and deleted while open, and a path past MAX_PATH used in the other case (tests/handles-paths-probe.c).
+    ('handles-paths32', ['--exe', 'handles-paths32-probe.exe', '--marker', 'PS5_PROTON_HANDLES_PATHS'] + LAUNCHER),
+    ('handles-paths64', ['--exe', 'handles-paths64-probe.exe', '--marker', 'PS5_PROTON_HANDLES_PATHS'] + LAUNCHER),
+    # A cancelled overlapped pipe read leaves the pipe working (ntdll's pipe test on the console, 2026-10-25: the next read
+    # answered c0000024 and the other end's write 232), byte and message mode (tests/pipe-cancel-probe.c).
+    ('pipe-cancel32', ['--exe', 'pipe-cancel32-probe.exe', '--marker', 'PS5_PROTON_PIPE_CANCEL'] + LAUNCHER),
+    ('pipe-cancel64', ['--exe', 'pipe-cancel64-probe.exe', '--marker', 'PS5_PROTON_PIPE_CANCEL'] + LAUNCHER),
+    # SGDT, SIDT, SLDT, SMSW and STR run, as on Windows and Linux: the console's CPU refuses them in user mode (UMIP)
+    # and a store game's anti-tamper `sgdt [rsp]` ended it (2026-10-27); patch 2102 emulates them (tests/umip-probe.c).
+    ('umip32', ['--exe', 'umip32-probe.exe', '--marker', 'PS5_PROTON_UMIP'] + LAUNCHER),
+    ('umip64', ['--exe', 'umip64-probe.exe', '--marker', 'PS5_PROTON_UMIP'] + LAUNCHER),
+    # A byte-range lock is freed with the handle that took it, and StgOpenStorage takes under 2 s (tests/lock-probe.c).
+    ('lock32', ['--exe', 'lock32-probe.exe', '--marker', 'PS5_PROTON_LOCK'] + LAUNCHER),
+    ('lock64', ['--exe', 'lock64-probe.exe', '--marker', 'PS5_PROTON_LOCK'] + LAUNCHER),
+    # An exception at the bottom of a deep stack is dispatched, walked down or entered past the guard with no probe
+    # (tests/stack-limit-probe.c; patch 2093: kernel32 heap's 512 KiB of locals ended the process).
+    ('stack-limit64', ['--exe', 'stack-limit64-probe.exe', '--marker', 'PS5_PROTON_STACK_LIMIT'] + LAUNCHER),
+    # Another process's memory read and written through the helpers' memory service, a suspended child's included, as
+    # launchers, Chromium's sandbox and hooking libraries do (tests/remote-memory-probe.c, patch 0942).
+    ('remote-memory64', ['--exe', 'remote-memory-probe.exe', '--marker', 'PS5_PROTON_REMOTE_MEMORY_PROBE'] + LAUNCHER),
     # What a program is told about RAM (a game launcher's check said 665 MB).
     ('system-memory32', ['--exe', 'system-memory32-probe.exe', '--marker', 'PS5_PROTON_SYSTEM_MEMORY']),
     ('system-memory64', ['--exe', 'system-memory64-probe.exe', '--marker', 'PS5_PROTON_SYSTEM_MEMORY']),
@@ -156,6 +183,12 @@ CASES = [
     # The guided setup walked as a first run, in Japanese, to Preparing, on a set-up console: nothing of the owner's is
     # touched (tools/run-launcher.py --setup; docs/GUIDED_SETUP.md).
     ('setup-tour', ['--setup', '--frames', '1500']),
+    # The Steam guide (src/pw_steam_guide.h): its five launcher pages in English, each kept as a picture
+    # (tools/run-launcher.py --steam-guide-pictures), and the five screens its sessions draw over the client's windows,
+    # shown through the GPU broker's cover over a running program and captured (the title's showcase; docs/STEAM.md).
+    ('steam-guide-pages', ['--steam-guide-pictures', 'en-US', '--frames', '160']),
+    ('steam-guide-screens', ['--path', r'C:\windows\notepad.exe', '--marker', 'PS5_PROTON_STEAM_GUIDE_SHOWCASE',
+                             '--env', 'PROTON_STEAM_GUIDE_SHOWCASE=en-US', '--seconds', '60'] + LAUNCHER),
     ('mouse-controls', []),
     # Manual launches have no test-runner stdout override. Handles must accept
     # complete writes, and redirected descendants must keep their output pipes.
@@ -191,7 +224,8 @@ CASES = [
     # XInput through the patched i386 modules.
     ('wow64', ['--exe', 'wow64-probe.exe', '--marker', 'PS5_PROTON_WOW64_PROBE'] + LAUNCHER),
     # The DualSense through the i386 HID drivers in a 32-bit program's own process (patch 0950, syswow64\drivers).
-    ('hid32', ['--exe', 'hid32-probe.exe', '--marker', 'PS5_PROTON_HID_PROBE'] + LAUNCHER),
+    ('hid32', ['--exe', 'hid32-probe.exe', '--marker', 'PS5_PROTON_HID_PROBE', '--env', 'WINE_PS5_CONTROLLER=dualsense']
+              + LAUNCHER),
     # 32-bit rendering (docs/IA32_DESIGN.md, M4 step 3), each in a helper: Vulkan memory mapped below 4 GiB through
     # the GPU broker's placed mappings and a GPU fill read back; OpenGL through the i686 Mesa/Zink; Direct3D 11
     # through the i386 DXVK (about two minutes of frames).
@@ -235,6 +269,9 @@ CASES = [
     ('launcher-file-budget', ['--exe', 'process-probe.exe', '--marker', 'PS5_PROTON_OWNER_BOOTSTRAP',
                               '--args=--file-budget', '--watchdog', '300'] + LAUNCHER),
     ('launcher-tls', []),
+    # The installer slice's fast kinds (Inno Setup, a Steam install script) in an owned throwaway prefix, each check against
+    # the PC's Wine (evidence/installer-slice/host-*.json); fixtures: tools/build-installer-fixtures.sh.
+    ('installers-fast', ['console', 'inno', 'steam']),
     # A GDI window in a helper: its frames reach the screen through the title's compositor, and the touchpad's
     # pointer and clicks (a pad script) reach it through the desktop.
     ('launcher-desktop', []),
@@ -316,7 +353,7 @@ ON_REQUEST = {'section-dmem', 'memory-stall', 'payload-vm-contention', 'vm-speed
 
 # The gate (tools/gate.py): what every commit of code needs the console to pass first. A new required check is added
 # here, and from then on no code is committed without it.
-GATE_CASES = ['shell32', 'shell64', 'work-area32', 'work-area64', 'wallpaper32', 'wallpaper64', 'cursor-scheme32', 'cursor-scheme64', 'theme-parts32', 'theme-parts64', 'monospace32', 'monospace64', 'gpu-window32', 'gpu-window64', 'dxvk-window32', 'dxvk-window64', 'host-dmem64', 'host-dmem-fallback64', 'window-compose32', 'window-compose64', 'window-effects32', 'window-effects64', 'window-snapshot32', 'window-snapshot64', 'initial-env32', 'initial-env64', 'locale64', 'appearance32', 'appearance64', 'theme-notify32', 'theme-notify64', 'proton-ui32', 'proton-ui64', 'memory-classes', 'graphics-teardown', 'dnsapi32', 'dnsapi64', 'mf-video32', 'mf-video64', 'network-adapters32', 'network-adapters64', 'socket-options32', 'socket-options64', 'late-library', 'large-shared-section', 'virtual-query32', 'virtual-query64', 'image-protect32', 'image-protect64', 'suspend-context64', 'kill-convert', 'system-memory32', 'system-memory64', 'file-write32', 'file-write64', 'manual-stdout', 'redirected-stdout', 'prefix-fresh64', 'prefix-fresh32',
+GATE_CASES = ['shell32', 'shell64', 'work-area32', 'work-area64', 'wallpaper32', 'wallpaper64', 'cursor-scheme32', 'cursor-scheme64', 'theme-parts32', 'theme-parts64', 'monospace32', 'monospace64', 'gpu-window32', 'gpu-window64', 'dxvk-window32', 'dxvk-window64', 'host-dmem64', 'host-dmem-fallback64', 'window-compose32', 'window-compose64', 'window-effects32', 'window-effects64', 'window-snapshot32', 'window-snapshot64', 'initial-env32', 'initial-env64', 'locale64', 'appearance32', 'appearance64', 'theme-notify32', 'theme-notify64', 'proton-ui32', 'proton-ui64', 'memory-classes', 'graphics-teardown', 'dnsapi32', 'dnsapi64', 'mf-video32', 'mf-video64', 'network-adapters32', 'network-adapters64', 'socket-options32', 'socket-options64', 'late-library', 'large-shared-section', 'virtual-query32', 'virtual-query64', 'image-protect32', 'image-protect64', 'suspend-context64', 'kill-convert', 'stack-limit64', 'remote-memory64', 'system-memory32', 'system-memory64', 'file-write32', 'file-write64', 'relative-dir32', 'relative-dir64', 'umip32', 'umip64', 'manual-stdout', 'redirected-stdout', 'prefix-fresh64', 'prefix-fresh32',
               'pe64', 'payload-eight', 'payload-memory', 'payload-vm', 'descendants', 'launcher-render', 'launcher-tls',
               'sync64', 'shell-open64',
               # A write tracker's truth on 16 KiB host pages (patch 1134): no write reported that did not happen,
@@ -326,6 +363,7 @@ GATE_CASES = ['shell32', 'shell64', 'work-area32', 'work-area64', 'wallpaper32',
               # the pointer frozen in the triangle test and over a game launcher's desktop (2026-10-07), where it had worked.
               'launcher-desktop', 'desktop-overlap', 'desktop-session', 'desktop-stop', 'desktop-view', 'mihawk-browser', 'game-mode64', 'game-mode-dxvk64', 'mouse-controls',
               'controls-menu', 'launcher-ended', 'games-autodetect', 'detailed-logs', 'setup-tour',
+              'steam-guide-pages', 'steam-guide-screens',
               # A game whose helpers fill the console's system memory is closed before the console swaps itself to a
               # stop: a game launcher's did that on 2026-10-07.
               'memory-guard',
@@ -359,14 +397,24 @@ GROUPS = {
                'proton-ui32', 'proton-ui64', 'dnsapi32', 'dnsapi64', 'mf-video32', 'mf-video64',
                'network-adapters32', 'network-adapters64',
                'socket-options32', 'socket-options64', 'virtual-query32', 'virtual-query64', 'file-write32',
-               'file-write64', 'system-memory32', 'system-memory64', 'image-protect32', 'image-protect64',
-               'suspend-context64', 'kill-convert', 'late-library', 'pe64', 'pe32', 'fixed-base32', 'wow64', 'input32',
+               'file-write64', 'relative-dir32', 'relative-dir64', 'system-memory32', 'system-memory64', 'image-protect32', 'image-protect64',
+               'suspend-context64', 'kill-convert', 'stack-limit64', 'remote-memory64', 'late-library', 'pe64', 'pe32', 'fixed-base32', 'wow64', 'input32',
                'payload-vm',
                'vm-truth32', 'vm-truth64', 'descendants', 'payload-eight', 'payload-memory', 'memory-classes', 'sync64',
                'shell-open64'],
     # The GPU broker's clients one after another, as a launcher's games are.
     'graphics': ['graphics-teardown', 'vk32', 'gl32', 'gl-upload32', 'launcher-render'],
 }
+# --session: the groups' cases in the persistent test session (tests/wt-session.c, tools/run-wine-session.py), 4 at a
+# time, each its own Windows process with its own output; owner's request 2026-10-25. A case that changes or reads
+# state every process shares (the display and its work area, the desktop and wallpaper, the theme, the pointer scheme,
+# fonts, input and focus, the shell), or that measures or fills memory, runs alone, by the sweep's rule
+# (tests/wine-tests-serial-ps5.json); so does every GPU broker client, as a launcher's games are.
+SESSION_JOBS = 4
+SESSION_SERIAL = {'work-area32', 'work-area64', 'wallpaper32', 'wallpaper64', 'theme-notify32', 'theme-notify64',
+                  'cursor-scheme32', 'cursor-scheme64', 'theme-parts32', 'theme-parts64', 'monospace32', 'monospace64',
+                  'proton-ui32', 'proton-ui64', 'input32', 'shell-open64', 'system-memory32', 'system-memory64',
+                  'payload-eight', 'payload-memory', 'memory-classes', 'kill-convert'} | set(GROUPS['graphics'])
 OWNER = 'PS5_PROTON_OWNER_BOOTSTRAP'
 EXIT_STALL = 15   # run-console.py --exit-stall's default
 SEQUENCE_RECORD = re.compile(r':debugstr:OutputDebugStringA "PS5_PROTON_GATE_SEQUENCE (begin|end) '
@@ -451,6 +499,81 @@ def sequence_outcomes(run, members):
     return outcomes
 
 
+def session_outcomes(run, members, entries):
+    """The groups' cases run in one persistent session: each case's exit status and its marker's first verdict line in
+    its own output (the owner's marker is its exit status, as in a grouped launch). members: (case, case args)."""
+    spec = importlib.util.spec_from_file_location('run_wine_session', ROOT / 'tools/run-wine-session.py')
+    wts = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(wts)
+    support = runpy.run_path(str(ROOT / 'tools/run-prefix-test.py'))
+    settings = support['ps5_console'].load_settings()
+    procs = lambda: ' count=0 ' not in support['ps5_console'].ps5vkctl_command(settings, 'procs', timeout=5) + ' '
+    queued = [{'id': session_id(n), 'serial': n in SESSION_SERIAL, 'timeout': entries[n][2], 'command': entries[n][0],
+               'attempts': 0} for n, _ in members]
+    case_of = {session_id(n): n for n, _ in members}
+    got = {}
+    try:
+        # the launch's verdict comes from the helpers' OutputDebugString records, which err+all alone turns off
+        wts.session(queued, None, SESSION_JOBS, run, ['WINEDEBUG=err+all,warn+debugstr,+timestamp,+pid'], support['connect'], settings,
+                    procs=procs, on_result=lambda ident, code, ms, how, text: got.__setitem__(case_of[ident], (code, ms, how, text)),
+                    run_name=run)
+    except SystemExit as error:
+        print(f'  session: {error}', flush=True)
+    # A probe whose verdict went only through buffered stdio or OutputDebugString is read from the helpers' logs, by the
+    # Windows process id wt-session appends to its output (dnsapi: printf, then ExitProcess without a flush).
+    debug = {}
+    for path in (ROOT / 'klog').glob(run + '-wine-child-*.log'):
+        for _, record in wine_records(path.read_text(errors='replace')):
+            if (m := re.match(r'[\d.]+:([0-9a-f]+):[0-9a-f]+:warn:debugstr:OutputDebugStringA "(.*)', record)):
+                debug.setdefault(m.group(1), []).append(m.group(2))
+    outcomes = {}
+    for name, _ in members:
+        code, ms, how, text = got.get(name, (None, None, 'no result', ''))
+        pid = re.search(r'^wt-session: process ([0-9a-f]+)$', text, re.M)
+        outcomes[name] = session_verdict(entries[name][1], code, ms, how,
+                                         text + '\n' + '\n'.join(debug.get(pid.group(1), []) if pid else []))
+    if (gone := pipes_gone(run)):
+        for outcome in outcomes.values():
+            outcome.update(pipe_memory_exhausted=gone, probe_passed=False)
+    return outcomes
+
+
+def session_id(name):
+    """A case's name in the session: a 32-bit and a 64-bit case of one probe are twins there (wt-session's group is what
+    follows the first '-'), so they never run together; they share fixed paths (file-write32 and file-write64 wrote one
+    file at once and both failed, gate-b5-session-2026-10-25-02)."""
+    base, bits = re.match(r'(.*?)(32|64)?$', name).groups()
+    return f'{bits}-{base}' if bits and base else f'x-{name}'
+
+
+def session_verdict(marker, code, ms, how, text):
+    """One case of the session: its marker's first PASS or FAIL line in its own output, or, for the owner's marker,
+    its exit status; it passes when it exited by itself with 0 and PASS."""
+    verdict = None
+    for line in text.splitlines():
+        if f'{marker} PASS' in line or f'{marker} FAIL' in line:
+            verdict = 'PASS' if f'{marker} PASS' in line else 'FAIL'
+            break
+    if marker == OWNER and code is not None:
+        verdict = 'PASS' if code == 0 else 'FAIL'
+    return {'status': None if code is None else str(code), 'probe_verdict': verdict, 'how': how,
+            'seconds': None if ms is None else round(ms / 1000, 1),
+            'probe_passed': code == 0 and how == 'exited' and verdict == 'PASS'}
+
+
+# The console's pipe memory ran out (kern.ipc.maxpipekva): every pipe made after it fails, and with them the helpers'
+# memory service, so every ReadProcessMemory and WriteProcessMemory, until the console restarts (2026-10-26: every
+# remote-memory step failed, ntdll virtual's and kernel32 loader's reads of a child with them). A run that saw it says
+# nothing about the code: it fails, saying the console needs a restart.
+PIPES_GONE = 'kern.ipc.maxpipekva exceeded'
+
+
+def pipes_gone(run):
+    """How many times the run's klog says the console's pipe memory ran out."""
+    log = ROOT / 'klog' / (run + '.log')
+    return log.read_text(errors='replace').count(PIPES_GONE) if log.exists() else 0
+
+
 def launch_outcome(run, result, started):
     """What a launch's runner and its records say, as every case's outcome holds it."""
     outcome = {'runner_status': result.returncode, 'seconds': round(time.monotonic() - started, 1)}
@@ -472,6 +595,7 @@ def launch_outcome(run, result, started):
                                                   text, re.I))
         outcome['helpers'] = len(re.findall(r'wine-ps5: child ready native=', text))
         outcome['protocol_errors'] = len(re.findall(r'Protocol error: process', text))
+        outcome['pipe_memory_exhausted'] = text.count(PIPES_GONE)
     # Wine's search for room (try_map_free_area) goes on to the next window when a reservation is refused (EEXIST) and prints this
     # line, and stops, on any other answer. Patch 1231's first version passed the kernel's ENOMEM on for a hold of its own in the
     # range: every search that met one failed (libcef's 1 TiB sandbox reservation, MihawkBrowser on both consoles, alpha-2). A line
@@ -479,7 +603,7 @@ def launch_outcome(run, result, started):
     outcome['search_errors'] = sum(len(re.findall(r'err:virtual:try_map_free_area mmap\(\) error', child.read_text(errors='replace')))
                                    for child in (ROOT / 'klog').glob(run + '-wine-child-*.log'))
     outcome['passed'] = result.returncode == 0 and bool(outcome.get('passed')) and not outcome.get('fault_records') and \
-        not outcome.get('protocol_errors') and not outcome['search_errors']
+        not outcome.get('protocol_errors') and not outcome['search_errors'] and not outcome.get('pipe_memory_exhausted')
     return outcome
 
 
@@ -490,7 +614,18 @@ def main():
     parser.add_argument('--skip', nargs='*', default=[], help='leave these cases out')
     parser.add_argument('--gate', action='store_true', help='run the gate cases (GATE_CASES), as tools/gate.py does')
     parser.add_argument('--grouped', action='store_true', help="run each group's cases in one launch (GROUPS)")
+    parser.add_argument('--grouped-launches', action='store_true',
+                        help='the groups in one launch each, their cases one after another (before 2026-10-25); '
+                             '--grouped alone runs them in the persistent session')
+    parser.add_argument('--session', action='store_true',
+                        help="with --grouped: run the groups' cases in one persistent session, 4 at a time (SESSION_SERIAL alone)")
     args = parser.parse_args()
+    # the owner's choice (2026-10-25): grouped cases run in the persistent session unless --grouped-launches asks for a
+    # launch per group, as before
+    if args.grouped_launches:
+        args.grouped, args.session = True, False
+    elif args.grouped:
+        args.session = True
     if args.gate:
         if args.only or args.skip:
             parser.error('the gate runs all of its cases')
@@ -510,6 +645,10 @@ def main():
                 if (name in args.only if args.only else name not in ON_REQUEST) and name not in args.skip]
     # What runs, in order: each case its own launch, or with --grouped a group's selected cases in one.
     group_of = {name: group for group, names in GROUPS.items() for name in names} if args.grouped else {}
+    if args.session:
+        if not args.grouped:
+            parser.error('--session goes with --grouped')
+        group_of = {name: 'session' for name in group_of}   # every group's cases in the one session
     units = []
     for name, case in selected:
         if name not in group_of:
@@ -517,7 +656,8 @@ def main():
         elif group_of[name] not in [unit for unit, _ in units]:
             units.append((group_of[name], [(n, c) for n, c in selected if group_of.get(n) == group_of[name]]))
     try:
-        entries = {name: sequence_entry(name, case) for unit, members in units if unit in GROUPS for name, case in members}
+        entries = {name: sequence_entry(name, case) for unit, members in units if unit in GROUPS or unit == 'session'
+                   for name, case in members}
     except ValueError as error:
         parser.error(str(error))
     expected = [name for _, members in units for name, _ in members]
@@ -541,12 +681,32 @@ def main():
             break
         run = f'{args.name}-{unit}'
         started = time.monotonic()
+        if unit == 'session':
+            print(f'== Tests {index + 1}-{index + len(members)}/{len(selected)}: one session, {SESSION_JOBS} at a time ({run})',
+                  flush=True)
+            own = session_outcomes(run, members, entries)
+            launch = launch_outcome(run, subprocess.CompletedProcess([], 0), started)
+            for member, _ in members:
+                index += 1
+                outcome = {**launch, 'case': member, 'run': run, 'group': 'session', 'launch_passed': launch['passed'],
+                           'launch_seconds': launch['seconds'], **own[member]}
+                outcome['passed'] = bool(launch['passed'] and own[member]['probe_passed'])
+                record['cases'].append(outcome)
+                print(f'== Test {index}/{len(selected)}: {member} {"PASS" if outcome["passed"] else "FAIL"} '
+                      f'({outcome["seconds"]} s in the session)', flush=True)
+            evidence.write_text(json.dumps(record, indent=2) + '\n')
+            if launch.get('result') not in ('finished', None) and not launch.get('returned_to_launcher'):
+                record['stopped_after'] = unit
+                break
+            continue
         if unit in GROUPS:
             sequence = ROOT / '.deps' / (run + '-sequence.txt')
             sequence.write_text(''.join(f'{n}\t{entries[n][2]}\t{entries[n][0]}\n' for n, _ in members))
             print(f'== Tests {index + 1}-{index + len(members)}/{len(selected)}: {unit}, one launch ({run})', flush=True)
-            # The sequence's own budgets end a probe that hangs; this watchdog is the backstop.
+            # The sequence's own budgets end a probe that hangs; this watchdog is the backstop. The controller is the
+            # default, whatever the console's setting: wow64's XInput check needs controller 0 (src/pw_controller.h).
             result = subprocess.run([sys.executable, str(ROOT / 'tools/run-console.py'), '--name', run,
+                                     '--env', 'WINE_PS5_CONTROLLER=xbox-360',
                                      '--exe', 'gate-sequence.exe', '--sequence', str(sequence), '--watchdog',
                                      str(120 + sum(entries[n][2] for n, _ in members))], cwd=ROOT)
             launch = launch_outcome(run, result, started)
@@ -569,7 +729,7 @@ def main():
         runner = ('run-shell.py' if name in ('shell32', 'shell64') else
                   'run-prefix-baseline.py' if name.startswith('prefix-fresh') else
                   'run-appearance.py' if name.startswith('appearance') else
-                  'run-launcher.py' if name in ('controls-menu', 'setup-tour') else
+                  'run-launcher.py' if name in ('controls-menu', 'setup-tour', 'steam-guide-pages') else
                   'run-launcher-ended.py' if name == 'launcher-ended' else
                   'run-games-autodetect.py' if name == 'games-autodetect' else
                   'run-detailed-logs.py' if name == 'detailed-logs' else
@@ -582,7 +742,9 @@ def main():
                   'run-browser.py' if name == 'mihawk-browser' else
                   'run-game-mode.py' if name.startswith('game-mode') else
                   'run-desktop-input.py' if name == 'launcher-desktop' else
-                  'run-tls-fixture.py' if name == 'launcher-tls' else 'run-console.py')
+                  'run-tls-fixture.py' if name == 'launcher-tls' else
+                  'run-installer-slice.py' if name == 'installers-fast' else
+                  'run-wine-slice.py' if name.startswith('wine-') else 'run-console.py')
         result = subprocess.run([sys.executable, str(ROOT / 'tools' / runner), '--name', run] + case, cwd=ROOT)
         outcome = {'case': name, 'run': run, **launch_outcome(run, result, started)}
         record['cases'].append(outcome)
@@ -601,6 +763,8 @@ def main():
     print(f'== Battery: {len(record["cases"])}/{len(selected)} completed, '
           f'{passed_count} passed, {len(record["cases"]) - passed_count} failed '
           f'({record["seconds"]} s)', flush=True)
+    if any(c.get('pipe_memory_exhausted') for c in record['cases']):
+        print(f'== The console\'s pipe memory ran out ({PIPES_GONE}): restart it before the next run', flush=True)
     print(json.dumps({'battery': args.name, 'passed': record['passed'],
                       'cases': {c['case']: c['passed'] for c in record['cases']}}, indent=2))
     return 0 if record['passed'] else 1

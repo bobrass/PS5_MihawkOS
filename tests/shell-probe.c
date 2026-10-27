@@ -450,6 +450,26 @@ void mainCRTStartup(void)
     check(CreateDirectoryW(fixture, NULL), "exclusive disposable application folder");
     if (failures) goto restore;
     PathCombineW(app, fixture, L"Mihawk Shell Launch Probe.exe");
+    /* An earlier run's pin of this fixture is a leftover too: the pin button toggles, so a kept one would be unpinned
+     * by this run's click, and the restore would keep it for the next (shell64 failed so in gate-b3-2026-10-25-01,
+     * after Explorer saved its pins over shell32's restore). Start reads the pins when it opens, after this. */
+    if (saved && saved_type == REG_MULTI_SZ)
+    {
+        WCHAR *from = (WCHAR *)saved, *to = (WCHAR *)saved, *end = (WCHAR *)(saved + saved_size);
+        BOOL dropped = FALSE;
+        while (from < end && *from)
+        {
+            size_t length = lstrlenW(from) + 1;
+            if (!lstrcmpiW(from, app)) dropped = TRUE;
+            else { memmove(to, from, length * sizeof(WCHAR)); to += length; }
+            from += length;
+        }
+        *to++ = 0;
+        if (to == (WCHAR *)saved + 1) *to++ = 0;
+        saved_size = (DWORD)((BYTE *)to - saved);
+        if (dropped) check(!RegSetKeyValueW(HKEY_CURRENT_USER, pin_key, L"StartPins", REG_MULTI_SZ, saved, saved_size),
+                           "an earlier run's leftover pin removed");
+    }
     check(CopyFileW(executable, app, TRUE), "install disposable executable entry");
     check(!file_exists(marker), "launch marker initially absent");
     HWND tray = wait_window(L"Shell_TrayWnd", 5000), button = NULL, panel;

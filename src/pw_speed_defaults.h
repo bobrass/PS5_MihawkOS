@@ -21,6 +21,7 @@
  *                                 120 Hz modes only when the broker's display kept it (pw_display_rate.h); on a 59.94 Hz
  *                                 fallback a program sees 60 Hz modes alone. A game that counts vblanks for its timing
  *                                 would run twice as fast: game.json "env": PROTON_120HZ=0 in the launcher route.
+ *                                 The player's 120 Hz setting (src/pw_high_refresh.h) off sets it to 0 first.
  *
  * Host test: tests/test_pw_speed_defaults.c. */
 static const char *const pw_speed_defaults[] = {"WINE_PS5_NTSYNC", "WINE_PS5_HELPER_CPUS_WIDEN", "WINE_PS5_ASYNC_PRESENT",

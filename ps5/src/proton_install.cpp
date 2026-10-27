@@ -286,11 +286,11 @@ ProtonInstall proton_install_find(const char *only)
 		return gState = found;
 	}
 	found.bytes = gManifest.plain;
-	const bool usb_only = only && !strcmp(only, "usb");
+	const bool usb_only = only && !strcmp(only, "usb"), folder_only = only && !strcmp(only, "install");
 	std::vector<std::string> folders;
 	if (!usb_only) folders.push_back(PROTON_DATA_ROOT "/install");
 	bool stick = false;   /* an unmounted /mnt/usbN is an empty placeholder (evidence/probe-space-payload-2026-10-18-01) */
-	for (int n = 0; n < 8; n++) {
+	for (int n = 0; n < 8 && !folder_only; n++) {
 		const std::string mount = "/mnt/usb" + std::to_string(n);
 		if (DIR *dir = opendir(mount.c_str())) {
 			while (struct dirent *entry = readdir(dir)) stick = stick || (strcmp(entry->d_name, ".") && strcmp(entry->d_name, ".."));
@@ -308,7 +308,7 @@ ProtonInstall proton_install_find(const char *only)
 		}
 		if (have > best) best = have, partial = folder;
 	}
-	if (found.source.empty() && !best) found.source = release_base();
+	if (found.source.empty() && !best && !folder_only) found.source = release_base();
 	const bool online = web(found.source);
 	found.total = gManifest.chunk_count;
 	found.have = best;

@@ -1,0 +1,17 @@
+{
+ "run": "fmem-bd-title-2026-10-26-01",
+ "what": "profile mihawk-os program C:\\windows\\system32\\mihawk.exe",
+ "env": [
+  "WINE_PS5_EARLY=1",
+  "PROTON_STOP_TERMINATE=0",
+  "WINE_PS5_TITLE_PROCESS=BDFFHD.exe"
+ ],
+ "passed": false,
+ "result": "runner_error",
+ "error": "could not convert string to float: '5.9uswine-ps5:'",
+ "loaded": true,
+ "probe_verdict": null,
+ "stop_requested": "run budget reached",
+ "cleanup_verified": false,
+ "hooks_removed": true
+}

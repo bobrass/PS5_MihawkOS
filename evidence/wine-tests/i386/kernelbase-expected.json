@@ -1,0 +1,18 @@
+{
+ "context": {
+  "arch": "i386",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "2beaa55e3c61079fbdca66a3b151110ce8b88a0a87645ea249b563ef6c080df9",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [
+  "process: process.c:156: VirtualFree failed to split the placeholder 487 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software (a placeholder split at 4 KiB))",
+  "process: process.c:160: MapViewOfFile3 did not map the file mapping 1132 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software (a placeholder split at 4 KiB))",
+  "process: process.c:163: UnmapViewOfFile failed 487 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software (a placeholder split at 4 KiB))",
+  "process: process.c:185: VirtualFree of remaining region failed: 487 (OPEN: deferred bug (owner, 2026-10-25), to fix after the sweep: 16 KiB host pages: a 4 KiB page cannot be protected, unmapped or tracked alone inside a host page (wine/patches/0510; patches 1122 and 1134 track 4 KiB writes in every view but images; groups and options in docs/HOST_PAGES.md); fix: every 4 KiB protection, unmap and placeholder tracked in software (a placeholder split at 4 KiB))"
+ ],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {},
+ "unfinished_ok": {}
+}

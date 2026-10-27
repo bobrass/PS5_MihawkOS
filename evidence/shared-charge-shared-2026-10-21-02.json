@@ -1,0 +1,360 @@
+{
+ "run": "shared-charge-shared-2026-10-21-02",
+ "mode": "shared",
+ "object_mib": 64,
+ "maps": 3,
+ "hold_s": 30,
+ "swap_stop_mib": 8.0,
+ "others_stop_mib": 32.0,
+ "firmware": "1340",
+ "title": "launcher screen, no Wine session",
+ "title_seconds": 325,
+ "readiness": {
+  "ready": true,
+  "seconds": 0.182,
+  "settle_seconds": 0.0,
+  "census_seconds": 0.168,
+  "previous_cleanup_verified": false
+ },
+ "elf_sha256": "5374bef09422cb1bf08dc833d085ad2880e087cb25845086ee8f98feb1503019",
+ "probe_start": "start mode=shared object_mib=64 maps=3 hold_s=30 firmware=0x13400002 pid=130",
+ "baseline_vm": {
+  "t": 1792588322.4,
+  "step": "before",
+  "rss_mib": 1249.3,
+  "rss_limit_mib": 0.0,
+  "kernel_mib": 339.8,
+  "wire_mib": 403.7,
+  "swap_out_mib": 0.0,
+  "page_table_cpu": 4587,
+  "others_mib": 1249.5,
+  "shellui_mib": 649.6,
+  "probe_mib": null,
+  "fmem_lines": 34
+ },
+ "final_vm": {
+  "t": 1792588652.4,
+  "step": "released",
+  "rss_mib": 1219.0,
+  "rss_limit_mib": 0.0,
+  "kernel_mib": 323.1,
+  "wire_mib": 386.8,
+  "swap_out_mib": 0.0,
+  "page_table_cpu": 4577,
+  "others_mib": 1219.1,
+  "shellui_mib": 624.3,
+  "probe_mib": null,
+  "fmem_lines": 34
+ },
+ "swap_out_growth_mib": 0.0,
+ "vm_stats": [
+  {
+   "t": 1792588322.4,
+   "step": "before",
+   "rss_mib": 1249.3,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 339.8,
+   "wire_mib": 403.7,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4587,
+   "others_mib": 1249.5,
+   "shellui_mib": 649.6,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792588324.4,
+   "step": "before",
+   "rss_mib": 1256.5,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 341.5,
+   "wire_mib": 483.2,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4612,
+   "others_mib": 1256.7,
+   "shellui_mib": 650.1,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792588326.6,
+   "step": 0,
+   "rss_mib": 1261.4,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 341.6,
+   "wire_mib": 483.1,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4621,
+   "others_mib": 1261.5,
+   "shellui_mib": 650.1,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792588360.4,
+   "step": 1,
+   "rss_mib": 1293.4,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.1,
+   "wire_mib": 476.7,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4653,
+   "others_mib": 1293.3,
+   "shellui_mib": 624.0,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792588394.2,
+   "step": 2,
+   "rss_mib": 1357.5,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.2,
+   "wire_mib": 476.8,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4685,
+   "others_mib": 1357.4,
+   "shellui_mib": 624.0,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792588428.1,
+   "step": 2,
+   "rss_mib": 1421.5,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.3,
+   "wire_mib": 476.8,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4717,
+   "others_mib": 1421.4,
+   "shellui_mib": 624.0,
+   "probe_mib": null,
+   "fmem_lines": 35,
+   "judged": true
+  },
+  {
+   "t": 1792588461.9,
+   "step": "released",
+   "rss_mib": 1229.5,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.1,
+   "wire_mib": 476.6,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4621,
+   "others_mib": 1229.5,
+   "shellui_mib": 624.1,
+   "probe_mib": null,
+   "fmem_lines": 35
+  },
+  {
+   "t": 1792588495.7,
+   "step": "released",
+   "rss_mib": 1225.3,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 335.0,
+   "wire_mib": 476.4,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4612,
+   "others_mib": 1225.3,
+   "shellui_mib": 624.1,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792588650.0,
+   "step": "released",
+   "rss_mib": 1218.8,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 333.5,
+   "wire_mib": 397.4,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4569,
+   "others_mib": 1219.0,
+   "shellui_mib": 624.2,
+   "probe_mib": null,
+   "fmem_lines": 34
+  },
+  {
+   "t": 1792588652.4,
+   "step": "released",
+   "rss_mib": 1219.0,
+   "rss_limit_mib": 0.0,
+   "kernel_mib": 323.1,
+   "wire_mib": 386.8,
+   "swap_out_mib": 0.0,
+   "page_table_cpu": 4577,
+   "others_mib": 1219.1,
+   "shellui_mib": 624.3,
+   "probe_mib": null,
+   "fmem_lines": 34
+  }
+ ],
+ "steps": {
+  "0": {
+   "baseline": {
+    "phase": "baseline",
+    "mappings": 0,
+    "resident_kib": 4144,
+    "swap_reserved_kib": 25824080,
+    "others_kib": 1352000,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588325.5
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 0,
+    "resident_kib": 4144,
+    "swap_reserved_kib": 25824080,
+    "others_kib": 1352000,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588358.9
+   }
+  },
+  "1": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 1,
+    "resident_kib": 69680,
+    "swap_reserved_kib": 25889568,
+    "others_kib": 1384720,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588359.5
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 1,
+    "resident_kib": 69680,
+    "swap_reserved_kib": 25891216,
+    "others_kib": 1384832,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588393.0
+   }
+  },
+  "2": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 2,
+    "resident_kib": 135216,
+    "swap_reserved_kib": 25891232,
+    "others_kib": 1450384,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588393.6
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 2,
+    "resident_kib": 135216,
+    "swap_reserved_kib": 25892704,
+    "others_kib": 1450352,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588427.1
+   }
+  },
+  "3": {
+   "mapped": {
+    "phase": "mapped",
+    "mappings": 3,
+    "resident_kib": 200752,
+    "swap_reserved_kib": 25892720,
+    "others_kib": 1515904,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588428.2
+   },
+   "held": {
+    "phase": "held",
+    "mappings": 3,
+    "resident_kib": 200752,
+    "swap_reserved_kib": 25894704,
+    "others_kib": 1515984,
+    "others_min_kib": 1352000,
+    "processes": 87,
+    "t": 1792588461.7
+   }
+  },
+  "released": {
+   "phase": "released",
+   "mappings": 0,
+   "resident_kib": 4144,
+   "swap_reserved_kib": 25829168,
+   "others_kib": 1319376,
+   "others_min_kib": 1352000,
+   "processes": 87,
+   "t": 1792588461.8
+  }
+ },
+ "probe": [
+  {
+   "t": 1792588325.3,
+   "line": "start mode=shared object_mib=64 maps=3 hold_s=30 firmware=0x13400002 pid=130"
+  },
+  {
+   "t": 1792588325.5,
+   "line": "step=0 phase=baseline mappings=0 resident_kib=4144 mapped_kib=17440 status=0 swap_reserved_kib=25824080 sysctl_errno=0 others_kib=1352000 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588358.9,
+   "line": "step=0 phase=held mappings=0 resident_kib=4144 mapped_kib=17440 status=0 swap_reserved_kib=25824080 sysctl_errno=0 others_kib=1352000 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588359.5,
+   "line": "step=1 phase=mapped mappings=1 resident_kib=69680 mapped_kib=82976 status=0 swap_reserved_kib=25889568 sysctl_errno=0 others_kib=1384720 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588393.0,
+   "line": "step=1 phase=held mappings=1 resident_kib=69680 mapped_kib=82976 status=0 swap_reserved_kib=25891216 sysctl_errno=0 others_kib=1384832 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588393.6,
+   "line": "step=2 phase=mapped mappings=2 resident_kib=135216 mapped_kib=148512 status=0 swap_reserved_kib=25891232 sysctl_errno=0 others_kib=1450384 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588427.1,
+   "line": "step=2 phase=held mappings=2 resident_kib=135216 mapped_kib=148512 status=0 swap_reserved_kib=25892704 sysctl_errno=0 others_kib=1450352 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588428.2,
+   "line": "step=3 phase=mapped mappings=3 resident_kib=200752 mapped_kib=214048 status=0 swap_reserved_kib=25892720 sysctl_errno=0 others_kib=1515904 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588461.7,
+   "line": "step=3 phase=held mappings=3 resident_kib=200752 mapped_kib=214048 status=0 swap_reserved_kib=25894704 sysctl_errno=0 others_kib=1515984 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588461.7,
+   "line": "release mappings=3 objects=1 stopped=0 why= checksum=1044480"
+  },
+  {
+   "t": 1792588461.8,
+   "line": "step=0 phase=released mappings=0 resident_kib=4144 mapped_kib=17440 status=0 swap_reserved_kib=25829168 sysctl_errno=0 others_kib=1319376 others_min_kib=1352000 processes=87 census_status=0"
+  },
+  {
+   "t": 1792588495.0,
+   "line": "DONE mappings=3 stopped=0 why= sdk_writes=0"
+  }
+ ],
+ "granted_to": 3,
+ "grant_errors": [],
+ "stop_reason": null,
+ "stop_written_s": null,
+ "stop_errors": [],
+ "probe_done": "DONE mappings=3 stopped=0 why= sdk_writes=0",
+ "sdk_writes": 0,
+ "title_ended": true,
+ "storage_damage": 0,
+ "payload_output": "start mode=shared object_mib=64 maps=3 hold_s=30 firmware=0x13400002 pid=130\nstep=0 phase=baseline mappings=0 resident_kib=4144 mapped_kib=17440 status=0 swap_reserved_kib=25824080 sysctl_errno=0 others_kib=1352000 others_min_kib=1352000 processes=87 census_status=0\nstep=0 phase=held mappings=0 resident_kib=4144 mapped_kib=17440 status=0 swap_reserved_kib=25824080 sysctl_errno=0 others_kib=1352000 others_min_kib=1352000 processes=87 census_status=0\nstep=1 phase=mapped mappings=1 resident_kib=69680 mapped_kib=82976 status=0 swap_reserved_kib=25889568 sysctl_errno=0 others_kib=1384720 others_min_kib=1352000 processes=87 census_status=0\nstep=1 phase=held mappings=1 resident_kib=69680 mapped_kib=82976 status=0 swap_reserved_kib=25891216 sysctl_errno=0 others_kib=1384832 others_min_kib=1352000 processes=87 census_status=0\nstep=2 phase=mapped mappings=2 resident_kib=135216 mapped_kib=148512 status=0 swap_reserved_kib=25891232 sysctl_errno=0 others_kib=1450384 others_min_kib=1352000 processes=87 census_status=0\nstep=2 phase=held mappings=2 resident_kib=135216 mapped_kib=148512 status=0 swap_reserved_kib=25892704 sysctl_errno=0 others_kib=1450352 others_min_kib=1352000 processes=87 census_status=0\nstep=3 phase=mapped mappings=3 resident_kib=200752 mapped_kib=214048 status=0 swap_reserved_kib=25892720 sysctl_errno=0 others_kib=1515904 others_min_kib=1352000 processes=87 census_status=0\nstep=3 phase=held mappings=3 resident_kib=200752 mapped_kib=214048 status=0 swap_reserved_kib=25894704 sysctl_errno=0 others_kib=1515984 others_min_kib=1352000 processes=87 census_status=0\nrelease mappings=3 objects=1 stopped=0 why= checksum=1044480\nstep=0 phase=released mappings=0 resident_kib=4144 mapped_kib=17440 status=0 swap_reserved_kib=25829168 sysctl_errno=0 others_kib=1319376 others_min_kib=1352000 processes=87 census_status=0\nDONE mappings=3 stopped=0 why= sdk_writes=0\n",
+ "kernel_acted": null,
+ "acted_at_step": null,
+ "completed_ramp": true,
+ "passed": true
+}

@@ -1,0 +1,27 @@
+{
+ "context": {
+  "arch": "i386",
+  "batch_header_sha256": "c91499b43ed9f4a02ea4c49dc8deaa8fd873db4d36b86a9fa1776636f5eb4670",
+  "test_sha256": "e2e57846ad9eb46f556c219966f1ccbd8531596f377498d82e4b503572fa4c37",
+  "wine_revision": "1c78596625336a73dbfc035dbbcf0dbdd95b06eb"
+ },
+ "open": [],
+ "oracle": {},
+ "rules": "tools/qualify-wine-tests.py",
+ "tests": {
+  "negotiate": {
+   "negotiate.c:136": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401"
+  },
+  "ntlm": {
+   "ntlm.c:1147": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:1286": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:1355": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:1439": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:1500": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:546": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:760": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401",
+   "ntlm.c:960": "AWAITING OWNER (rests on our own choice): no NTLM on the console: Wine's NTLM and Negotiate run Samba's ntlm_auth helper (the PC has /usr/bin/ntlm_auth); a program asking for them gets SEC_E_SECPKG_NOT_FOUND, RPC_S_UNKNOWN_AUTHN_SERVICE or a 401"
+  }
+ },
+ "unfinished_ok": {}
+}

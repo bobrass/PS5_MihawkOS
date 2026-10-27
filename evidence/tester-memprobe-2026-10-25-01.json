@@ -1,0 +1,17 @@
+{
+  "run": "tester-memprobe-2026-10-25-01",
+  "source": "a tester's photograph of the PPSA99171 result screen, sent to the owner and transcribed; the result files went to /download0, which a tester cannot reach",
+  "probe_version": 1,
+  "model": "unknown-model",
+  "model_note": "the model call is unavailable on this firmware; the tester's model number is still to be asked",
+  "firmware_installed": "04.03",
+  "firmware_reported": "09.04",
+  "pro_memory_mode": "Pro memory mode off",
+  "elevated": 1,
+  "verdict": [
+    "This probe's title: code runs from nothing (JIT refused)",
+    "Sony helper: code runs from nothing; JIT refused",
+    "Sony helper's 64 MiB came from the title's memory: yes (67 MiB)"
+  ],
+  "save_errno": "/app0=13 /mnt/usb0=2 /mnt/usb1=2 /download0=0"
+}

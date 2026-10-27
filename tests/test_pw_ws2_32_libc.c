@@ -172,9 +172,14 @@ static void test_ports(void)
     freeaddrinfo(info);
     assert(!getaddrinfo("127.0.0.1", NULL, &hints, &info) && port(info) == 0);
     freeaddrinfo(info);
-    /* No services database: a name, a sign or a number out of range fails. */
+    /* No services database: the well-known names (any case) are known; another name, a sign or a number out of range
+     * fails (WSAConnectByNameA(..., "http") failed on the console, ws2_32 sock.c:3957). */
+    assert(!getaddrinfo("127.0.0.1", "http", &hints, &info) && port(info) == 80);
+    freeaddrinfo(info);
+    assert(!getaddrinfo("127.0.0.1", "HTTPS", &hints, &info) && port(info) == 443);
+    freeaddrinfo(info);
+    assert(getaddrinfo("127.0.0.1", "nosuchservice", &hints, &info) == EAI_SERVICE && !info);
     assert(getaddrinfo("127.0.0.1", "65536", &hints, &info) == EAI_SERVICE && !info);
-    assert(getaddrinfo("127.0.0.1", "http", &hints, &info) == EAI_SERVICE && !info);
     assert(getaddrinfo("127.0.0.1", "-1", &hints, &info) == EAI_SERVICE && !info);
     assert(getaddrinfo("127.0.0.1", "80x", &hints, &info) == EAI_SERVICE && !info);
     assert(getaddrinfo("127.0.0.1", "", &hints, &info) == EAI_SERVICE && !info);

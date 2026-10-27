@@ -38,6 +38,17 @@ def remove(ftp, path):
             raise
 
 
+def guide_pictures(ftp):
+    """The Steam guide's pictures the launcher kept (/data/ps5proton/steam-guide-pictures/*.ppm); LIST, not NLST."""
+    lines = []
+    try:
+        ftp.retrlines('LIST /data/ps5proton/steam-guide-pictures', lines.append)
+    except Exception:
+        return []
+    return ['/data/ps5proton/steam-guide-pictures/' + line.split()[-1] for line in lines
+            if line.split() and line.split()[-1].endswith('.ppm')]
+
+
 def main():
     global ACTIVE_EVIDENCE
     parser = argparse.ArgumentParser(description=__doc__)
@@ -47,6 +58,8 @@ def main():
     parser.add_argument('--controls', choices=('section', 'buttons', 'remapped'),
                         help='preview the Controls menu without changing saved preferences')
     parser.add_argument('--probe', choices=PROBES)
+    parser.add_argument('--press', action='append', default=[], metavar='FRAME ACTION',
+                        help="a pad press in the launcher's script, e.g. '40 down'; repeatable (focus a row to see its panel)")
     # tools/run-launcher-ended.py: a session that fails at once (a profile the library lacks), or one that never came
     # back (its marker left in the title folder, as a crash leaves it); the launcher that follows says which.
     parser.add_argument('--profile', help='start this library entry first, then the launcher')
@@ -55,6 +68,9 @@ def main():
     # The guided setup walked as a first run (docs/GUIDED_SETUP.md): its first-run marker makes the tour show and play the
     # install with its fake engine, so the runtime and the prefix are never touched; the test run saves nothing.
     parser.add_argument('--setup', action='store_true', help='walk the guided setup, in Japanese, to Preparing')
+    # The Steam guide's launcher pages (src/pw_steam_guide.h), each kept as a picture: every page in one language or all
+    # ten ("1"); 24 frames a page (--frames 1300 covers the fifty)
+    parser.add_argument('--steam-guide-pictures', metavar='LANGUAGE', help="a language's tag, or 1 for every language")
     args = parser.parse_args()
     if not re.fullmatch(r'[a-zA-Z0-9_-]+', args.name) or not 1 <= args.frames <= 3600:
         parser.error('use a plain run name and 1..3600 frames')
@@ -79,6 +95,9 @@ def main():
     script = f'identity {identity}\nframes {args.frames}\nscreenshot\nsamples ps5proton\n'
     if args.themes:
         script += 'press ps5proton 2 square\n'
+    for press in args.press:
+        frame, action = press.split()
+        script += f'press ps5proton {int(frame)} {action}\n'
     if args.setup:
         # Welcome; Language: English, down to Russian, right to Chinese and Japanese; How to install: USB; Check drive
         # (the fake engine finds the pieces); Install; the install runs about 8.6 s, then Preparing shows to the end
@@ -132,6 +151,10 @@ def main():
                                    io.BytesIO(args.plant_marker.encode()))
                 if args.setup:
                     ftp.storbinary('STOR /data/ps5proton/setup-first-run', io.BytesIO(b''))
+                if args.steam_guide_pictures:
+                    for old in guide_pictures(ftp):
+                        remove(ftp, old)
+                    ftp.storbinary('STOR /data/ps5proton/steam-guide-showcase', io.BytesIO(args.steam_guide_pictures.encode()))
                 ftp.storbinary('STOR /data/homebrew/PPSA99170/test-run.txt', io.BytesIO(script.encode()))
             # Count an attempted launch even if the control connection fails afterwards.
             console_guard.after_launch()
@@ -241,6 +264,20 @@ def main():
                 'sky_gpu_ms': sky, 'fps': re.findall(r'sample ps5proton: ok, \d+ frames in [0-9.]+ s, ([0-9.]+) fps', current)}
             evidence['passed'] = evidence['passed'] and steps == [0, 1, 2, 3, 4, 5] and evidence['setup']['language_ja'] \
                 and evidence['setup']['installed'] and bool(sky)
+        if args.steam_guide_pictures:
+            kept = []
+            with ftp_connect() as ftp:
+                from PIL import Image
+                for path in guide_pictures(ftp):
+                    raw = io.BytesIO()
+                    ftp.retrbinary(f'RETR {path}', raw.write)
+                    target = run / ('steam-guide-' + path.rsplit('/', 1)[1][:-4] + '.png')
+                    Image.open(io.BytesIO(raw.getvalue())).save(target)
+                    remove(ftp, path)
+                    kept.append(target.name)
+            expected = 50 if args.steam_guide_pictures == '1' else 5
+            evidence['steam_guide_pictures'] = kept
+            evidence['passed'] = evidence['passed'] and len(kept) == expected
         if args.controls == 'remapped':
             evidence['controls_selection_verified'] = 'Controls: preview left=r1 right=none middle=none' in text
             evidence['passed'] = evidence['passed'] and evidence['controls_selection_verified']
@@ -263,6 +300,8 @@ def main():
                         remove(ftp, '/data/homebrew/PPSA99170/' + hook)
                     if args.setup:
                         remove(ftp, '/data/ps5proton/setup-first-run')
+                    if args.steam_guide_pictures:
+                        remove(ftp, '/data/ps5proton/steam-guide-showcase')
             else:
                 clean_finish = False
             console_guard.finished(clean_finish)

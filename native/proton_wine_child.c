@@ -659,6 +659,8 @@ static void *wine_worker(void *unused)
 /* Two counts in 16 KiB pages, resident and mapped; both pointers are needed (src/pw_memory_helper.h). */
 int sceKernelGetResidentFmemCount(int pid, uint64_t *resident, uint64_t *mapped);
 int sceKernelVirtualQuery(const void *address, int flags, void *info, size_t size);
+void pw_malloc_trace_start(const char *directory);
+extern int malloc_stats_fast(void *) __attribute__((weak));
 int mincore(const void *address, size_t length, char *vector);
 
 static long long now_ns(void)
@@ -682,24 +684,181 @@ static int vm_census_query(void *context, uintptr_t address, uint8_t raw[PW_VM_R
  * placeholders) one census took 9 to 16 s of every 21 s (2026-10-13; record removed from the tree), and the page faults and protection changes of
  * every other thread queued behind it. The walk now has a time budget, 100 ms unless WINE_PS5_CENSUS_MS says otherwise
  * (0 skips the resident count), and asks in 64 MiB steps; what is past the budget counts as not resident and is said so. */
-static long long vm_census_deadline_ns;
-static unsigned vm_census_cut;
+static long long vm_census_deadline_ns[PW_VM_CLASSES];
+static unsigned vm_census_cut, vm_census_cut_class[PW_VM_CLASSES];
+static uint64_t vm_census_bytes_class[PW_VM_CLASSES];   /* resident bytes found, by class */
 
-static uint64_t vm_census_resident(void *context, uintptr_t start, uintptr_t end)
+static uint64_t vm_census_resident(void *context, uintptr_t start, uintptr_t end, unsigned klass)
 {
     static char vector[4096];
     const uintptr_t page = (uintptr_t)sysconf(_SC_PAGESIZE);
     uint64_t bytes = 0;
     (void)context;
     for (uintptr_t at = start; at < end;) {
-        if (now_ns() >= vm_census_deadline_ns) { vm_census_cut++; return bytes; }
+        if (now_ns() >= vm_census_deadline_ns[klass]) { vm_census_cut++; vm_census_cut_class[klass]++; vm_census_bytes_class[klass] += bytes; return bytes; }
         const uintptr_t chunk = end - at < sizeof(vector) * page ? end - at : sizeof(vector) * page;
         const size_t pages = (size_t)((chunk + page - 1) / page);
         if (mincore((const void *)at, (size_t)chunk, vector)) return bytes;
         for (size_t i = 0; i < pages; i++) bytes += (vector[i] & 1) ? page : 0;
         at += chunk;
     }
+    vm_census_bytes_class[klass] += bytes;
     return bytes;
+}
+
+/* The kernel's own map of this process (kern.proc.vmmap, as tools/console-memory.c map=PID reads it): its resident pages by region type
+ * and protection, and the largest regions with their ranges and paths. The walk of our own mappings found 162 MiB of the 602 MiB the kernel
+ * counted at the start-up jump of the signed-in client's browser (2026-10-24), none of it in direct or PROT_NONE mappings; this is the kernel's
+ * own view of the rest. WINE_PS5_VMMAP=1; one sysctl of about 25 MiB of records, freed at once. */
+static void vmmap_report(void (*say_line)(const char *))
+{
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_VMMAP, (int)getpid()};
+    size_t bytes = 0;
+    char line[512];
+    if (sysctl(mib, 4, NULL, &bytes, NULL, 0) || !bytes) {
+        snprintf(line, sizeof(line), "wine-child: vmmap: size query failed, errno %d\n", errno);
+        say_line(line);
+        return;
+    }
+    bytes += bytes / 4 + (1u << 20);
+    char *raw = malloc(bytes);
+    if (!raw) { say_line("wine-child: vmmap: no memory for the records\n"); return; }
+    if (sysctl(mib, 4, raw, &bytes, NULL, 0)) {
+        snprintf(line, sizeof(line), "wine-child: vmmap: read failed, errno %d\n", errno);
+        say_line(line);
+        free(raw);
+        return;
+    }
+    const unsigned long long page = (unsigned long long)sysconf(_SC_PAGESIZE);
+    const size_t bytes_total = bytes;
+    struct { unsigned long regions, resident, priv; unsigned long long span; } by_type[16] = {{0}};
+    struct { unsigned long long start, end; int type, prot, resident; char path[48]; } top[8] = {{0}};
+    unsigned count = 0, big_seen = 0;
+    for (const char *cursor = raw; cursor + sizeof(int) <= raw + bytes; count++) {
+        const struct kinfo_vmentry *entry = (const struct kinfo_vmentry *)cursor;
+        const int size = entry->kve_structsize;
+        if (size <= 0 || cursor + size > raw + bytes) break;
+        cursor += size;
+        const int kind = entry->kve_type >= 0 && entry->kve_type < 15 ? entry->kve_type : 15;
+        by_type[kind].regions++;
+        by_type[kind].resident += (unsigned long)entry->kve_resident;
+        by_type[kind].priv += (unsigned long)entry->kve_private_resident;
+        by_type[kind].span += entry->kve_end - entry->kve_start;
+        unsigned at = 8;
+        while (at > 0 && top[at - 1].resident < entry->kve_resident) at--;
+        if (at < 8) {
+            for (unsigned i = 7; i > at; i--) top[i] = top[i - 1];
+            top[at].start = entry->kve_start;
+            top[at].end = entry->kve_end;
+            top[at].type = entry->kve_type;
+            top[at].prot = entry->kve_protection;
+            top[at].resident = entry->kve_resident;
+            snprintf(top[at].path, sizeof(top[at].path), "%s", entry->kve_path);
+            big_seen++;
+        }
+    }
+    snprintf(line, sizeof(line), "wine-child: vmmap %u records of %zu bytes (the SDK's struct is %zu)\n", count, bytes, sizeof(struct kinfo_vmentry));
+    say_line(line);
+    for (unsigned k = 0; k < 16; k++) {
+        if (!by_type[k].regions) continue;
+        snprintf(line, sizeof(line), "wine-child: vmmap type %u: %lu regions, %llu MiB span, %llu MiB resident, %llu MiB private\n", k,
+                 by_type[k].regions, by_type[k].span >> 20, (unsigned long long)by_type[k].resident * page >> 20,
+                 (unsigned long long)by_type[k].priv * page >> 20);
+        say_line(line);
+    }
+    for (unsigned i = 0; i < 8 && top[i].resident > 0; i++) {
+        snprintf(line, sizeof(line), "wine-child: vmmap top %u: %#llx-%#llx type=%d prot=%#x resident=%llu MiB path=%s\n", i, top[i].start,
+                 top[i].end, top[i].type, top[i].prot, (unsigned long long)top[i].resident * page >> 20, top[i].path);
+        say_line(line);
+    }
+    /* What the libkernel names each of them (the walk above never listed the two largest): the exact query, then the next-mapping query. */
+    for (unsigned i = 0; i < 3 && top[i].resident > 0; i++)
+        for (int mode = 0; mode < 2; mode++) {
+            uint8_t record[PW_VM_RECORD] = {0};
+            PwVmRecord decoded;
+            const int status = sceKernelVirtualQuery((const void *)(uintptr_t)top[i].start, mode, record, sizeof(record));
+            if (status) {
+                snprintf(line, sizeof(line), "wine-child: vmmap top %u query(%s) failed, status %#x\n", i, mode ? "next" : "exact", (unsigned)status);
+            } else {
+                pw_vm_record_decode(record, &decoded);
+                snprintf(line, sizeof(line), "wine-child: vmmap top %u query(%s): %#lx-%#lx flags %#x prot %d type %d name \"%s\"\n", i,
+                         mode ? "next" : "exact", (unsigned long)decoded.start, (unsigned long)decoded.end, decoded.flags, decoded.protection,
+                         decoded.type, decoded.name);
+            }
+            say_line(line);
+        }
+    /* Sony's libc keeps its own account of the heap when a program asks for it (malloc_stats_fast fills a managed-size record, or
+     * refuses when the program did not declare SCE_LIBC_INIT_MALLOC_MANAGED_SIZE): if the two big regions are its heap, its
+     * current system size says so. Weak, so a link whose stub lacks it still builds. */
+    {
+        struct { unsigned short size, version; unsigned reserved; size_t max_system, current_system, max_inuse, current_inuse; } managed = {0};
+        managed.size = sizeof(managed);
+        managed.version = 1;
+        if (malloc_stats_fast) {
+            const int status = malloc_stats_fast(&managed);
+            snprintf(line, sizeof(line), "wine-child: libc heap: status %#x system %zu MiB (max %zu) in use %zu MiB (max %zu)\n", (unsigned)status,
+                     managed.current_system >> 20, managed.max_system >> 20, managed.current_inuse >> 20, managed.max_inuse >> 20);
+        } else {
+            snprintf(line, sizeof(line), "wine-child: libc heap: malloc_stats_fast is not in this link\n");
+        }
+        say_line(line);
+    }
+    /* The first resident pages of the two largest regions, read where mincore says they are in memory (a read of an absent page would
+     * make one): a heap's header, bitmaps or pixel data tell what the memory is. */
+    for (unsigned i = 0; i < 2 && top[i].resident > 0; i++) {
+        unsigned char vec[64];
+        const unsigned long long step = 16384;
+        if (mincore((const void *)(uintptr_t)top[i].start, step * sizeof(vec), (char *)vec)) {
+            snprintf(line, sizeof(line), "wine-child: vmmap top %u peek: mincore failed, errno %d\n", i, errno);
+            say_line(line);
+            continue;
+        }
+        unsigned shown = 0;
+        for (unsigned k = 0; k < sizeof(vec) && shown < 3; k++) {
+            if (!(vec[k] & 1)) continue;
+            const unsigned char *at = (const unsigned char *)(uintptr_t)(top[i].start + step * k);
+            int n = snprintf(line, sizeof(line), "wine-child: vmmap top %u peek +%#llx:", i, step * k);
+            for (unsigned b = 0; b < 32; b++) n += snprintf(line + n, sizeof(line) - (size_t)n, " %02x", at[b]);
+            snprintf(line + n, sizeof(line) - (size_t)n, "\n");
+            say_line(line);
+            shown++;
+        }
+        if (!shown) {
+            snprintf(line, sizeof(line), "wine-child: vmmap top %u peek: none of the first %zu pages resident\n", i, sizeof(vec));
+            say_line(line);
+        }
+    }
+    /* The platform heap's range (PS5_PayloadSDK ps5platform/heap.h, from 0x2000000000): its segments, mapped direct memory, and what is resident in them. */
+    {
+        unsigned long long segments = 0, bytes = 0, resident = 0, largest = 0;
+        for (const char *cursor = raw; cursor + sizeof(int) <= raw + bytes_total; ) {
+            const struct kinfo_vmentry *entry = (const struct kinfo_vmentry *)cursor;
+            const int size = entry->kve_structsize;
+            if (size <= 0 || cursor + size > raw + bytes_total) break;
+            cursor += size;
+            if (entry->kve_start < 0x2000000000ull || entry->kve_start >= 0x4000000000ull) continue;
+            if (!entry->kve_resident) continue;
+            segments++;
+            bytes += entry->kve_end - entry->kve_start;
+            resident += (unsigned long long)entry->kve_resident * page;
+            if (entry->kve_end - entry->kve_start > largest) largest = entry->kve_end - entry->kve_start;
+        }
+        snprintf(line, sizeof(line), "wine-child: vmmap platform heap range: %llu mappings with pages, %llu MiB mapped, %llu MiB resident, largest %llu MiB\n",
+                 segments, bytes >> 20, resident >> 20, largest >> 20);
+        say_line(line);
+    }
+    /* Where Sony's malloc puts new blocks, against the two largest regions: if they land inside, that heap is those regions. */
+    {
+        static const size_t sizes[] = {64, 4096, 65536, 1u << 20};
+        void *blocks[4];
+        int n = snprintf(line, sizeof(line), "wine-child: malloc probe:");
+        for (unsigned i = 0; i < 4; i++) { blocks[i] = malloc(sizes[i]); n += snprintf(line + n, sizeof(line) - (size_t)n, " %zu->%p", sizes[i], blocks[i]); }
+        snprintf(line + n, sizeof(line) - (size_t)n, "\n");
+        say_line(line);
+        for (unsigned i = 0; i < 4; i++) free(blocks[i]);
+    }
+    (void)big_seen;
+    free(raw);
 }
 
 static void vm_census_report(void (*say_line)(const char *))
@@ -718,16 +877,27 @@ static void vm_census_report(void (*say_line)(const char *))
             say_line(line);
         }
     }
-    long long budget_ms = 100;
-    const char *budget_env = getenv("WINE_PS5_CENSUS_MS");
-    if (budget_env && *budget_env) budget_ms = atoll(budget_env);
+    /* WINE_PS5_CENSUS_MS: one number is one budget for the whole walk (100 ms before), "F:D:R" a budget for each class: flexible, direct,
+     * reserved (src/pw_vm_census.h). 0 skips the resident count. */
+    long long budget_ms[PW_VM_CLASSES];
+    const int per_class = pw_vm_budget_parse(getenv("WINE_PS5_CENSUS_MS"), budget_ms);
+    const long long walk_begin = now_ns();
     vm_census_cut = 0;
-    vm_census_deadline_ns = now_ns() + budget_ms * 1000000ll;
-    pw_vm_census_walk(&census, vm_census_query, budget_ms > 0 ? vm_census_resident : NULL, NULL);
+    memset(vm_census_cut_class, 0, sizeof(vm_census_cut_class));
+    memset(vm_census_bytes_class, 0, sizeof(vm_census_bytes_class));
+    for (unsigned c = 0; c < PW_VM_CLASSES; c++) vm_census_deadline_ns[c] = walk_begin + budget_ms[c] * 1000000ll;
+    pw_vm_census_walk(&census, vm_census_query, (budget_ms[0] > 0 || budget_ms[1] > 0 || budget_ms[2] > 0) ? vm_census_resident : NULL, NULL);
     if (vm_census_cut) {
-        snprintf(line, sizeof(line), "wine-child: vm census resident count cut after %lld ms in %u mappings\n", budget_ms, vm_census_cut);
+        snprintf(line, sizeof(line), "wine-child: vm census resident count cut after %lld ms in %u mappings\n", budget_ms[0], vm_census_cut);
         say_line(line);
     }
+    /* What was measured, by class: mappings measured/all and resident MiB found, so a cut shows where it fell. */
+    snprintf(line, sizeof(line), "wine-child: vm measured flexible=%u/%u resident %llu MiB direct=%u/%u resident %llu MiB reserved=%u/%u resident %llu MiB walk=%lld ms%s\n",
+             census.class_mappings[0] - vm_census_cut_class[0], census.class_mappings[0], (unsigned long long)(vm_census_bytes_class[0] >> 20),
+             census.class_mappings[1] - vm_census_cut_class[1], census.class_mappings[1], (unsigned long long)(vm_census_bytes_class[1] >> 20),
+             census.class_mappings[2] - vm_census_cut_class[2], census.class_mappings[2], (unsigned long long)(vm_census_bytes_class[2] >> 20),
+             (now_ns() - walk_begin) / 1000000, per_class > 0 ? " (budgets per class)" : "");
+    say_line(line);
     int at = snprintf(line, sizeof(line), "wine-child: vm resident=%llu MiB direct_resident=%llu reserved_resident=%llu flexible=%llu direct=%llu other=%llu MiB "
                       "mappings=%u groups=%u%s%s top ", (unsigned long long)(census.resident >> 20),
                       (unsigned long long)(census.direct_resident >> 20), (unsigned long long)(census.reserved_resident >> 20),
@@ -744,6 +914,17 @@ static void vm_census_report(void (*say_line)(const char *))
         pw_vm_census_format_big(&census, big, sizeof(big));
         snprintf(line, sizeof(line), "wine-child: vm big %s\n", big);
         say_line(line);
+        /* The counted memory is flexible memory: by protection and size, and its largest mappings with their addresses
+         * (tools/memory_breakdown.py reads both), because the group names do not say what it is. */
+        char kinds[512];
+        pw_vm_census_format_flexible(&census, kinds, sizeof(kinds));
+        snprintf(line, sizeof(line), "wine-child: vm flexible-kinds %s\n", kinds);
+        say_line(line);
+        pw_vm_census_format_flexbig(&census, big, sizeof(big));
+        snprintf(line, sizeof(line), "wine-child: vm flexible-big %s\n", big);
+        say_line(line);
+        const char *vmmap_setting = getenv("WINE_PS5_VMMAP");
+        if (vmmap_setting && !strcmp(vmmap_setting, "1")) vmmap_report(say_line);
     }
 }
 static int payload_prepare_module(int32_t);
@@ -786,6 +967,52 @@ static void exec_tally(void)
              (unsigned long long)v[0], (unsigned long long)v[1], (unsigned long long)v[2], (unsigned long long)v[3],
              (unsigned long long)v[4], (unsigned long long)v[5], __atomic_load_n(&payload_modules, __ATOMIC_RELAXED),
              __atomic_load_n(&sdk_exec_refused, __ATOMIC_RELAXED));
+    stage(line);
+}
+/* Shared code copies in this process (__wine_ps5_code_share_stats, wine/ps5/pw_wine_codeshare.h): clusters mapped from
+ * the title's registry and their KiB, copies given to it, copies whose bytes were not this helper's, asks or offers that
+ * failed, and shared copies made private before a write and their KiB. Lock-free, printed beside the tally above. */
+static unsigned (*code_share_stats)(uint64_t *, unsigned);
+/* The KiB of the registry's objects this process maps (__wine_ps5_code_share_mapped_kib), told to the title when it
+ * changes (PW_CHILD_CODE_MAPPED): its census counts each shared object once from these. Read each telemetry tick. */
+static uint64_t (*code_share_mapped)(void);
+static void code_share_report(void)
+{
+    static int64_t told = -1;
+    const uint64_t kib = code_share_mapped ? code_share_mapped() : 0;
+    if ((int64_t)kib == told || kib > INT32_MAX) return;
+    const struct pw_child_message report = {PW_CHILD_PROTOCOL, PW_CHILD_CODE_MAPPED, getpid(), (int32_t)kib, 0};
+    if (!pw_child_send(3, &report, sizeof(report), NULL, 0)) told = (int64_t)kib;   /* failed: told again next tick */
+}
+static void code_share_tally(void)
+{
+    uint64_t v[7] = {0};
+    char line[320];
+    if (!code_share_stats || code_share_stats(v, 7) < 7) return;
+    /* shared_kib and offered count events since the start; mapped_kib is what this process maps of the registry's
+     * objects now (taken and kept), the figure the title's census counts once. */
+    snprintf(line, sizeof(line), "wine-child: shared code copies shared=%llu shared_kib=%llu offered=%llu mismatched=%llu "
+             "failed=%llu private_writes=%llu private_kib=%llu mapped_kib=%llu\n", (unsigned long long)v[0],
+             (unsigned long long)v[1], (unsigned long long)v[2], (unsigned long long)v[3], (unsigned long long)v[4],
+             (unsigned long long)v[5], (unsigned long long)v[6],
+             (unsigned long long)(code_share_mapped ? code_share_mapped() : 0));
+    stage(line);
+}
+/* The code cache (__wine_ps5_code_cache_stats, docs/FLEXIBLE_MEMORY.md): its budget now and its policy (off, set by
+ * the user, a listed client, adaptive), the KiB it holds, clusters given back to direct memory and their KiB, entries
+ * found stale, evictions refused, ranges lost, the budget's raises and the KiB of evicted code converted again. */
+static unsigned (*code_cache_stats)(uint64_t *, unsigned);
+static void code_cache_tally(void)
+{
+    static const char *const policies[] = {"off", "set", "listed", "adaptive"};
+    uint64_t v[10] = {0};
+    char line[320];
+    if (!code_cache_stats || code_cache_stats(v, 10) < 10) return;
+    snprintf(line, sizeof(line), "wine-child: code cache budget_mib=%llu policy=%s held_kib=%llu evicted=%llu evicted_kib=%llu "
+             "stale=%llu refused=%llu lost=%llu raises=%llu reconverted_kib=%llu\n", (unsigned long long)v[0],
+             v[9] < 4 ? policies[v[9]] : "?", (unsigned long long)v[1], (unsigned long long)v[2], (unsigned long long)v[3],
+             (unsigned long long)v[4], (unsigned long long)v[5], (unsigned long long)v[6], (unsigned long long)v[7],
+             (unsigned long long)v[8]);
     stage(line);
 }
 /* Mappings the kernel shows inside Wine's own space that are not Wine's (wine/ps5/pw_wine_dmem.h): ntdll's lock-free
@@ -1050,6 +1277,8 @@ static void *payload_telemetry(void *unused)
         (void *)pw_prx_lookup(wine.descriptor, "__wine_ps5_memory_stats");
     void (*image_stats)(unsigned long long *, unsigned long long *) =
         (void *)pw_prx_lookup(wine.descriptor, "__wine_virtual_image_stats");
+    unsigned (*image_read_stats)(uint64_t *, unsigned) =
+        (void *)pw_prx_lookup(wine.descriptor, "__wine_ps5_image_read_stats");
     // What this process wrote to regular files, by call size (patch 1006): the console's disk is slow below 1 MiB writes.
     unsigned (*file_write_stats)(unsigned long long *, unsigned) =
         (void *)pw_prx_lookup(wine.descriptor, "__wine_file_write_stats");
@@ -1082,6 +1311,8 @@ static void *payload_telemetry(void *unused)
     long long slept_ns = 0, sampled_ns = 0, worked_ns = 0;
     struct timespec lap;
     clock_gettime(CLOCK_MONOTONIC, &lap);
+    const char *early_setting = getenv("WINE_PS5_EARLY");
+    const int early_every_second = early_setting && !strcmp(early_setting, "1");
     for (unsigned tick = 0;; ++tick) {
         struct timespec woke, slept, sampled;
         {
@@ -1093,6 +1324,7 @@ static void *payload_telemetry(void *unused)
         sceKernelUsleep(100000);
         clock_gettime(CLOCK_MONOTONIC, &slept);
         slept_ns += (slept.tv_sec - woke.tv_sec) * 1000000000ll + (slept.tv_nsec - woke.tv_nsec);
+        code_share_report();
         if (thread_sample) profile_take(thread_sample, thread_describe);
         clock_gettime(CLOCK_MONOTONIC, &sampled);
         sampled_ns += (sampled.tv_sec - slept.tv_sec) * 1000000000ll + (sampled.tv_nsec - slept.tv_nsec);
@@ -1100,7 +1332,12 @@ static void *payload_telemetry(void *unused)
         /* A fresh Chromium GPU process holds 300 to 345 MiB of the console's resident memory within 10 s, and the memory guard ends
          * it before the first census of 10 s has walked its mappings (2026-10-12; record removed from the tree): what holds it is read at 2, 4, 6, 8, 9, 11,
          * 12, 13 and 15 s as well (its flexible memory goes from 44 to 345 MiB at about 10 s). */
-        if (tick == 19 || tick == 39 || tick == 59 || tick == 79 || tick == 89 || tick == 109 || tick == 119 || tick == 129 || tick == 149) {
+        static unsigned long long census_resident_mib, census_tick;
+        const int early_tick = tick == 19 || tick == 39 || tick == 59 || tick == 79 || tick == 89 || tick == 109 || tick == 119 || tick == 129 || tick == 149;
+        /* Every second to 60 s (the climb of 2026-10-24 was 255 to 469 MiB between two of the sparse samples), and a full census when the
+         * count has risen 50 MiB since the last one, at most once in 5 s. WINE_PS5_EARLY=1 turns this on; it costs a line a second. */
+        const int dense = early_every_second && tick < 600 && tick % 10 == 9;
+        if (early_tick || dense) {
             uint64_t resident = 0, mapped = 0;
             const unsigned long long page = (unsigned long long)sysconf(_SC_PAGESIZE);
             char early[160];
@@ -1108,7 +1345,15 @@ static void *payload_telemetry(void *unused)
             snprintf(early, sizeof(early), "wine-child: early memory at %u s: resident=%llu MiB (status %#x)\n", (tick + 1) / 10,
                      resident * page >> 20, (unsigned)status);
             stage(early);
-            if ((resident * page >> 20) >= 100) vm_census_report(stage);
+            /* The sampler's report every second for the first minute, not only at the 10 s census (which the browser helper never reaches in
+             * time): who was running while the libc heap grew, and where a slow start's seconds go. */
+            if (thread_sample) profile_report();
+            const unsigned long long now_mib = resident * page >> 20;
+            if (now_mib >= 100 && (early_tick || (now_mib >= census_resident_mib + 50 && tick >= census_tick + 50))) {
+                census_resident_mib = now_mib;
+                census_tick = tick;
+                vm_census_report(stage);
+            }
             continue;
         }
         if (tick % 100 != 99) continue;
@@ -1180,6 +1425,31 @@ static void *payload_telemetry(void *unused)
                 }
         }
         if (heavy && image_stats && virtual_stats) {
+            unsigned long long class_counters[10] = {0};
+            const unsigned class_kept = virtual_stats(class_counters, 10);
+            if (memory_stats) {
+                uint64_t m[20] = {0};
+                if (memory_stats(m, 20) >= 20) {
+                    snprintf(line, sizeof(line), "wine-child: memory classes dmem_backed_mib=%llu heap_mapped_mib=%llu "
+                             "heap_live_mib=%llu allocs=%llu file_private_mib=%llu mmap=%llu mprotect_bytes_mib=%llu\n",
+                             (unsigned long long)(m[0] >> 20), (unsigned long long)(m[4] >> 20),
+                             (unsigned long long)(m[8] >> 20), (unsigned long long)m[9],
+                             class_kept > 9 ? (unsigned long long)(class_counters[9] >> 20) : 0ull,
+                             (unsigned long long)class_counters[0],
+                             (unsigned long long)(class_counters[3] >> 20));
+                    snprintf(line + strlen(line), sizeof(line) - strlen(line),
+                             "wine-child: memory claims attempts=%llu ok=%llu failed=%llu align_refused=%llu region_refused=%llu\n",
+                             (unsigned long long)m[15], (unsigned long long)m[16], (unsigned long long)m[17],
+                             (unsigned long long)m[18], (unsigned long long)m[19]);
+                    { uint64_t r[5] = {0};
+                      if (image_read_stats && image_read_stats(r, 5) >= 5)
+                          snprintf(line + strlen(line), sizeof(line) - strlen(line),
+                                   "wine-child: image read asks=%llu hits=%llu offers=%llu kept=%llu refused=%llu\n",
+                                   (unsigned long long)r[0], (unsigned long long)r[1], (unsigned long long)r[2],
+                                   (unsigned long long)r[3], (unsigned long long)r[4]); }
+                    stage(line);
+                }
+            }
             const unsigned long long page = (unsigned long long)sysconf(_SC_PAGESIZE);
             unsigned long long views = 0, image_bytes = 0, counters[10] = {0};
             uint64_t resident = 0, mapped = 0;
@@ -1244,6 +1514,8 @@ static void *payload_telemetry(void *unused)
             }
         }
         exec_tally();
+        code_share_tally();
+        code_cache_tally();
         foreign_tally();
         sched_tally();
         /* What this process's Wine did in the last 10 s: its server round trips and the five requests that took the
@@ -1276,6 +1548,17 @@ static void *payload_telemetry(void *unused)
                 if (vm_kept > 10 && used > 0 && used < (int)sizeof(line))
                     used += snprintf(line + used, sizeof(line) - used, " opened=%llu", vm[10] - vm_before[10]);
                 if (used > 0 && used < (int)sizeof(line) - 1) { line[used] = '\n'; line[used + 1] = 0; stage(line); }
+                /* The 4 KiB pages that fault most (patch 0545), so a fault storm names its pages: count@page pc info
+                 * (info: kind << 24 | page protection << 16 | host page protection << 8 | 1 resolved, 2 violation, 3 other). */
+                if (wine.fault_top) {
+                    uint64_t entries[6 * 4];
+                    const unsigned got = wine.fault_top(entries, 6);
+                    int at = snprintf(line, sizeof(line), "wine-child: vm fault top");
+                    for (unsigned i = 0; i < got && at > 0 && at < (int)sizeof(line) - 80; ++i)
+                        at += snprintf(line + at, sizeof(line) - at, " %llu@%#llx pc=%#llx info=%#llx", (unsigned long long)entries[4 * i],
+                                       (unsigned long long)entries[4 * i + 1], (unsigned long long)entries[4 * i + 2], (unsigned long long)entries[4 * i + 3]);
+                    if (got && at > 0 && at < (int)sizeof(line) - 1) { line[at] = '\n'; line[at + 1] = 0; stage(line); }
+                }
                 unsigned top[5], found = 0;
                 for (unsigned code = 0; code < PW_PERF_REQUESTS; ++code) {
                     const uint64_t ticks = now->request_ticks[code] - before->request_ticks[code];
@@ -1387,17 +1670,6 @@ static int wine_start_elf(const char *prx_path)
     return 0;
 }
 
-/* Whether this helper loads Wine's modules itself (native/pw_prx_elf_ps5.c): the installed firmware's answer
- * (12.00 and later: the kernel's loader stops at the pager, errno 92), unless the run says otherwise with
- * WINE_PS5_PRX_LOADER=1 or 0, which exists to measure what the loader costs on a console that needs neither
- * (alpha-3: the Pro's address space shrank from 917 to 31 GiB when it was taken for firmware 12). */
-static int prx_loader_wanted(const char *environment, size_t bytes)
-{
-    for (const char *entry = environment; *entry && entry < environment + bytes; entry += strlen(entry) + 1)
-        if (!strncmp(entry, "WINE_PS5_PRX_LOADER=", 20)) return entry[20] == '1';
-    return pw_prx_elf_ps5_needed(child_firmware);
-}
-
 static void wine_child_run(void)
 {
     unsigned mxcsr = 0x1f80;
@@ -1407,9 +1679,9 @@ static void wine_child_run(void)
     output_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     stage("wine-child: entry\n");
     {
-        /* Which firmware this helper runs on, once per helper: a module load that the kernel stops (errno 92) is a
-         * per-firmware question, and the title's notice names it (src/pw_start_failure.h). The INSTALLED firmware, not
-         * the word an enabler reports (src/pw_firmware.h): the Pro reported 12.09 and took the user-space loader. */
+        /* Which firmware this helper runs on, once per helper, for the title's notice when a module load stops it
+         * (errno 92, src/pw_start_failure.h). The INSTALLED firmware, not the word an enabler reports (src/pw_firmware.h).
+         * It no longer picks the module loader: that is pw_prx_elf_wanted's, the same on every firmware. */
         unsigned reported = 0;
         child_firmware = pw_firmware_installed(&reported);
         char firmware_line[128];
@@ -1688,15 +1960,23 @@ static void wine_child_run(void)
         set_env("WINEDEBUG", boot.debug)) {
         stage("wine-child: environment failed\n"); goto done;
     }
+    /* Wine's modules load through this helper's own loader on every firmware (src/pw_prx_elf.h says why), unless the run
+     * asks for the kernel's with WINE_PS5_PRX_LOADER=0. */
+    const char *loader_reason = "default";
+    const int user_space_loader = pw_prx_elf_wanted(boot.environment, sizeof(boot.environment), &loader_reason);
     {
         /* Before the kernel's module loader, which can stop this process inside the call (the pager error at
          * ntdll.prx's text, errno 92): the line must be on disk first. */
-        char load_line[1300];
+        char load_line[1300], loader_line[160];
+        snprintf(loader_line, sizeof(loader_line), "wine-child: module loader=%s (%s)\n",
+                 user_space_loader ? "user-space" : "kernel", loader_reason);
         snprintf(load_line, sizeof(load_line), "wine-child: loading ntdll path=%s\n", ntdll);
+        { char directory[256]; snprintf(directory, sizeof(directory), "%s", ntdll); char *slash = strrchr(directory, '/'); if (slash) { *slash = 0; pw_malloc_trace_start(directory); } }
+        stage(loader_line);
         stage(load_line);
     }
     int elf_ntdll_handle = -1;
-    if (prx_loader_wanted(boot.environment, sizeof(boot.environment))) {
+    if (user_space_loader) {
         const int elf_status = wine_start_elf(ntdll);
         elf_ntdll_handle = pw_prx_elf_ps5_last_handle();
         if (elf_status) {
@@ -1721,7 +2001,7 @@ static void wine_child_run(void)
             goto done;
         }
     }
-    if (prx_loader_wanted(boot.environment, sizeof(boot.environment))) {
+    if (user_space_loader) {
         static PwWineDlOps elf_dl_ops;
         elf_dl_ops.load_start = pw_prx_elf_ps5_load_start;
         elf_dl_ops.module_info = pw_prx_elf_ps5_module_info;
@@ -1756,6 +2036,9 @@ static void wine_child_run(void)
     }
     exec_stats=(void *)pw_prx_lookup(wine.descriptor,"__wine_ps5_exec_stats");
     foreign_stats=(void *)pw_prx_lookup(wine.descriptor,"__wine_ps5_foreign_stats");
+    code_share_stats=(void *)pw_prx_lookup(wine.descriptor,"__wine_ps5_code_share_stats");
+    code_cache_stats=(void *)pw_prx_lookup(wine.descriptor,"__wine_ps5_code_cache_stats");
+    code_share_mapped=(void *)pw_prx_lookup(wine.descriptor,"__wine_ps5_code_share_mapped_kib");
     direct_section_stats=(void *)pw_prx_lookup(wine.descriptor,"__wine_ps5_section_stats");
     {
         void (*vlock)(PwWinePerfVlock *)=(void *)pw_prx_lookup(wine.descriptor,"pw_wine_perf_vlock_read");
@@ -1912,6 +2195,8 @@ static void wine_child_run(void)
                      error ? "bootstrap-refused" : "control-ended",error,polled,poll_error,(unsigned)events,same,final_stat,type_status,final_type);
             stage(terminal);
             exec_tally();
+            code_share_tally();
+        code_cache_tally();
             foreign_tally();
             sched_tally();
             direct_section_tally();

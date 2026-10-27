@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 21:30:00 -0400
+Subject: [PATCH] ntdll: ps5: a no-access page does not make its host page read-only
+
+Patch 1122 maps a 16 KiB host page read-only when any committed 4 KiB page in
+it is not writable, so a write tracker sees every first write. A committed
+no-access page counted too, though nothing tracks writes with one, and the
+host page then faulted on every write to its writable pages. Mono keeps its
+hazard pointer table on such a host page: every hazard pointer write faulted
+and ran as one stepped instruction, about 9,000 a second, and a .NET game
+spent about 40 s starting. A no-access page (committed, without read, write,
+write-copy, execute or guard) no longer counts; read-only, write-watched and
+guard pages still do, so trackers and stack guards fault as before.
+---
+--- a/dlls/ntdll/unix/virtual.c	2026-10-24 20:35:15.587727514 -0400
++++ b/dlls/ntdll/unix/virtual.c	2026-10-24 20:35:15.597094896 -0400
+@@ -2579,8 +2579,13 @@
+         {
+             BYTE vprot = (vprot_ptr[i] & ~clear) | set;
+             /* set reaches the whole host page (mprotect_range rounds): only pages committed themselves count; a free
+-             * page beside a 4 KiB view took wineboot's write to KUSER_SHARED_DATA (usd-diag-2026-10-14-02). */
+-            if ((vprot_ptr[i] & VPROT_COMMITTED) && !(get_unix_prot( vprot ) & PROT_WRITE)) break;
++             * page beside a 4 KiB view took wineboot's write to KUSER_SHARED_DATA (usd-diag-2026-10-14-02). A no-access
++             * page (committed, no read, write or execute, no guard) does not count either: nothing tracks writes with it,
++             * and Mono's hazard table, writable pages beside committed no-access ones, faulted on every hazard pointer
++             * write, about 9,000 a second, and a .NET game took 40 s to start (2026-10-24). Read-only,
++             * write-watched and guard pages still count. */
++            if ((vprot_ptr[i] & VPROT_COMMITTED) && !(get_unix_prot( vprot ) & PROT_WRITE) &&
++                (vprot & (VPROT_READ | VPROT_WRITE | VPROT_WRITECOPY | VPROT_EXEC | VPROT_GUARD))) break;
+         }
+         if (i < host_page_size / page_size && (view = find_view( addr, 0 )) && !(view->protect & SEC_IMAGE))
+             prot &= ~PROT_WRITE;

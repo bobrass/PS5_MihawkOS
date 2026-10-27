@@ -6,6 +6,8 @@
 /* local: offer clients device-local memory from the owner's direct pool, beside their shared host-visible memory. */
 bool proton_gpu_broker_start(bool capture,bool local=false);
 int proton_gpu_broker_open(int *cookie,int pid);
+/* The slot of the one Windows program the title runs itself (docs/TITLE_CLIENT.md, graphics patch 0031). */
+int proton_gpu_broker_open_in_owner(int *cookie);
 void proton_gpu_broker_close(int cookie,int service);
 bool proton_gpu_broker_stop();
 /* The desktop (docs/WINDOWS_PROCESSES.md, "The desktop"): the server's foreground process and cursor, and helpers'

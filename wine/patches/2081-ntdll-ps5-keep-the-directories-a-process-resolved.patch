@@ -1,0 +1,234 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 06:00:00 -0400
+Subject: [PATCH] ntdll: PS5: keep the directories a process resolved, and do
+ not ask a file system's case.
+
+A name whose case differs from the disk's is resolved one component at a
+time, and each component cost the console several system calls of about
+15 us: the name as written, then the file system's case (openat, fstatfs,
+close), then the directory's names, then the same again for a reparse
+point. A 2D game asks, in lower case, whether each resource of
+each installed mod exists, 47,000 names at about 400 us each, almost all
+in directories that are not there (isaac-load-trace-2026-10-25-02).
+
+get_dir_case_sensitivity now answers case-sensitive without asking: the
+console's disk is, and on a case-insensitive drive the name as written is
+found before the question is asked. lookup_unix_name keeps the directories
+it resolves by their upper-cased Windows path (1024 slots, started again
+when three quarters are used) and starts from the longest one of a path,
+checked with one fstatat (still a directory, the same device and inode);
+only what follows is resolved, and a missing name below it is answered by
+the directory's kept names (patch 2077).
+---
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index fbed4e9..624e39c 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -1380,6 +1380,12 @@ static BOOLEAN get_dir_case_sensitivity_stat( int root_fd, const char *dir )
+  */
+ static BOOLEAN get_dir_case_sensitivity( int root_fd, const char *dir )
+ {
++#ifdef __PROSPERO__
++    /* Asked for every name not found as written: openat, fstatfs and close, three system calls of about 15 us each on
++     * the console. Its disk is case-sensitive; on a case-insensitive drive (a USB stick) the name as written is found
++     * by the stat before this is asked, so case-sensitive is the right answer everywhere. */
++    return TRUE;
++#endif
+ #if defined(HAVE_GETATTRLIST) && defined(ATTR_VOL_CAPABILITIES) && \
+     defined(VOL_CAPABILITIES_FORMAT) && defined(VOL_CAP_FMT_CASE_SENSITIVE)
+     int case_sensitive = get_dir_case_sensitivity_attr( root_fd, dir );
+@@ -3948,6 +3954,150 @@ static NTSTATUS resolve_reparse_point( int fd, int root_fd, OBJECT_ATTRIBUTES *a
+  *
+  * Helper for nt_to_unix_file_name
+  */
++#ifdef __PROSPERO__
++/* The directories a process has resolved, by the Windows path that named them, case-insensitively. A name is resolved
++ * one component at a time when its case differs from the disk's, and every component costs system calls of about 15 us
++ * on the console: a 2D game asks, in lower case, whether each resource of each installed mod exists
++ * (c:\users\mihawk\games\...\mods\<mod>\resources\music\...), 47,000 names at about 400 us each, almost all in
++ * directories that do not exist (isaac-load-trace-2026-10-25-02). A lookup now starts from the longest directory of its
++ * path kept here, checked with one fstatat (still a directory, the same device and inode), and resolves only what
++ * follows; a missing name below it is answered by that directory's kept names (dir_listing_find). A directory resolved
++ * the slow way is kept. 1024 slots; when three quarters are used the table starts again. */
++enum { DIR_PREFIXES = 1024 };
++struct dir_prefix
++{
++    unsigned int  hash;
++    unsigned int  key_len;
++    char         *key;       /* the unix base, a 1 byte, then the upper-cased Windows path, as bytes */
++    char         *resolved;  /* the unix path after the base, as on disk */
++    dev_t         dev;
++    ino_t         ino;
++};
++static struct dir_prefix dir_prefixes[DIR_PREFIXES];
++static unsigned int dir_prefix_count;
++static pthread_mutex_t dir_prefix_mutex = PTHREAD_MUTEX_INITIALIZER;
++
++/* key for the unix base (base_len bytes) and the Windows path (len WCHARs), upper-cased; NULL when it does not fit */
++static char *dir_prefix_key( const char *base, int base_len, const WCHAR *path, int len, unsigned int *key_len,
++                             unsigned int *hash )
++{
++    char *key = malloc( base_len + 1 + len * sizeof(WCHAR) );
++    unsigned int h = 2166136261u, i;
++    int j;
++
++    if (!key) return NULL;
++    memcpy( key, base, base_len );
++    key[base_len] = 1;
++    for (j = 0; j < len; j++)
++    {
++        const WCHAR upper = ntdll_towupper( path[j] );
++        memcpy( key + base_len + 1 + j * sizeof(WCHAR), &upper, sizeof(WCHAR) );
++    }
++    *key_len = base_len + 1 + len * sizeof(WCHAR);
++    for (i = 0; i < *key_len; i++) h = (h ^ (unsigned char)key[i]) * 16777619u;
++    *hash = h;
++    return key;
++}
++
++static void dir_prefix_clear(void)
++{
++    unsigned int i;
++    for (i = 0; i < DIR_PREFIXES; i++)
++    {
++        free( dir_prefixes[i].key );
++        free( dir_prefixes[i].resolved );
++    }
++    memset( dir_prefixes, 0, sizeof(dir_prefixes) );
++    dir_prefix_count = 0;
++}
++
++static void dir_prefix_add( int root_fd, const char *unix_name, int base_len, int pos, const WCHAR *path, int len )
++{
++    unsigned int key_len, hash, slot;
++    struct stat st;
++    char *key;
++
++    if (fstatat( root_fd, unix_name, &st, 0 ) == -1 || !S_ISDIR( st.st_mode )) return;
++    if (!(key = dir_prefix_key( unix_name, base_len, path, len, &key_len, &hash ))) return;
++    mutex_lock( &dir_prefix_mutex );
++    if (dir_prefix_count >= DIR_PREFIXES * 3 / 4) dir_prefix_clear();
++    for (slot = hash & (DIR_PREFIXES - 1); dir_prefixes[slot].key; slot = (slot + 1) & (DIR_PREFIXES - 1))
++        if (dir_prefixes[slot].hash == hash && dir_prefixes[slot].key_len == key_len &&
++            !memcmp( dir_prefixes[slot].key, key, key_len )) break;
++    if (dir_prefixes[slot].key)
++    {
++        free( dir_prefixes[slot].key );
++        free( dir_prefixes[slot].resolved );
++    }
++    else dir_prefix_count++;
++    dir_prefixes[slot].key = key;
++    dir_prefixes[slot].key_len = key_len;
++    dir_prefixes[slot].hash = hash;
++    dir_prefixes[slot].resolved = strdup( unix_name + base_len );
++    dir_prefixes[slot].dev = st.st_dev;
++    dir_prefixes[slot].ino = st.st_ino;
++    if (!dir_prefixes[slot].resolved)
++    {
++        free( key );
++        memset( &dir_prefixes[slot], 0, sizeof(dir_prefixes[slot]) );
++        dir_prefix_count--;
++    }
++    mutex_unlock( &dir_prefix_mutex );
++}
++
++/* The longest directory of name (name_len WCHARs, components separated by backslashes) kept for this base
++ * (unix_name up to pos): written after the base, with its length (bytes after the base) in *resolved_len, and how many
++ * WCHARs of name it covers, the separator after it included; 0 when none. */
++static int dir_prefix_find( int root_fd, char **buffer, int *unix_len, int pos, const WCHAR *name, int name_len,
++                            int *resolved_len )
++{
++    int end;
++
++    for (end = name_len - 2; end > 0; end--)   /* a component always follows: the loop after this has one to resolve */
++    {
++        unsigned int key_len, hash, slot;
++        char *key, *resolved = NULL;
++        dev_t dev = 0;
++        ino_t ino = 0;
++        struct stat st;
++        int length;
++
++        if (name[end] != '\\') continue;
++        if (!(key = dir_prefix_key( *buffer, pos, name, end, &key_len, &hash ))) return 0;
++        mutex_lock( &dir_prefix_mutex );
++        for (slot = hash & (DIR_PREFIXES - 1); dir_prefixes[slot].key; slot = (slot + 1) & (DIR_PREFIXES - 1))
++            if (dir_prefixes[slot].hash == hash && dir_prefixes[slot].key_len == key_len &&
++                !memcmp( dir_prefixes[slot].key, key, key_len ))
++            {
++                resolved = strdup( dir_prefixes[slot].resolved );
++                dev = dir_prefixes[slot].dev;
++                ino = dir_prefixes[slot].ino;
++                break;
++            }
++        mutex_unlock( &dir_prefix_mutex );
++        free( key );
++        if (!resolved) continue;
++        length = strlen( resolved );
++        if (pos + length + MAX_DIR_ENTRY_LEN + 3 > *unix_len)
++        {
++            char *grown = realloc( *buffer, pos + length + 2 * MAX_DIR_ENTRY_LEN + 3 );
++            if (!grown) { free( resolved ); return 0; }
++            *buffer = grown;
++            *unix_len = pos + length + 2 * MAX_DIR_ENTRY_LEN + 3;
++        }
++        memcpy( *buffer + pos, resolved, length + 1 );
++        free( resolved );
++        if (!fstatat( root_fd, *buffer, &st, 0 ) && S_ISDIR( st.st_mode ) && st.st_dev == dev && st.st_ino == ino)
++        {
++            *resolved_len = length;
++            return end + 1;
++        }
++        (*buffer)[pos] = 0;   /* moved or gone: resolved the slow way, and kept again */
++    }
++    return 0;
++}
++#endif
++
+ static NTSTATUS lookup_unix_name( int root_fd, OBJECT_ATTRIBUTES *attr, UNICODE_STRING *nt_name,
+                                   unsigned int nt_pos, char **buffer, int unix_len, int pos,
+                                   UINT disposition, BOOL open_reparse, BOOL is_unix, unsigned int reparse_count )
+@@ -4008,6 +4158,29 @@ static NTSTATUS lookup_unix_name( int root_fd, OBJECT_ATTRIBUTES *attr, UNICODE_
+ 
+     /* now do it component by component */
+ 
++#ifdef __PROSPERO__
++    {
++        const int key_base = pos;
++        const WCHAR *const key_name = name;
++        int covered, resolved_len;
++
++        unix_name[pos] = 0;
++        if (!is_unix && (covered = dir_prefix_find( root_fd, buffer, &unix_len, pos, name, name_len, &resolved_len )))
++        {
++            unix_name = *buffer;
++            pos += resolved_len;
++            name += covered;
++            name_len -= covered;
++            nt_pos += covered;
++        }
++        else unix_name = *buffer;
++#define PS5_KEEP_DIR() do { if (!is_unix && name_len) dir_prefix_add( root_fd, unix_name, key_base, pos, key_name, \
++                                                                    next - key_name - 1 ); } while (0)
++#else
++#define PS5_KEEP_DIR() do { } while (0)
++    {
++#endif
++
+     while (name_len)
+     {
+         const WCHAR *end, *next;
+@@ -4088,9 +4261,12 @@ static NTSTATUS lookup_unix_name( int root_fd, OBJECT_ATTRIBUTES *attr, UNICODE_
+         if (status != STATUS_SUCCESS) break;
+ 
+         pos += strlen( unix_name + pos );
++        PS5_KEEP_DIR();
+         nt_pos += next - name;
+         name = next;
+     }
++    }
++#undef PS5_KEEP_DIR
+ 
+     return status;
+ }

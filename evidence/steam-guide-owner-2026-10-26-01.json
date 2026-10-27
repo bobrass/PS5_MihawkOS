@@ -1,0 +1,46 @@
+{
+  "run": "steam-guide-owner-2026-10-26-01",
+  "console": "base PS5, firmware 13.60",
+  "prefix": "steamguide-fresh",
+  "who": "the owner, at the controller, with the Steam app on a phone; the harness only followed klog",
+  "build": "f375082f81573f1b (commit 1e8f541)",
+  "stages_seconds_from_intro": {
+    "intro_page": 0.0,
+    "start_pressed": 18.8,
+    "installer_ready": 19.2,
+    "install_session": 20.5,
+    "install_screen": 23.6,
+    "install_screen_off": 124.0,
+    "install_back": 127.8,
+    "signin_session": 128.9,
+    "updating_screen": 131.8,
+    "browser_phone_screen": 430.1,
+    "client_qr_window": 455.8,
+    "signin_saved": 522.0,
+    "session_result": 542.6,
+    "signin_screen_off": 570.1,
+    "done_page": 573.7,
+    "big_picture_opens": 578.7,
+    "big_picture_session": 579.8
+  },
+  "install_session_seconds": 107.3,
+  "signin_after_qr_window_seconds": 66.2,
+  "big_picture_after_signin_seconds": 57.8,
+  "screens": [
+    "[dce-proc:4203 Info]<50>[MihawkOS] steam guide: its screens closed after 100.9 s (the session ended): 931 frames shown, 0 refused, 98 drawn, taken off",
+    "[MihawkOS] steam guide: its screens closed after 438.5 s (the session ended): 3354 frames shown, 36 refused, 337 drawn, taken off"
+  ],
+  "findings": [
+    "intense flicker on the signed-in screen (the owner): the client drew 617 frames in 10 s under the cover",
+    "Steam ran 48 s after the sign-in: the 20 s countdown, a close it ignored for 10 s, a 16 s hang snapshot",
+    "Steam saw the pad twice (XInput Xbox 360 and the DualSense HID): its glyphs swapped (the owner)",
+    "the installer was already downloaded: the download page was not exercised",
+    "the memory notice at 816 MiB 5 s into the sign-in session, and again in Big Picture",
+    "the connection log's logon line never came"
+  ],
+  "notices": [
+    "[MihawkOS] notice: The PS5's memory is getting full: games may slow down as it starts to swap. (posted 0)",
+    "[MihawkOS] notice: The PS5's memory is getting full: games may slow down as it starts to swap. (posted 0)"
+  ],
+  "passed": true
+}

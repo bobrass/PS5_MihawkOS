@@ -33,8 +33,12 @@
 #include "../../src/pw_log_sessions.h"
 #if !defined(PS5_HOST_REFERENCE)
 #include "../../native/proton_wine.h"
+#include "../../native/pw_usb_input_ps5.h"
 #if defined(PS5_CHILD_PROBE)
 #include "../../native/proton_child_probe.h"
+#endif
+#if defined(PS5_TESTER_PROBE)
+#include "../../native/proton_tester_probe.h"
 #endif
 #if defined(PS5_SERVICE_PREFLIGHT) || defined(PS5_SERVICE_NATIVE)
 #include "../../native/proton_service_preflight.h"
@@ -203,7 +207,7 @@ Result runSample(const Ps5Sample &sample, uint32_t frameBudget, const std::strin
 	} else {
 		report("sample %s: FAILED after %.2f s: %s", sample.id, result.seconds, result.error.c_str());
 	}
-	if (result.ok && (!frameBudget || proton_setup_unattended(true))) proton_finish_restart();
+	if (result.ok && (!frameBudget || proton_setup_unattended(true) || proton_restart_pending())) proton_finish_restart();
 	return result;
 }
 
@@ -286,6 +290,13 @@ int main(int argc, char **argv)
 	if (earlyLog >= 0) platform_say_file(earlyLog);
 	say("title start: argc=%d uid=%d", argc, (int)getuid());
 	for (int i = 1; i < argc; i++) say("  arg %d: %s", i, argv[i] ? argv[i] : "(null)");
+#if defined(PS5_TESTER_PROBE) && !defined(PS5_HOST_REFERENCE)
+	// The tester probe, title PPSA99171 (native/proton_tester_probe.h): it asks for the /data grant once itself and
+	// leaves before dev.conf, the data folder and the retries below, which are MihawkOS's.
+	const int testerElevation = proton_tester_probe_elevate();   // first: the daemon refuses a process with threads
+	platform_init(PS5_TITLE_NAME);
+	return proton_tester_probe_main(testerElevation);
+#endif
 	// /data is not visible to a title. The Lapy owned-root daemon grants it to a
 	// process that asks (the platform layer's ps5_elevation_request: the request
 	// file, then a real write and read under /data as the proof). This is the
@@ -315,6 +326,9 @@ int main(int argc, char **argv)
 	const int devConf = pw_first_run_dev_conf("/data/homebrew/dev.conf");
 	const int dataFolder = mkdir(PROTON_DATA_ROOT, 0777) == 0 ? 0 : errno;
 	const int logsFolder = mkdir(PROTON_DATA_ROOT "/logs", 0777) == 0 ? 0 : errno;
+	// The keyboard and mouse modules load before the grant: after it, a standard PS5 on 13.60 refused the load
+	// (0x80020063, a tester's report 2026-10-24); loaded first, the session read both devices there.
+	pw_usb_input_ps5_preload([](const char *line) { say("%s", line); });
 #endif
 	const bool data = proton_data_grant(retried);
 	say("elevation: granted=%d status=%s uid=%d note=%s", (int)data, proton_data_status(), (int)getuid(), proton_data_note());

@@ -2,6 +2,7 @@
 #include "pw_wine_dsection.h"
 #include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -51,12 +52,34 @@ static uint64_t now_ms(void)
     return (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000;
 }
 
+uint64_t pw_wine_dsection_parse_min_mib(const char *text)
+{
+    char *end = NULL;
+    unsigned long mib;
+
+    if (!text || !*text) return 0;
+    mib = strtoul(text, &end, 10);
+    if (*end || mib < 8 || mib > 256) return 0;
+    return (uint64_t)mib << 20;
+}
+
+uint64_t pw_wine_dsection_min_bytes(void)
+{
+    static uint64_t bytes;
+    if (!bytes) {
+        bytes = pw_wine_dsection_parse_min_mib(getenv("WINE_PS5_DSECTION_MIN_MIB"));
+        if (!bytes) bytes = PW_WINE_DSECTION_MIN_BYTES;
+        else if (bytes != PW_WINE_DSECTION_MIN_BYTES) fprintf(stderr, "wine-ps5: sections of %llu MiB and more go to direct memory (WINE_PS5_DSECTION_MIN_MIB)\n", (unsigned long long)(bytes >> 20));
+    }
+    return bytes;
+}
+
 int pw_wine_dsection_register(int fd, uint64_t dev, uint64_t ino, uint64_t size)
 {
     int status = -1, error = ENOSPC;
 
     pthread_mutex_lock(&dsection_lock);
-    if (size < PW_WINE_DSECTION_MIN_BYTES || !dsection_ops.allocate) { error = EINVAL; goto done; }
+    if (size < pw_wine_dsection_min_bytes() || !dsection_ops.allocate) { error = EINVAL; goto done; }
     if (find(dev, ino)) { error = EEXIST; goto done; }
     for (unsigned i = 0; i < PW_WINE_DSECTION_SECTIONS; i++) {
         if (sections[i].used) continue;

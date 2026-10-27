@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -28,11 +29,12 @@ extern int sceKernelUsleep(unsigned);
 #include "pw_payload_spawn.h"
 #include "../../src/pw_memory_helper.h"
 #include "../../src/pw_memory_service.h"
+#include "pw_wine_codeshare.h"
 #include "pw_wine_dsection.h"
 /* service is 1 while the slot holds a helper (-1 while one starts): every helper is a payload process. */
 /* unloading: the root the title's desktop session ends on purpose (game mode, src/pw_desktop_session.h); its exit is
  * not the session's result. */
-struct child { int fd, service, pid, closing, initial, unloading, gpu_cookie, memory; void *input_page, *audio_ring; };
+struct child { int fd, service, pid, closing, initial, unloading, gpu_cookie, memory, code_kib; void *input_page, *audio_ring; };
 static struct child children[32];
 static pthread_mutex_t child_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t child_closed = PTHREAD_COND_INITIALIZER;
@@ -80,6 +82,15 @@ static int root_result=-1;
 int pw_ps5_root_result(void) { pthread_mutex_lock(&child_lock);int result=root_result;pthread_mutex_unlock(&child_lock);return result; }
 static int (*graphics_start)(int,const struct pw_child_bootstrap *);
 void pw_ps5_set_graphics_start(int (*start)(int,const struct pw_child_bootstrap *)) { graphics_start=start; }
+/* The one program the title runs itself beside the broker (docs/TITLE_CLIENT.md): the title's start of it, set only when
+ * the title offers one (WINE_PS5_TITLE_PROCESS). */
+static int (*title_client_start)(int,const struct pw_child_bootstrap *);
+void pw_ps5_set_title_client_start(int (*start)(int,const struct pw_child_bootstrap *)) { title_client_start=start; }
+static int in_title_client(void)
+{
+    const char *value=getenv("WINE_PS5_TITLE_CLIENT");
+    return value && !strcmp(value,"1");
+}
 static int (*application_lookup)(const char *,const char *,char *,size_t,uint32_t *);
 static void (*child_notice)(int,int,int);
 void pw_ps5_set_child_notice(void (*notice)(int,int,int)) { child_notice=notice; }
@@ -139,10 +150,21 @@ static int close_until_gone(int pid, int control)
     pthread_mutex_lock(&child_lock);
     const int ending = spawns_ended;
     pthread_mutex_unlock(&child_lock);
-    if (!status || !ending) return status;
-    fprintf(stderr, "wine-ps5: child native=%d stayed after its close while the game ends: SIGKILL (errno %d)\n", pid,
-            kill(pid, SIGKILL) ? errno : 0);
+    if (!status) return 0;
+    /* A helper still there 10 s after its channel closed is hung or stopped, game ending or not: a native crash in a
+     * 32-bit helper (i386 quartz avisplit, 2026-10-25) left it stopped by the kernel's debug subsystem, no close reached
+     * it, nothing ended it, and the console guard refused every later launch until a restart. */
+    fprintf(stderr, "wine-ps5: child native=%d stayed after its close%s: SIGKILL (errno %d)\n", pid,
+            ending ? " while the game ends" : "", kill(pid, SIGKILL) ? errno : 0);
     for (unsigned tenths = 1; !payload_absent(pid); ++tenths) {
+        if (!ending && tenths == 20)   /* a stopped process: continued, so that the SIGKILL is acted on */
+            fprintf(stderr, "wine-ps5: child native=%d still there 2 s after SIGKILL: SIGCONT (errno %d)\n", pid,
+                    kill(pid, SIGCONT) ? errno : 0);
+        if (!ending && tenths == 100) {
+            /* bounded outside a game's end, where the title's replacement waits for its own SIGKILLs (end_game) */
+            fprintf(stderr, "wine-ps5: child native=%d still there 10 s after SIGKILL; left to the console guard\n", pid);
+            return status;
+        }
         if (tenths % 600 == 0) fprintf(stderr, "wine-ps5: still waiting for child native=%d (%u s)\n", pid, tenths / 10);
         usleep(100000);
     }
@@ -156,11 +178,26 @@ static void *spawn_worker(void *opaque)
     struct spawn_work *work=opaque;
     int native_pid=0;
     int result;
+    /* Test only: force Chromium's single-process model on the CEF helper, so it cannot spawn a --type=renderer child
+     * (the in-title design needs to know whether the CEF can be collapsed). */
+    if (getenv("PROTON_CEF_SINGLE_PROCESS") && work->request.bootstrap.command_line[0] &&
+        strstr(work->request.bootstrap.command_line, "steamwebhelper")) {
+        const size_t used = strlen(work->request.bootstrap.command_line);
+        if (used + sizeof(" --single-process") < sizeof(work->request.bootstrap.command_line))
+            strcat(work->request.bootstrap.command_line, " --single-process");
+    }
     if(work->request.bootstrap.flags==PW_CHILD_GRAPHICS && !gpu_open) {
         if(graphics_start) {
             result=graphics_start(work->fds[0],&work->request.bootstrap);
             if(!result)native_pid=getpid();
+            /* The title runs one; another goes to a helper, as any process does. */
+            else if(errno==EBUSY)result=spawn_native(work->fds[0],&work->request.bootstrap,&native_pid);
         } else { errno=ENOTSUP;result=-1; }
+    } else if(work->request.bootstrap.flags==PW_CHILD_GRAPHICS && gpu_open && title_client_start) {
+        /* Beside the broker: the title's own client, a broker client in this process; once it is taken, a helper. */
+        result=title_client_start(work->fds[0],&work->request.bootstrap);
+        if(!result)native_pid=getpid();
+        else if(errno==EBUSY)result=spawn_native(work->fds[0],&work->request.bootstrap,&native_pid);
     } else result=spawn_native(work->fds[0],&work->request.bootstrap,&native_pid);
     struct pw_child_message reply={PW_CHILD_PROTOCOL,PW_CHILD_SPAWN_REPLY,work->request.message.pid,result ? errno : 0,native_pid};
     if(pw_child_send(work->fds[1],&reply,sizeof(reply),NULL,0) && !result && native_pid!=getpid()) pw_ps5_remote_close(native_pid);
@@ -195,6 +232,42 @@ static int accept_spawn(const struct pw_child_spawn *request, int fds[2])
     struct pw_child_message reply={PW_CHILD_PROTOCOL,PW_CHILD_SPAWN_REPLY,request->message.pid,error,0};
     (void)pw_child_send(fds[1],&reply,sizeof(reply),NULL,0);
     close(fds[0]);close(fds[1]);return 0;
+}
+/* Shared code copies (pw_wine_codeshare.h): on unless the title's WINE_PS5_CODE_SHARE is 0. */
+static int code_share_on(void)
+{
+    const char *value=getenv("WINE_PS5_CODE_SHARE");
+    return !value || strcmp(value,"0");
+}
+/* The helpers' reports (PW_CHILD_CODE_MAPPED) and the registry's total change together under it, so the census never
+ * reads an ended helper's report beside a registry that has let its objects go. */
+static pthread_mutex_t code_census_lock = PTHREAD_MUTEX_INITIALIZER;
+/* The bytes the census counts beyond the first copy of each shared object (pw_wine_codeshare.h, "Counting each shared
+ * object once"): never more than the copies beyond the first that the helpers map, as of their last reports. */
+uint64_t pw_ps5_code_share_duplicate_bytes(void)
+{
+    uint64_t mapped=0,duplicates;
+    pthread_mutex_lock(&code_census_lock);
+    for(unsigned i=0;i<32;++i)mapped+=(uint64_t)__atomic_load_n(&children[i].code_kib,__ATOMIC_RELAXED)<<10;
+    duplicates=pw_wine_codeshare_duplicates(mapped);
+    pthread_mutex_unlock(&code_census_lock);
+    return duplicates;
+}
+/* A helper has ended (its slot is not reused before this): its report goes, the objects only it held are closed, said
+ * with what is held. */
+static void code_share_forget(int pid,struct child *child)
+{
+    PwWineCodeshareStats stats;
+    pthread_mutex_lock(&code_census_lock);
+    __atomic_store_n(&child->code_kib,0,__ATOMIC_RELAXED);
+    const unsigned closed=pw_wine_codeshare_forget((unsigned)(child-children));
+    pthread_mutex_unlock(&code_census_lock);
+    pw_wine_codeshare_stats(&stats);
+    if(closed || stats.finds)
+        fprintf(stderr,"wine-ps5: shared code copies native=%d closed=%u held=%llu held_kib=%llu asks=%llu hits=%llu "
+                "offers=%llu kept=%llu\n",pid,closed,(unsigned long long)stats.entries,(unsigned long long)(stats.bytes>>10),
+                (unsigned long long)stats.finds,(unsigned long long)stats.hits,(unsigned long long)stats.offers,
+                (unsigned long long)stats.kept);
 }
 static void *monitor_child(void *opaque)
 {
@@ -238,6 +311,50 @@ static void *monitor_child(void *opaque)
         if(valid && packet.message.kind==PW_CHILD_DOOMED && bytes==sizeof(packet.message) && !count) {
             fprintf(stderr,"wine-ps5: child native=%d doomed reason=%d\n",child->pid,packet.message.value);
             if(child_notice && packet.message.value==PW_CHILD_DOOM_GPU)child_notice(PW_CHILD_NOTICE_GPU,child->pid,0);
+            continue;
+        }
+        if(valid && packet.message.kind==PW_CHILD_CODE_ASK && bytes==sizeof(struct pw_child_code) && count==1) {
+            const struct pw_child_code *request=(const struct pw_child_code *)&packet;
+            struct pw_child_code_answer answer={ENOSYS,0};
+            int object=-1;
+            if(code_share_on())
+                answer.status=pw_wine_codeshare_find(request->hash,request->bytes,(unsigned)(child-children),&object) ?
+                              (errno ? errno : EIO) : 0;
+            (void)pw_child_send(fds[0],&answer,sizeof(answer),object>=0 ? &object : NULL,object>=0);
+            if(object>=0)close(object);
+            close(fds[0]);continue;
+        }
+        if(valid && packet.message.kind==PW_CHILD_CODE_OFFER && bytes==sizeof(struct pw_child_code) && count==2) {
+            const struct pw_child_code *request=(const struct pw_child_code *)&packet;
+            struct pw_child_code_answer answer={ENOSYS,0};
+            if(!code_share_on())close(fds[0]);
+            else answer.status=pw_wine_codeshare_offer(request->hash,request->bytes,(unsigned)(child-children),fds[0]) ?
+                               (errno ? errno : EIO) : 0;   /* the object's descriptor is the registry's either way */
+            (void)pw_child_send(fds[1],&answer,sizeof(answer),NULL,0);
+            close(fds[1]);continue;
+        }
+        if(valid && packet.message.kind==PW_CHILD_CODE_ASK_FILE && bytes==sizeof(struct pw_child_code_file) && count==1) {
+            const struct pw_child_code_file *request=(const struct pw_child_code_file *)&packet;
+            struct pw_child_code_answer answer={ENOSYS,0};
+            int object=-1;
+            if(code_share_on())
+                answer.status=pw_wine_codeshare_find_file(request->file,request->bytes,(unsigned)(child-children),&object) ?
+                              (errno ? errno : EIO) : 0;
+            (void)pw_child_send(fds[0],&answer,sizeof(answer),object>=0 ? &object : NULL,object>=0);
+            if(object>=0)close(object);
+            close(fds[0]);continue;
+        }
+        if(valid && packet.message.kind==PW_CHILD_CODE_OFFER_FILE && bytes==sizeof(struct pw_child_code_file) && count==2) {
+            const struct pw_child_code_file *request=(const struct pw_child_code_file *)&packet;
+            struct pw_child_code_answer answer={ENOSYS,0};
+            if(!code_share_on())close(fds[0]);
+            else answer.status=pw_wine_codeshare_offer_file(request->file,request->bytes,(unsigned)(child-children),fds[0]) ?
+                               (errno ? errno : EIO) : 0;
+            (void)pw_child_send(fds[1],&answer,sizeof(answer),NULL,0);
+            close(fds[1]);continue;
+        }
+        if(valid && packet.message.kind==PW_CHILD_CODE_MAPPED && bytes==sizeof(packet.message) && !count) {
+            __atomic_store_n(&child->code_kib,packet.message.value>0 ? packet.message.value : 0,__ATOMIC_RELAXED);
             continue;
         }
         if(valid && packet.message.kind==PW_CHILD_FRAME && bytes==sizeof(packet.message) && count==1) {
@@ -291,6 +408,7 @@ static void *monitor_child(void *opaque)
     fprintf(stderr, "wine-ps5: child native=%d service=%#x closed=%#x\n", pid, service, (unsigned)status);
     if(gpu_cookie && gpu_close)gpu_close(gpu_cookie,-pid);
     if(frame_detach)frame_detach(pid);
+    code_share_forget(pid,child);
     pw_wine_input_page_release(child->input_page);
     pw_wine_audio_ring_release(child->audio_ring);
     pthread_mutex_lock(&child_lock);
@@ -612,8 +730,11 @@ int pw_ps5_dsection_register(int fd, uint64_t dev, uint64_t ino, uint64_t size)
 {
     dsection_start();
     const int status = pw_wine_dsection_register(fd, dev, ino, size);
+    /* Every anonymous section of 1 MiB or more is named, kept or not: smaller ones left no trace, and what Chromium shares between
+     * its processes is what the flexible pool holds (2026-10-24: only two sections of the browser's session were 8 MiB or more). */
+    if (size >= (1u << 20) && status) fprintf(stderr, "wine-ps5: anonymous section of %llu MiB stays physical shared memory\n", (unsigned long long)(size >> 20));
     if (!status) fprintf(stderr, "wine-ps5: section of %llu MiB in direct memory\n", (unsigned long long)(size >> 20));
-    else if (size >= PW_WINE_DSECTION_MIN_BYTES)
+    else if (size >= pw_wine_dsection_min_bytes())
         fprintf(stderr, "wine-ps5: section of %llu MiB stays on a file: errno %d\n", (unsigned long long)(size >> 20), errno);
     return status;
 }
@@ -642,6 +763,14 @@ int pw_ps5_shared_touch(int fd, size_t from, size_t to)
     memory_asked(ASK_TOUCH, started, status, from, to);
     pthread_mutex_unlock(&memory_lock);
     return status;
+}
+/* A new process's own Game Mode (PW_CHILD_NOTICE_GAME_MODE): its catalog settings', else what it inherited. */
+static int child_game_mode(const struct pw_child_bootstrap *boot)
+{
+    const char *value=pw_wine_block_value(boot->application,boot->application_bytes<sizeof(boot->application) ?
+                                  boot->application_bytes : sizeof(boot->application),"WINE_PS5_GAME_MODE");
+    if(!value)value=pw_wine_block_value(boot->environment,sizeof(boot->environment),"WINE_PS5_GAME_MODE");
+    return !value ? -1 : !strcmp(value,"1") ? 1 : !strcmp(value,"0") ? 0 : -1;
 }
 static int spawn_native(int server_fd, const struct pw_child_bootstrap *boot, int *native_pid)
 {
@@ -690,6 +819,8 @@ static int spawn_native(int server_fd, const struct pw_child_bootstrap *boot, in
     service = payload_spawn(pair[1],&payload_pid) ? -1 : 1;
     fprintf(stderr, "wine-ps5: child spawn service=%#x\n", (unsigned)service);
     if (service <= 0) goto done;
+    /* Before it runs: its windows take the screen or not from its first frame */
+    if(child_notice)child_notice(PW_CHILD_NOTICE_GAME_MODE,payload_pid,child_game_mode(boot));
     close(pair[1]); pair[1] = -1;
     const char *gpu_query=getenv("WINE_PS5_GPU_DEVICE_QUERY");
     if(use_gpu) { gpu_fd=gpu_open(&gpu_cookie,payload_pid);if(gpu_fd<0)goto done; }
@@ -793,6 +924,14 @@ int pw_ps5_spawn(int server_fd, const char *runtime, const char *prefix, const c
     /* Names that do not fit stay empty: the process then simply gets no catalog settings. */
     if(image && strlen(image)<sizeof(boot.image))strcpy(boot.image,image);
     if(command_line && strlen(command_line)<sizeof(boot.command_line))strcpy(boot.command_line,command_line);
+    /* The one program the title runs itself, its code and memory in the title's partition (WINE_PS5_TITLE_PROCESS=<image
+     * name>, docs/FLEXIBLE_MEMORY.md): the owner-graphics child (patch 0927), named rather than marked by the program. */
+    const char *title_process=getenv("WINE_PS5_TITLE_PROCESS");
+    if(!flags && title_process && *title_process && image) {
+        const char *name=image;
+        for(const char *at=image;*at;at++) if(*at=='\\' || *at=='/') name=at+1;
+        if(!strcasecmp(name,title_process)) flags=PW_CHILD_GRAPHICS;
+    }
     if(flags && (flags!=PW_CHILD_GRAPHICS || (child_control<0 && !gpu_open))) { errno=ENOTSUP;return -1; }
     boot.flags=flags;
     return child_control>=0 ? spawn_through_owner(server_fd,&boot) : spawn_native(server_fd,&boot,NULL);
@@ -1039,14 +1178,97 @@ int pw_ps5_dsection_page(uint64_t dev, uint64_t ino, uint64_t offset, int64_t *d
     *dmem=answer.dmem;*chunk_offset=answer.chunk_offset;*chunk_bytes=answer.chunk_bytes;
     return 0;
 }
+/* Shared code copies: the answer channel made at the first ask and remade after a failed one, so a late answer dies with
+ * the old pair. Asks and offers are serialized by Wine's virtual mutex (pw_wine_dmem_ps5.c, under the fault handler):
+ * checked. An ask sends the answer socket and gets the object (fd); an offer sends the object (fd) and the socket. */
+static int code_reply[2] = {-1, -1};
+static int code_asking;
+static int code_round(uint32_t kind, uint64_t hash, uint64_t bytes, int *fd)
+{
+    if(child_control<0) { errno=ENOTCONN;return -1; }
+    if(__atomic_exchange_n(&code_asking,1,__ATOMIC_ACQUIRE)) { errno=EBUSY;return -1; }
+    struct pw_child_code request={{PW_CHILD_PROTOCOL,kind,getpid(),0,0},hash,bytes};
+    struct pw_child_code_answer answer={EIO,0};
+    const int ask=kind==PW_CHILD_CODE_ASK;
+    int fds[2]={-1,-1},error=0;
+    unsigned count=0;
+    /* The title's monitor answers from a table under one mutex: microseconds. 1 s is far past that, and under the
+     * stall watch's 3 s hold of the virtual mutex. */
+    if(code_reply[0]<0 && socketpair(AF_UNIX,SOCK_SEQPACKET,0,code_reply)) { error=errno;code_reply[0]=code_reply[1]=-1; }
+    else {
+        const int sent[2]={ask ? code_reply[1] : *fd,code_reply[1]};
+        if(pw_child_send(child_control,&request,sizeof(request),sent,ask ? 1 : 2)) error=errno ? errno : EIO;
+        else if(!ready_for(code_reply[0],POLLIN,1000)) error=errno ? errno : ETIMEDOUT;
+        else if(pw_child_recv(code_reply[0],&answer,sizeof(answer),fds,&count)!=(ssize_t)sizeof(answer) ||
+                count!=(ask && !answer.status ? 1u : 0u)) error=EIO;
+    }
+    if(error) {
+        for(unsigned i=0;i<count;++i)close(fds[i]);
+        if(code_reply[0]>=0) { close(code_reply[0]);close(code_reply[1]);code_reply[0]=code_reply[1]=-1; }
+    }
+    __atomic_store_n(&code_asking,0,__ATOMIC_RELEASE);
+    if(!error && answer.status) error=answer.status;
+    if(error) { errno=error;return -1; }
+    if(ask)*fd=fds[0];
+    return 0;
+}
+int pw_ps5_code_ask(uint64_t hash, uint64_t bytes, int *fd) { return code_round(PW_CHILD_CODE_ASK,hash,bytes,fd); }
+/* 0: the registry kept the object (fd stays the caller's to close). -1 EEXIST/ENOSPC: it did not; anything else: the
+ * channel failed. */
+int pw_ps5_code_offer(uint64_t hash, uint64_t bytes, int fd) { return code_round(PW_CHILD_CODE_OFFER,hash,bytes,&fd); }
+/* The file cluster's object: the first helper's read is the only one; every later helper maps it. */
+static int code_round_file(unsigned kind, const uint64_t file[3], uint64_t bytes, int *fd)
+{
+    if(__atomic_exchange_n(&code_asking,1,__ATOMIC_ACQUIRE)) { errno=EBUSY;return -1; }
+    struct pw_child_code_file request={{PW_CHILD_PROTOCOL,kind,getpid(),0,0},{file[0],file[1],file[2]},bytes};
+    struct pw_child_code_answer answer={EIO,0};
+    const int ask=kind==PW_CHILD_CODE_ASK_FILE;
+    int fds[2]={-1,-1},error=0;
+    unsigned count=0;
+    if(code_reply[0]<0 && socketpair(AF_UNIX,SOCK_SEQPACKET,0,code_reply)) { error=errno;code_reply[0]=code_reply[1]=-1; }
+    else {
+        const int sent[2]={ask ? code_reply[1] : *fd,code_reply[1]};
+        if(pw_child_send(child_control,&request,sizeof(request),sent,ask ? 1 : 2)) error=errno ? errno : EIO;
+        else if(!ready_for(code_reply[0],POLLIN,1000)) error=errno ? errno : ETIMEDOUT;
+        else if(pw_child_recv(code_reply[0],&answer,sizeof(answer),fds,&count)!=(ssize_t)sizeof(answer) ||
+                count!=(ask && !answer.status ? 1u : 0u)) error=EIO;
+    }
+    if(error) {
+        for(unsigned i=0;i<count;++i)close(fds[i]);
+        if(code_reply[0]>=0) { close(code_reply[0]);close(code_reply[1]);code_reply[0]=code_reply[1]=-1; }
+    }
+    __atomic_store_n(&code_asking,0,__ATOMIC_RELEASE);
+    if(!error && answer.status) error=answer.status;
+    if(error) { errno=error;return -1; }
+    if(ask)*fd=fds[0];
+    return 0;
+}
+int pw_ps5_code_ask_file(const uint64_t file[3], uint64_t bytes, int *fd) { return code_round_file(PW_CHILD_CODE_ASK_FILE,file,bytes,fd); }
+int pw_ps5_code_offer_file(const uint64_t file[3], uint64_t bytes, int fd) { return code_round_file(PW_CHILD_CODE_OFFER_FILE,file,bytes,&fd); }
 int pw_ps5_child_frame(int fd)
 {
     const struct pw_child_message message={PW_CHILD_PROTOCOL,PW_CHILD_FRAME,getpid(),0,0};
+    /* A program in the title hands its page to the title's broker directly (it keeps fd, as a helper's send does). */
+    if(child_control<0 && in_title_client() && frame_attach) {
+        const int copy=dup(fd);
+        if(copy<0)return -1;
+        frame_attach(getpid(),copy);
+        return 0;
+    }
     if(child_control<0) { errno=ENOTCONN;return -1; }
     return pw_child_send(child_control,&message,sizeof(message),&fd,1);
 }
 int pw_ps5_child_window(int fd,size_t bytes)
 {
+    if(fd>=0 && bytes && bytes<=INT32_MAX && child_control<0 && in_title_client()) {
+        /* A program in the title: the title's broker attaches its window page here, as for a helper's. */
+        const int copy=window_attach ? dup(fd) : -1;
+        if(!window_attach) { errno=ENOTSUP;return -1; }
+        if(copy<0)return -1;
+        const int status=window_attach(getpid(),copy,bytes);
+        if(status) { errno=status;return -1; }
+        return 0;
+    }
     if(child_control<0 || fd<0 || !bytes || bytes>INT32_MAX) { errno=EINVAL;return -1; }
     int pair[2]={-1,-1},result=-1;
     if(pw_child_socketpair(pair,sizeof(struct pw_child_message)))return -1;

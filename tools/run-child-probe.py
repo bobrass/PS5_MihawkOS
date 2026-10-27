@@ -96,7 +96,7 @@ def main():
                         help='experiment: for this run only, the title\'s param.json gets "kernel": {KEY: VALUE} (e.g. flexibleMemorySize=1073741824); the original is put back and checked')
     parser.add_argument('--gpu-local',action='store_true',help='gpu-vulkan/draw/present: the broker offers device-local memory from its direct pool')
     parser.add_argument('--memory-alias-arm',type=int,choices=(0,1,2),default=0,help='gpu-memory: 1 only direct-memory aliases in both directions, 2 only what sharing costs')
-    parser.add_argument('--mode', choices=('normal', 'repeat', 'parent-close','gpu-broker','gpu-broker-shm','gpu-vulkan','gpu-draw','gpu-present','gpu-memory','fd-budget','channel','payload-start'), default='normal',
+    parser.add_argument('--mode', choices=('normal', 'repeat', 'parent-close','gpu-broker','gpu-broker-shm','gpu-vulkan','gpu-draw','gpu-present','gpu-memory','fd-budget','channel','payload-start','flex'), default='normal',
                         help='service-native lifecycle experiment')
     args = parser.parse_args()
     if args.gpu_bytes<16384 or args.gpu_bytes>33554432 or args.gpu_bytes%16384:
@@ -317,7 +317,7 @@ def main():
             captured = []
             with (run / 'capture.log').open('w') as output:
                 stream = LineLog(output, captured.append)
-                while time.monotonic() - started < (600 if plan else 180 if args.mode=='gpu-memory' else 160 if args.mode in ('gpu-vulkan','gpu-draw','gpu-present') else 40):
+                while time.monotonic() - started < (600 if plan else 180 if args.mode=='gpu-memory' else 160 if args.mode in ('gpu-vulkan','gpu-draw','gpu-present') else 90 if args.mode=='flex' else 40):
                     try:
                         chunk = sock.recv(65536)
                         if not chunk:
@@ -454,6 +454,16 @@ def main():
                     (args.memory_alias_arm!=2 or (record['memory_charge_summary'] or {}).get('variants')==5) and \
                     (record['memory_summary']['direct_checks']>0 or not args.memory_direct_arm or args.memory_alias_arm) and record['memory_summary']['direct_passed']==record['memory_summary']['direct_checks'] and \
                     'gpu-memory helper closed=0 absent=1' in observations
+            if args.mode=='flex':
+                # docs/FLEXIBLE_MEMORY.md: which pool a Sony local process draws on, and whether it runs code from direct memory.
+                fields=lambda line:{k:(int(v,0) if re.fullmatch(r'-?(0x[0-9a-f]+|\d+)',v) else v) for k,v in re.findall(r'(\w+)=(\S+)',line)}
+                record['flex']={'title':[fields(l) for l in observations.splitlines() if l.startswith('flex title ')],
+                                'helper':[fields(l) for l in observations.splitlines() if l.startswith('flex helper ')],
+                                'points':[fields(l) for l in observations.splitlines() if l.startswith('flex point=')],
+                                'exec':[fields(l) for l in observations.splitlines() if l.startswith('flex exec ')],
+                                'close':[fields(l) for l in observations.splitlines() if l.startswith('flex close ')]}
+                record['vm_stats']=[l.split('] ',1)[-1] for l in captured if 'VM Stats:' in l]
+                record['fmem_lines']=[l.split('] ',1)[-1] for l in captured if '] FMEM ' in l]
             if args.mode=='fd-budget':
                 record['budget_alone']=[dict(zip(('owner','errno','owner_files'),map(int,m))) for m in
                     re.findall(r'fd-budget alone owner=(\d+) errno=(\d+) owner_files=(\d+)',observations)]

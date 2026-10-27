@@ -68,8 +68,9 @@ void pw_wine_perf_request(unsigned code, const char *name, uint64_t ticks)
     if (code >= PW_PERF_REQUESTS) return;
     add(&perf.request_calls[code], 1);
     add(&perf.request_ticks[code], ticks);
-    /* The same static string every time: a racy store is harmless. */
-    if (!__atomic_load_n(&perf.request_names[code], __ATOMIC_RELAXED))
+    /* The same static string every time: a racy store is harmless. A request without a real name (a WoW64 request
+     * named "", patch 2079) leaves the label to one that has it. */
+    if (name && *name && !__atomic_load_n(&perf.request_names[code], __ATOMIC_RELAXED))
         __atomic_store_n(&perf.request_names[code], name, __ATOMIC_RELAXED);
 }
 

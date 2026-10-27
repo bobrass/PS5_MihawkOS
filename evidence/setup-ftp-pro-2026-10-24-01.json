@@ -1,0 +1,49 @@
+{
+  "name": "setup-ftp-pro-2026-10-24-01",
+  "route": "ftp",
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.161,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.147,
+    "previous_cleanup_verified": true
+  },
+  "milestones": [
+    "[MihawkOS] elevation: ok (filesystem access)",
+    "[MihawkOS] setup: unattended (scripted presses, real engine)",
+    "[MihawkOS] setup: step 0",
+    "[MihawkOS] setup: starts at step 0 (record done=0 runtime=1 prefix=1 returning=0), 9 languages, language en-US",
+    "[MihawkOS] setup: step 1",
+    "[MihawkOS] setup: language en-US",
+    "[MihawkOS] setup: step 2",
+    "[MihawkOS] setup: step 7",
+    "[MihawkOS] setup: folder check: phase 1 problem 0, 1637959059 bytes",
+    "[MihawkOS] install: from /data/ps5proton/install, 147 pieces, 1637959059 bytes",
+    "[MihawkOS] setup: install starts",
+    "[MihawkOS] setup: step 4",
+    "[MihawkOS] setup: install 3 problem 0, 0 of 65 bytes in 9.3 s",
+    "[MihawkOS] install: done into /data/ps5proton status=0 errno=0 path= written=65 of 65 files=1 chunks=1 of 1 in 9.9 s",
+    "[MihawkOS] setup: install 4 problem 0, 65 of 65 bytes in 10.0 s",
+    "[MihawkOS] setup: step 6"
+  ],
+  "stop_lines": [],
+  "launches": [
+    "install-ftp"
+  ],
+  "pieces": {
+    "count": 144,
+    "copied": 110
+  },
+  "runtime_was_installed": true,
+  "ftp_step_shown": true,
+  "folder_checked": [
+    "[MihawkOS] setup: folder check: phase 1 problem 0, 1637959059 bytes"
+  ],
+  "install_done": true,
+  "all_set": true,
+  "storage_errors": 0,
+  "setup_record_restored": true,
+  "hooks_removed": true,
+  "passed": true,
+  "capture": "klog/setup-ftp-pro-2026-10-24-01"
+}

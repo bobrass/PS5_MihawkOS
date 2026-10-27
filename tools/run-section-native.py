@@ -33,7 +33,7 @@ def main():
         parser.error('use a new run name')
     sdk = ROOT / '.deps/native/ps5-payload-sdk'
     revision = (sdk / '.ps5-sdk-revision').read_text().strip()
-    if revision != '611893fc25ef3e138f5bc2c90d829d8b58174cd2':
+    if revision != '9d0487845ad50e3a266872cbbaaedc6ffafe3404':
         raise SystemExit('Payload SDK pin differs')
     sources = ['native/proton_section_probe.c', 'wine/ps5/pw_wine_section.c', 'src/pw_memory_file.c']
     inputs = sources + ['wine/ps5/pw_wine_section.h', 'src/pw_memory_file.h', 'tools/run-section-native.py']

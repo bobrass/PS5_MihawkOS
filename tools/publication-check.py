@@ -43,7 +43,7 @@ def load(name, file):
 
 privacy = load('privacy_check', 'privacy_check.py')
 licences = load('stage_licences', 'stage-licences.py')
-wallpaper = load('mihawk_wallpaper', 'make-mihawk-wallpaper.py')
+wallpaper = load('aero_wallpapers', 'make-aero-wallpapers.py')
 
 IPV4 = re.compile(rb'(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.]*\d)')
 EMAIL = re.compile(rb'[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+')
@@ -80,9 +80,15 @@ SPDX_EXEMPT = ('external/', 'base/', 'ps5/third_party/', 'shaders/glsl/base/', '
 ALLOWED = [
     ('token or key', 'external/glm/doc/api/jquery.js', "jQuery's own password option, vendored with GLM's manual"),
     ('private LAN address', 'tests/test_console_guard.py', 'a made-up fixture address'),
+    ('token or key', 'native/proton_loading.cpp', "the Steam setup page's password field passed on, never a value"),
     ('private LAN address', 'tools/publication-check.py', 'the private ranges it checks against'),
     ('binary that could hold game data, firmware or keys', 'themes/windows11/source/template.msstyles',
      "the Wine theme's resource-only container (NOTICE.md)"),
+    # The launcher's store-client option names the client it installs; every such word is kept in these files (the owner
+    # asked for the option on 2026-10-24: the tree otherwise names no game or launcher).
+    *[('named game or launcher', path, "the launcher's store-client option (docs/STEAM.md)")
+      for path in ('src/pw_steam.', 'tests/test_pw_steam.c', 'tests/test_process_rules.c', 'ps5/src/proton_steam.',
+                   'docs/STEAM.md', 'tools/run-steam-option.py', 'docs/AURELIA_REVIEW.md')],
 ]
 INFO = ('other e-mail address', 'GitHub no-reply address')
 VALUES = ('console address (.env)', "this PC's LAN address", 'private LAN address', 'FTP credential (.env)',
@@ -92,12 +98,13 @@ TREE = ('tracked under klog/ or .claude/', 'binary that could hold game data, fi
         'source file without SPDX', 'licence text missing beside a build', 'file that must never ship in a build',
         'named game or launcher')
 # The tree names no game, game launcher or the earlier PS5-emulator experiment, and no PS5 title id but the project's
-# own (PPSA99170, and PPSA99130 and PPSA99008 of its sibling titles); history keeps the old names. Not names:
+# own (PPSA99170, its memory probe PPSA99171, its WebUI's home screen tiles PPSA99300 to PPSA99399, and PPSA99130 and
+# PPSA99008 of its sibling titles); history keeps the old names. Not names:
 # 'steamuser' (Proton's fixed prefix user) and emoji names ('face with steam from nose', 'steaming bowl').
 NAMES = re.compile(rb'(?i)kyty|hollow ?knight|dead ?cells|stardew|binding of isaac|\bisaac\b|celeste|\bhades\b|hearthstone|'
-                   rb'battle\.net|battlenet|\bbnet\b|resident evil|\bre3\b|moonstone|ikemen|minecraft|\bprism\b|'
-                   rb'prismlauncher|persona ?3|\bp3r\b|vrchat|\bsteam(?!user|ing| from nose)|'
-                   rb'PPSA(?!99170|99130|99008)[0-9]{5}')
+                   rb'bravely ?default|battle\.net|battlenet|\bbnet\b|resident evil|\bre3\b|moonstone|ikemen|minecraft|'
+                   rb'\bprism\b|prismlauncher|persona ?3|\bp3r\b|vrchat|\bsteam(?!user|ing| from nose)|'
+                   rb'PPSA(?!99170|99171|993[0-9]{2}|99130|99008)[0-9]{5}')
 # (path, a line it allows, why): the trademark notices name their marks (LEGAL.md, NOTICE.md, LICENSING.md), and NOTICE.md
 # records the upstream boilerplate's own default title id.
 NAMED_LINES = [
@@ -111,12 +118,18 @@ NAMED_LINES = [
      'upstream code and its environment variables'),
     # GE-Proton's own messages and comments in its ge-video-rework patches 0015, 0028, 0042-0044 and 0055, carried
     # unchanged with their authorship (NOTICE.md, "GE-Proton's ffmpeg + winedmo video rework"; compared 2026-10-19).
+    # The Steam guide's own gate cases (steam-guide-pages, steam-guide-screens), named in every gate's records.
+    ('evidence/', re.compile(rb'steam[-_]guide'), "the Steam guide's gate cases"),
+    # The code budget's list of launcher program names, which it matches (wine/ps5/pw_wine_code_budget.c), and its test.
+    *[(path, re.compile(rb'(?i)"battle\.net[ .]'), 'a launcher program name the code budget matches')
+      for path in ('wine/ps5/pw_wine_code_budget.c', 'tests/test_pw_wine_code_budget.c')],
     *[(f'wine/patches/{n}-', re.compile(rb'(?i)vrchat'), "GE-Proton's own patch text")
       for n in ('2015', '2026', '2040', '2041', '2042', '2053')],
 ]
 # What a user's package must never carry (docs/SELF_INSTALL.md, phase 4), in the title folder, the runtime and run/: a
-# wallpaper other than the project's own Aero Meadow (proton.bmp is drawn by tools/make-mihawk-wallpaper.py; Windows
-# 11's Bloom, which it replaced, is not licensed for redistribution), a native Microsoft binary (a PE without Wine's builtin
+# wallpaper other than the project's own Bubble Earth (proton.bmp is drawn by tools/make-aero-wallpapers.py since
+# 2026-10-25, before that Aero Meadow; Windows 11's Bloom, which Aero Meadow replaced, is not licensed for
+# redistribution), a native Microsoft binary (a PE without Wine's builtin
 # marker that names Microsoft Corporation, such as Microsoft's d3dcompiler_47.dll; Wine's own d3dcompiler_47.dll is
 # fine), and the probe prefix or test programs, which only the PC tools and the gate use.
 TEST_PROGRAM = re.compile(r'(?i)(-probe\.exe|_test(32)?\.exe|^gate-sequence\.exe)$')
@@ -186,7 +199,9 @@ class Findings:
             for _ in rx.finditer(data):
                 self.add('token or key', place, path)
         for m in MAC.finditer(data):
-            if m.group().lower() not in (b'00:00:00:00:00:00', b'ff:ff:ff:ff:ff:ff'):
+            # 00:00:5e:00:53:xx is reserved for documentation (RFC 7042), as fixtures use it
+            if m.group().lower() not in (b'00:00:00:00:00:00', b'ff:ff:ff:ff:ff:ff') and \
+                    not m.group().lower().startswith(b'00:00:5e:00:53:'):
                 self.add('MAC address', place, path)
         for _ in SERIAL.finditer(data):
             self.add('serial or console id', place, path)
@@ -220,6 +235,51 @@ class Findings:
         return failed
 
 
+STEAM_WORD = re.compile(rb'(?i)\bsteam(?!user|ing| from nose)')
+
+
+def load_names(path):
+    """tools/publication-names.txt: {'steam': {path: why}, 'records': {path: why}, 'stems': a pattern of the records' run
+    names, or None}. Each path is exact; a missing file lists nothing."""
+    names = {'steam': {}, 'records': {}, 'stems': None}
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return names
+    kind = why = None
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        head = re.fullmatch(r'\[(steam|records)\] (.+)', line)
+        if head:
+            kind, why = head.groups()
+        elif kind:
+            names[kind][line] = why
+    stems = sorted({Path(record).name.rsplit('.', 1)[0] for record in names['records']}, key=len, reverse=True)
+    names['stems'] = re.compile('|'.join(re.escape(stem) for stem in stems).encode()) if stems else None
+    return names
+
+
+def name_lines(findings, path, data, names):
+    """Each line of a text file that names a game or launcher (NAMES): allowed when the file is a kept record, when the
+    names left once kept records' run names are taken out are only Steam's in a [steam] file, or by NAMED_LINES; else a
+    finding."""
+    for line in data.splitlines():
+        if not NAMES.search(line):
+            continue
+        rest = names['stems'].sub(b'', line) if names['stems'] else line
+        found = [m.group(0) for m in NAMES.finditer(rest)]
+        why = (names['records'].get(path) or
+               ('a kept record cited by its run name' if not found else None) or
+               (names['steam'].get(path) if all(STEAM_WORD.fullmatch(name) for name in found) else None) or
+               next((why for named, rx, why in NAMED_LINES if path.startswith(named) and rx.search(line)), None))
+        if why:
+            findings.allowed['named game or launcher'][f'{path} ({why})'] += 1
+        else:
+            findings.add('named game or launcher', path, path)
+
+
 def git(repo, *args):
     return subprocess.run(['git', '-C', str(repo), *args], capture_output=True, check=True).stdout
 
@@ -227,6 +287,7 @@ def git(repo, *args):
 def check_tree(repo, findings):
     # what is tracked and what a commit would add: untracked files git does not ignore
     files = [f.decode() for f in git(repo, 'ls-files', '-z', '--cached', '--others', '--exclude-standard').split(b'\0') if f]
+    names = load_names(repo / 'tools/publication-names.txt')
     for path in files:
         try:
             data = (repo / path).read_bytes()
@@ -248,14 +309,9 @@ def check_tree(repo, findings):
             findings.add('binary that could hold game data, firmware or keys', f'{path} ({kind or "suffix"})', path)
         if path.endswith(SOURCE_SUFFIXES) and not path.startswith(SPDX_EXEMPT) and b'SPDX-License-Identifier' not in data[:2048]:
             findings.add('source file without SPDX', path, path)
-        if path != 'tools/publication-check.py' and b'\0' not in data[:8192] and NAMES.search(data):  # text only
-            for line in data.splitlines():
-                if NAMES.search(line):
-                    why = next((why for named, rx, why in NAMED_LINES if path.startswith(named) and rx.search(line)), None)
-                    if why:
-                        findings.allowed['named game or launcher'][f'{path} ({why})'] += 1
-                    else:
-                        findings.add('named game or launcher', path, path)
+        if path not in ('tools/publication-check.py', 'tools/publication-names.txt') and b'\0' not in data[:8192] \
+                and NAMES.search(data):  # text only
+            name_lines(findings, path, data, names)
     runtime, title, run = repo / '.deps/staged/runtime/ge11-7', repo / 'dist/PPSA99170', repo / '.deps/staged/run'
     for root, folder, names in ((title, 'licenses', list(licences.TITLE)),
                                 (runtime, 'share/licenses', licences.STAGE_WINE + list(licences.RUNTIME))):
@@ -272,14 +328,15 @@ def check_tree(repo, findings):
     return len(files)
 
 
-def is_aero_meadow(path):
-    """Whether a wallpaper bitmap is Aero Meadow: its 192 x 108 thumbnail against the generator's own, drawn small (the
-    real one is about 1 level away on average, Bloom about 74; measured 2026-10-18)."""
+def is_bubble_earth(path):
+    """Whether a wallpaper bitmap is Bubble Earth: its 192 x 108 thumbnail against the generator's own, drawn small in
+    0.6 s (the build's, stamped with its corner note, is 3.5 levels away on average; Glass City 41, Aqua World 49, Aero
+    Meadow 53, Bloom farther; measured 2026-10-25)."""
     from PIL import Image
-    want = wallpaper.render(384, 216).resize((192, 108), Image.Resampling.LANCZOS)
+    want = wallpaper.render('bubble-earth', 384, 216).resize((192, 108), Image.Resampling.LANCZOS)
     with Image.open(path) as image:
         have = image.convert('RGB').resize((192, 108), Image.Resampling.LANCZOS)
-    return float(np.abs(np.asarray(want, dtype=np.int16) - np.asarray(have, dtype=np.int16)).mean()) <= 4
+    return float(np.abs(np.asarray(want, dtype=np.int16) - np.asarray(have, dtype=np.int16)).mean()) <= 8
 
 
 def never_ship(root, label, findings):
@@ -288,8 +345,8 @@ def never_ship(root, label, findings):
             continue
         relative = f'{label}/{path.relative_to(root)}'
         if path.name.lower() == 'proton.bmp':
-            if not is_aero_meadow(path):
-                findings.add('file that must never ship in a build', f'{relative} (a wallpaper that is not Aero Meadow)',
+            if not is_bubble_earth(path):
+                findings.add('file that must never ship in a build', f'{relative} (a wallpaper that is not Bubble Earth)',
                              relative)
         elif 'shadowmount' in path.name.lower() or (path.suffix.lower() in ('.elf', '.bin', '') and path.stat().st_size
                                                     < 64 << 20 and b'ShadowMountPlus' in path.read_bytes()):

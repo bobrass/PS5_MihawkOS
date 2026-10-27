@@ -78,6 +78,16 @@ int main(void)
     const char *bad_env[] = {"WINE_PS5_OPENGL=1", "=broken"};
     const PwAppEntry bad = {"bad", "C:\\b.exe", NULL, bad_env, 2};
     assert(pw_app_environment_block(&bad, block, sizeof(block), &bytes, &kept) == EINVAL);
+    /* A game's own controller: the HID stack follows it, and SDL keeps XInput beside an Xbox controller */
+    const char *xbox_env[] = {"WINE_PS5_CONTROLLER=xbox-one", "SDL_XINPUT_ENABLED=0", "WINE_PS5_GAME_MODE=0"};
+    const PwAppEntry xbox = {"Xbox", "C:\\Games\\X\\x.exe", NULL, xbox_env, 3};
+    assert(!pw_app_environment_block(&xbox, block, sizeof(block), &bytes, &kept) && kept == 3);
+    assert(!strcmp(block, "WINE_PS5_CONTROLLER=xbox-one") && !strcmp(block + 29, "WINE_PS5_GAME_MODE=0") &&
+           !strcmp(block + 50, "WINE_PS5_HID=0"));
+    const char *pad_env[] = {"WINE_PS5_CONTROLLER=dualsense", "SDL_XINPUT_ENABLED=0"};
+    const PwAppEntry pad = {"Pad", "C:\\Games\\P\\p.exe", NULL, pad_env, 2};
+    assert(!pw_app_environment_block(&pad, block, sizeof(block), &bytes, &kept) && kept == 3);
+    assert(!strcmp(block + 30, "SDL_XINPUT_ENABLED=0") && !strcmp(block + 51, "WINE_PS5_HID=1"));
     assert(pw_app_environment_block(NULL, block, sizeof(block), &bytes, &kept) == EINVAL);
     puts("application environment: catalog matching, shared executables, per-application settings only");
     return 0;

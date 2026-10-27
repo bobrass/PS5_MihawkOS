@@ -1,0 +1,170 @@
+{
+ "where": "host",
+ "kind": "nsis",
+ "wine": ".deps/wine-host-display/build/wine",
+ "prefix_seconds": 5.8,
+ "seconds": 8.8,
+ "timed_out": false,
+ "verdict": {
+  "passed": true,
+  "summary": "nsis, 25 checks, 0 failed, 2222 ms in all"
+ },
+ "checks": [
+  {
+   "step": "snapshot",
+   "verdict": "N/A",
+   "ms": 9,
+   "detail": "entries 1711"
+  },
+  {
+   "step": "install",
+   "verdict": "PASS",
+   "ms": 84,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\pwapp32.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\pwapp64.exe"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\pwapp.dat"
+  },
+  {
+   "step": "install-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\uninstall.exe"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) Software\\PwFixture\\NSIS"
+  },
+  {
+   "step": "install-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PwFixtureNSIS"
+  },
+  {
+   "step": "install-shortcut",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\PwFixture NSIS.lnk"
+  },
+  {
+   "step": "install-shortcut",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %PUBLIC%\\Desktop\\PwFixture NSIS.lnk"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 10,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\PwFixture NSIS\\pwapp32.exe"
+  },
+  {
+   "step": "install-app",
+   "verdict": "PASS",
+   "ms": 6,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\PwFixture NSIS\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall",
+   "verdict": "PASS",
+   "ms": 82,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\pwapp64.exe"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\pwapp.dat"
+  },
+  {
+   "step": "reinstall-file",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramFiles(x86)%\\PwFixture NSIS\\uninstall.exe"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) Software\\PwFixture\\NSIS"
+  },
+  {
+   "step": "reinstall-registry",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "HKLM (32-bit view) Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PwFixtureNSIS"
+  },
+  {
+   "step": "reinstall-shortcut",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\PwFixture NSIS.lnk"
+  },
+  {
+   "step": "reinstall-shortcut",
+   "verdict": "PASS",
+   "ms": 0,
+   "detail": "present: %PUBLIC%\\Desktop\\PwFixture NSIS.lnk"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 10,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\PwFixture NSIS\\pwapp32.exe"
+  },
+  {
+   "step": "reinstall-app",
+   "verdict": "PASS",
+   "ms": 5,
+   "detail": "exit code 77 \"%ProgramFiles(x86)%\\PwFixture NSIS\\pwapp64.exe"
+  },
+  {
+   "step": "uninstall",
+   "verdict": "PASS",
+   "ms": 77,
+   "detail": "exit codes 0"
+  },
+  {
+   "step": "uninstall-removed",
+   "verdict": "PASS",
+   "ms": 243,
+   "detail": "folder gone: %ProgramFiles(x86)%\\PwFixture NSIS"
+  },
+  {
+   "step": "clean",
+   "verdict": "PASS",
+   "ms": 1682,
+   "detail": "added or changed 0, removed 0 (of the snapshot's entries)"
+  }
+ ]
+}

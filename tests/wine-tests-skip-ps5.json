@@ -1,9 +1,11 @@
 {
  "kernel32": {
-  "debugger": "Needs isolated qualification of debugger attachment and debug-register restrictions; historical child-process failure is no longer sufficient.",
   "fiber": "ends the title with an unhandled exception in every run (its earlier result stands)"
  },
  "ntdll": {
   "threadpool": "freezes the whole title (no klog heartbeat, its stop request ignored) and has to be killed; to be reduced to a reproducer before it runs again"
+ },
+ "evr": {
+  "evr": "the title (the GPU broker's process) takes GPU_FAULT_PAGE_FAULT_ASYNC (\"unmapped page access\" at a GPU address near 0x750a2c220000) within 20 s of this test starting: four lone runs on build B4, both architectures, 2026-10-25 (lone-evr-192428..192828), as at the four B3c sweep crashes. It makes a Direct3D 9 device and DXVA2 video surfaces through wined3d and Zink. Skipped until fixed (docs/CONFORMANCE.md)"
  }
 }

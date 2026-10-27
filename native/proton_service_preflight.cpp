@@ -11,6 +11,7 @@
 #include <unistd.h>
 #if defined(PS5_SERVICE_NATIVE)
 #include "proton_gpu_broker_probe.h"
+#include "proton_flex_probe.h"
 #endif
 
 extern "C" {
@@ -22,6 +23,7 @@ int sceSystemServiceKillLocalProcess(int, int);
 int sceKernelUsleep(unsigned);
 int64_t sceKernelGetDirectMemorySize(void);
 int sceKernelAvailableDirectMemorySize(int64_t, int64_t, size_t, int64_t *, size_t *);
+int sceKernelAvailableFlexibleMemorySize(size_t *);
 }
 
 #if defined(PS5_SERVICE_NATIVE)
@@ -58,6 +60,102 @@ bool contains_process(int id, unsigned &count, int *first_id = nullptr)
     for (unsigned i = 0; i < count; ++i) if (entries[i].id == id) return true;
     return false;
 }
+int64_t title_flexible()
+{
+    size_t available = 0;
+    return sceKernelAvailableFlexibleMemorySize(&available) ? -1 : int64_t(available);
+}
+// The flexible-memory probe (docs/FLEXIBLE_MEMORY.md, struct ProtonFlexReply): one Sony local process that maps
+// direct and anonymous memory and runs code from direct memory, the title's own flexible figure around it.
+int flex_probe(FILE *output, const char *identity, ProtonFlexRun *run = nullptr, unsigned hold_ms = 10000, bool title_ways = true)
+{
+    const int parent_app = app_id();
+    unsigned before_count = 0, after_count = 0;
+    int parent_service_id = -1;
+    contains_process(getpid(), before_count, &parent_service_id);
+    const int64_t title_before = title_flexible();
+    if (run) run->title_before = title_before;
+    fprintf(output, "flex title app=%d list_count=%u parent_service_id=%d title_flexible_before=%lld\n", parent_app, before_count,
+            parent_service_id, (long long)title_before);
+    int pair[2]{-1, -1};
+    if (parent_app <= 0 || before_count != 1 || parent_service_id <= 0 || socketpair(AF_UNIX, SOCK_SEQPACKET, 0, pair)) {
+        fprintf(output, "flex spawn=skipped\n");
+        if (run) run->spawn_status = -1;
+        return 1;
+    }
+    SpawnOptions options{};
+    options.size = sizeof(options); options.fd = pair[1]; options.crash_report = 1;
+    options.other[0] = uint32_t(-1); options.other[3] = 2; options.other[4] = 0x80000000; // as the normal mode
+    const char *args[] = {"/app0/service-native-helper.bin", "--service-native-flex-helper", identity, nullptr};
+    fsync(fileno(output));
+    const int child = sceSystemServiceAddLocalProcess(parent_app, args[0], args, &options);
+    close(pair[1]);
+    fprintf(output, "flex spawn returned=%d status=%#x\n", child, unsigned(child));
+    if (run) { run->spawn_status = child; run->spawned = child > 0 && child != parent_service_id; }
+    if (child <= 0 || child == parent_service_id) { close(pair[0]); return 1; }
+    ProtonFlexReply reply{};
+    // The helper writes 128 MiB before it answers.
+    bool answered = false;
+    for (int wait = 0; wait < 6 && !answered; ++wait) answered = ready(pair[0], POLLIN);
+    answered = answered && recv(pair[0], &reply, sizeof(reply), 0) == sizeof(reply) && reply.magic == PROTON_FLEX_MAGIC;
+    const int64_t title_held = title_flexible();
+    if (run) { run->answered = answered; run->reply = reply; run->title_held = title_held; }
+    fprintf(output, "flex helper answered=%d pid=%d direct_alloc=%#x direct_map=%#x anon_map=%d jit_made=%#x title_flexible_held=%lld\n",
+            answered, reply.pid, unsigned(reply.direct_alloc), unsigned(reply.direct_map), reply.anon_map, unsigned(reply.jit_made),
+            (long long)title_held);
+    static const char *const points[FLEX_POINTS] = {"start", "direct", "anon", "jit"};
+    for (unsigned p = 0; answered && p < FLEX_POINTS; ++p)
+        fprintf(output, "flex point=%s resident=%lld mapped=%lld available=%lld\n", points[p], (long long)reply.resident[p],
+                (long long)reply.mapped[p], (long long)reply.available[p]);
+    static const char *const ways[FLEX_EXEC_WAYS] = {"direct0", "direct12", "main12", "mapx", "anon", "jit"};
+    ProtonFlexExec title[FLEX_EXEC_WAYS]{};
+    for (unsigned way = 0; title_ways && way < FLEX_EXEC_WAYS; ++way) proton_flex_exec_try(way, &title[way]);
+    for (unsigned side = 0; side < (title_ways ? 2u : 1u); ++side)
+        for (unsigned way = 0; way < FLEX_EXEC_WAYS && (side || answered); ++way) {
+            const ProtonFlexExec &e = side ? title[way] : reply.exec[way];
+            fprintf(output, "flex exec process=%s way=%s made=%#x mapped=%#x protect=%#x query=%#x prot=%d value=%d\n",
+                    side ? "title" : "helper", ways[way], unsigned(e.made), unsigned(e.mapped), unsigned(e.protect), unsigned(e.query), e.prot, e.value);
+        }
+    fsync(fileno(output));
+    // Hold it 10 s so SceShellCore's census of the app's processes can be read from the klog beside these figures.
+    sceKernelUsleep(hold_ms * 1000u);
+    const int32_t release = child;
+    int32_t completed = -1;
+    const bool done = answered && ready(pair[0], POLLOUT) && send(pair[0], &release, sizeof(release), MSG_NOSIGNAL) == sizeof(release) &&
+                      ready(pair[0], POLLIN) && recv(pair[0], &completed, sizeof(completed), 0) == sizeof(completed) && completed == 37;
+    const int closed = sceSystemServiceKillLocalProcess(parent_app, child);
+    bool present = true;
+    for (int attempt = 0; attempt < 200 && present; ++attempt) {
+        present = contains_process(child, after_count);
+        if (present) sceKernelUsleep(10000);
+    }
+    sceKernelUsleep(500000);
+    const int64_t title_after = title_flexible();
+    fprintf(output, "flex close completion=%d closed=%#x present=%d list_after=%u title_flexible_after=%lld\n", done, unsigned(closed),
+            present, after_count, (long long)title_after);
+    if (run) { run->title_after = title_after; run->closed = closed; run->present = present; }
+    close(pair[0]);
+    // The verdict asks only that the probe ran and cleaned up; the figures are the answer, read by tools/run-child-probe.py.
+    return !(answered && done && closed == 0 && !present && after_count == before_count);
+}
+}
+
+// The tester probe's measurement (native/proton_tester_probe.cpp): the flex probe's Sony local process, with the title's own
+// execute attempts left to the caller (which guards each), held 2 s, its lines captured into log.
+int proton_flex_run(ProtonFlexRun *run, std::string *log)
+{
+    static const char hex[] = "0123456789abcdef";
+    char identity[33];
+    for (int i = 0; i < 32; ++i) identity[i] = hex[(unsigned(getpid()) * 2654435761u >> (i % 8)) & 15 ^ (i & 15)];
+    identity[32] = 0;
+    char *text = nullptr;
+    size_t size = 0;
+    FILE *stream = open_memstream(&text, &size);
+    if (!stream) return -1;
+    const int status = flex_probe(stream, identity, run, 2000, false);
+    fclose(stream);
+    if (text) { log->assign(text, size); free(text); }
+    return status;
 }
 
 bool proton_service_native(bool elevated, int &status)
@@ -81,9 +179,10 @@ bool proton_service_native(bool elevated, int &status)
     const bool fd_budget = strcmp(mode, "fd-budget") == 0;
     const bool channel = strcmp(mode, "channel") == 0;
     const bool payload_start = strcmp(mode, "payload-start") == 0;
+    const bool flex = strcmp(mode, "flex") == 0;
     const bool gpu_broker = strcmp(mode, "gpu-broker") == 0 || gpu_shared;
     const bool valid = identity_valid && (mode[0] == 0 || missing_image || repeat || parent_close || gpu_broker || gpu_vulkan ||
-                                          gpu_memory || fd_budget || channel || payload_start);
+                                          gpu_memory || fd_budget || channel || payload_start || flex);
     fclose(input); unlink(hook.c_str());
     status = 1;
     FILE *output = fopen(proton_title_path("/app0/service-native-results.txt").c_str(), "w");
@@ -91,6 +190,12 @@ bool proton_service_native(bool elevated, int &status)
     setvbuf(output, nullptr, _IONBF, 0);
     if (valid && (channel || payload_start)) {
         status = channel ? proton_channel_probe(output, identity) : proton_payload_start_probe(output, identity);
+        fprintf(output, "result=%s\n", status == 0 ? "PASS" : "FAIL");
+        fsync(fileno(output)); fclose(output); return true;
+    }
+    if (valid && flex) {
+        fprintf(output, "service-native identity=%s revision=6 parent=%d elevated=%d\n", identity, int(getpid()), elevated);
+        status = flex_probe(output, identity);
         fprintf(output, "result=%s\n", status == 0 ? "PASS" : "FAIL");
         fsync(fileno(output)); fclose(output); return true;
     }

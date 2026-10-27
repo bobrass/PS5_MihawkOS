@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 05:00:00 -0400
+Subject: [PATCH] server: PS5: resolve an opened file's directory once.
+
+Every open made the server resolve the file's whole path with realpath(),
+one system call for each component, about 15 us each on the console, and
+a game's files are a dozen components deep. A 2D game opens its
+two resource archives thousands of times while it loads, at 250-275 us an
+open (isaac-load-trace-2026-10-25-01: 5,934 opens).
+
+The directory part is now resolved once and kept, with its device and
+inode, in a 64-entry table; an open checks the file with lstat (a symbolic
+link takes realpath, as before) and the directory with stat (it must be
+the same device and inode as when it was resolved), then adds the name to
+the kept directory: two system calls.
+---
+diff --git a/server/fd.c b/server/fd.c
+index 3e24956..76843a8 100644
+--- a/server/fd.c
++++ b/server/fd.c
+@@ -2028,12 +2028,82 @@ void set_fd_user( struct fd *fd, const struct fd_ops *user_ops, struct object *u
+     fd->user   = user;
+ }
+ 
++#ifdef __PROSPERO__
++/* realpath() checks every component of the path with its own system call, about 15 us each on the console, and a game's
++ * files are 12 or more components deep (/data/ps5proton/prefixes/<prefix>/dosdevices/c:/users/...): most of the 190 us
++ * every open cost (isaac-load-fix1-2026-10-25-01: 24,000 opens). The directory part is now resolved once and kept,
++ * with its device and inode, in a small table; an open checks the file itself (lstat: a symbolic link takes the full
++ * path) and the directory (stat: the same device and inode as when it was resolved) and adds the name to the kept
++ * directory: two system calls. Anything unusual (no slash, a name of . or .., a directory that moved) takes realpath. */
++enum { PS5_RESOLVED_DIRS = 64 };
++static struct { char *dir, *resolved; dev_t dev; ino_t ino; unsigned int used; } ps5_resolved[PS5_RESOLVED_DIRS];
++static unsigned int ps5_resolved_clock;
++
++static char *ps5_realpath_fast( const char *path )
++{
++    char dir[PATH_MAX], resolved[PATH_MAX], *result;
++    const char *slash = strrchr( path, '/' ), *base;
++    struct stat st, dir_st;
++    unsigned int i, slot = 0;
++    size_t dir_len;
++
++    if (!slash || path[0] != '/') return NULL;
++    base = slash + 1;
++    dir_len = slash - path;
++    if (!*base || !strcmp( base, "." ) || !strcmp( base, ".." ) || !dir_len || dir_len >= sizeof(dir)) return NULL;
++    if (lstat( path, &st ) == -1 || S_ISLNK( st.st_mode )) return NULL;
++    memcpy( dir, path, dir_len );
++    dir[dir_len] = 0;
++    if (stat( dir, &dir_st ) == -1) return NULL;
++    for (i = 0; i < PS5_RESOLVED_DIRS; i++)
++    {
++        if (ps5_resolved[i].dir && !strcmp( ps5_resolved[i].dir, dir ))
++        {
++            if (ps5_resolved[i].dev == dir_st.st_dev && ps5_resolved[i].ino == dir_st.st_ino) break;
++            free( ps5_resolved[i].dir );   /* moved: resolved again below */
++            free( ps5_resolved[i].resolved );
++            ps5_resolved[i].dir = ps5_resolved[i].resolved = NULL;
++            i = PS5_RESOLVED_DIRS;
++            break;
++        }
++    }
++    if (i == PS5_RESOLVED_DIRS)
++    {
++        if (!realpath( dir, resolved )) return NULL;
++        for (i = 1; i < PS5_RESOLVED_DIRS; i++)
++            if (!ps5_resolved[i].dir || (ps5_resolved[slot].dir && ps5_resolved[i].used < ps5_resolved[slot].used)) slot = i;
++        free( ps5_resolved[slot].dir );
++        free( ps5_resolved[slot].resolved );
++        ps5_resolved[slot].dir = strdup( dir );
++        ps5_resolved[slot].resolved = strdup( resolved );
++        if (!ps5_resolved[slot].dir || !ps5_resolved[slot].resolved)
++        {
++            free( ps5_resolved[slot].dir );
++            free( ps5_resolved[slot].resolved );
++            ps5_resolved[slot].dir = ps5_resolved[slot].resolved = NULL;
++            return NULL;
++        }
++        ps5_resolved[slot].dev = dir_st.st_dev;
++        ps5_resolved[slot].ino = dir_st.st_ino;
++        i = slot;
++    }
++    ps5_resolved[i].used = ++ps5_resolved_clock;
++    if (!(result = malloc( strlen( ps5_resolved[i].resolved ) + strlen( base ) + 2 ))) return NULL;
++    sprintf( result, "%s/%s", strcmp( ps5_resolved[i].resolved, "/" ) ? ps5_resolved[i].resolved : "", base );
++    return result;
++}
++#endif
++
+ /* resolve a path into memory the server's own allocator owns; realpath with
+  * a NULL buffer allocates inside the C library instead */
+ static char *realpath_dup( const char *path )
+ {
+     char resolved[PATH_MAX];
++#ifdef __PROSPERO__
++    char *fast = ps5_realpath_fast( path );
+ 
++    if (fast) return fast;
++#endif
+     return realpath( path, resolved ) ? strdup( resolved ) : NULL;
+ }
+ 
