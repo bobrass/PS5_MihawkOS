@@ -18,6 +18,8 @@
 #include <unistd.h>
 
 #include "../../src/pw_steam_guide.h"
+#include "../../src/pw_runtime_check.h"
+#include "../../src/pw_payload_check.h"
 
 // ---- The install engine, as the tour sees it ----------------------------------------------------------------------
 // The installer's ps5/src/proton_install.h (SELF_INSTALL phase 5) fills this; until it lands, FakeSetupEngine does,
@@ -273,7 +275,8 @@ class SetupTour
 public:
 	// steam_*: the Steam guide asks the launcher to download the installer, or to restart into its install session, its
 	// sign-in session or the client in Big Picture
-	enum class Outcome { none, library, enter, prepare, steam_download, steam_install, steam_signin, steam_big_picture };
+	enum class Outcome { none, library, enter, prepare, steam_download, steam_install, steam_signin, steam_big_picture,
+		payload_recheck, payload_continue, payload_close };
 
 	SetupSky sky;
 	Outcome outcome{ Outcome::none };
@@ -294,7 +297,8 @@ public:
 		PwSetupRecord record;
 		pw_setup_record_load(&record, recordPath);
 		facts.done = record.done;
-		facts.runtime = access(PROTON_DATA_ROOT "/runtime/ge11-7/lib/wine/x86_64-unix/ntdll.prx", R_OK) == 0;
+		// Installed means this build's runtime (src/pw_runtime_check.h): another build's gets the install, as a missing one.
+		facts.runtime = proton_runtime_state() == PW_RUNTIME_THIS_BUILD;
 		facts.prefix = access(PROTON_DATA_ROOT "/prefixes/mihawk/system.reg", R_OK) == 0;
 		facts.returning = access(preparingMarker, F_OK) == 0;
 		*simulated = access(firstRunMarker, F_OK) == 0;
@@ -402,6 +406,40 @@ public:
 		goSteam(PW_STEAM_PAGE_FAILED, true);
 	}
 
+	// ---- The payload checklist (src/pw_payload_check.h): a page of the setup's look. Failing, it stays until Check again
+	// (Outcome::payload_recheck) passes; passing, it says so and continues by itself after kPayloadContinueS, or at
+	// CROSS (Outcome::payload_continue). CROSS counts only once it has been seen up: the press that started the title
+	// must not act on the page (the owner, 2026-10-29: "The payload check closes the screen immediately"). English only.
+	void beginPayloads(ps5ui::Kit &kit, const std::string &assets, const PwPayloadReport &report, const PwPayloadFacts &facts,
+		const std::string &advice)
+	{
+		kit_ = &kit;
+		assets_ = assets;
+		payloads_ = true;
+		PwSetupRecord record;
+		pw_setup_record_load(&record, recordPath);
+		language_ = pw_setup_language(record.language) ? pw_setup_language(record.language) : pw_setup_default_language();
+		loadFace(language_);
+		useLanguage(language_);
+		payloads(report, facts, advice, false);
+		payloadArmed_ = false;
+		feedback_.play(hui::audio::Cue::welcome);
+	}
+	// A new check's report: the page comes in again; an error sound when it still fails
+	void payloads(const PwPayloadReport &report, const PwPayloadFacts &facts, const std::string &advice, bool again)
+	{
+		payloadReport_ = report;
+		payloadFacts_ = facts;
+		payloadAdvice_ = advice;
+		outcome = Outcome::none;
+		payloadCountdown_ = kPayloadContinueS;
+		entered_ = again ? 0.0f : 1.0f;
+		if (again && !report.pass) feedback_.play(hui::audio::Cue::error);
+		layout();
+		focus_ = T_PAYLOAD_CHECK;
+	}
+	bool payloadMode() const { return payloads_; }
+
 	PwSetupStep step() const { return step_; }
 	float calm() const
 	{
@@ -461,7 +499,17 @@ public:
 				feedback_.play(hui::audio::Cue::focus);
 			}
 		}
-		if (input.is_pressed(hui::Action::confirm)) activate(focus_);
+		if (payloads_ && !payloadArmed_) payloadArmed_ = !input.is_held(hui::Action::confirm);
+		if (payloads_) {
+			if (payloadArmed_ && input.is_pressed(hui::Action::confirm)) activate(focus_);
+			else if (input.is_pressed(hui::Action::back) && outcome == Outcome::none) {
+				feedback_.play(hui::audio::Cue::back);
+				outcome = Outcome::payload_close;   // the user closes MihawkOS; nothing closes it for them
+			} else if (payloadReport_.pass && outcome == Outcome::none && (payloadCountdown_ -= dt) <= 0.0f) {
+				outcome = Outcome::payload_continue;
+				proton_say("payload check: continues by itself");
+			}
+		} else if (input.is_pressed(hui::Action::confirm)) activate(focus_);
 		else if (steam_) {
 			if (input.is_pressed(hui::Action::back) && steamPage_ != PW_STEAM_PAGE_DOWNLOAD && outcome == Outcome::none) {
 				feedback_.play(hui::audio::Cue::back);
@@ -489,7 +537,7 @@ public:
 		if (steam_) {
 			const int stage = steamPage_ == PW_STEAM_PAGE_DOWNLOAD ? (starting_ ? 1 : 0) : steamPage_ == PW_STEAM_PAGE_DONE ? 3 : -1;
 			if (stage >= 0) progressDots(list, paint, look, stage, 4);
-		} else if (step_ != PW_SETUP_WELCOME) {
+		} else if (step_ != PW_SETUP_WELCOME && !payloads_) {
 			progressDots(list, paint, look);
 		}
 		const float ease = 1.0f - (1.0f - entered_) * (1.0f - entered_) * (1.0f - entered_);
@@ -503,6 +551,8 @@ public:
 					PW_SETUP_COVER_ROW_Y + i * PW_SETUP_COVER_ROW_STEP + 11, 30, look.text);
 		} else if (steam_) {
 			composeSteam(list, paint, look);
+		} else if (payloads_) {
+			composePayloads(list, paint, look);
 		} else switch (step_) {
 		case PW_SETUP_WELCOME:
 			paint.heading(text(PW_TEXT_WELCOME_TITLE), 960, 470, fitted(paint, text(PW_TEXT_WELCOME_TITLE), 92, 1640), ink,
@@ -607,7 +657,7 @@ public:
 
 private:
 	enum Id { T_NONE = 0, T_START, T_SKIP, T_USB, T_FTP, T_INTERNET, T_CONTINUE, T_CHECK, T_INSTALL, T_STOP, T_BACK, T_PREPARE,
-		T_ENTER, T_STEAM_START, T_STEAM_NOT_NOW, T_STEAM_RETRY, T_LANGUAGE = 100 };
+		T_ENTER, T_STEAM_START, T_STEAM_NOT_NOW, T_STEAM_RETRY, T_PAYLOAD_CHECK, T_LANGUAGE = 100 };
 	struct Target {
 		int id;
 		hui::gfx::Rect rect;
@@ -695,6 +745,10 @@ private:
 		targets_.clear();
 		if (cover_) return; // nothing to choose
 		const float right = kCard.x + kCard.w - 72, bottom = kCard.y + kCard.h - 72;
+		if (payloads_) {
+			targets_.push_back({ T_PAYLOAD_CHECK, { right - 300, bottom - 68, 300, 68 } });
+			return;
+		}
 		if (steam_) {
 			// The secondary button left of the primary one, which is laid out last (it takes the focus: goSteam)
 			if (steamPage_ == PW_STEAM_PAGE_INTRO) targets_.push_back({ T_STEAM_NOT_NOW, { right - 632, bottom - 68, 300, 68 } });
@@ -829,6 +883,10 @@ private:
 		feedback_.play(hui::audio::Cue::select);
 		if (steam_) {
 			activateSteam(id);
+			return;
+		}
+		if (payloads_) {
+			if (id == T_PAYLOAD_CHECK) outcome = payloadReport_.pass ? Outcome::payload_continue : Outcome::payload_recheck;
 			return;
 		}
 		if (id >= T_LANGUAGE) {
@@ -1132,6 +1190,60 @@ private:
 		return measured > width ? size * width / measured : size;
 	}
 
+	// The checklist: the required payloads left, the optional ones and any other right, each with a glass mark (a tick when
+	// it is ready, "!" when it is not, a dot for an optional one), and what to do in a status box beside Check again
+	void composePayloads(hui::gfx::DrawList &list, hui::ui::Painter &paint, const hui::ui::Theme &look)
+	{
+		const auto &fonts = fonts_;
+		const PwPayloadReport &r = payloadReport_;
+		const PwPayloadFacts &f = payloadFacts_;
+		card(list, paint, "Payload check", PS5_TITLE_NAME " runs with these payloads only, so games keep the memory they need.");
+		const auto mib = [](uint64_t bytes) { return std::to_string((unsigned)((bytes + (1u << 19)) >> 20)) + " MiB"; };
+		const auto row = [&](float x, float y, const char *name, const std::string &state, int mark, hui::gfx::Color tone) {
+			list.circle(x + 15, y - 8, 15, tone);
+			if (mark > 0) {
+				list.line(x + 8, y - 8, x + 13, y - 3, 3.5f, hui::gfx::Color::rgb(0xffffff));
+				list.line(x + 13, y - 3, x + 22, y - 14, 3.5f, hui::gfx::Color::rgb(0xffffff));
+			} else if (mark < 0) {
+				hui::ui::text(list, fonts.semibold, "!", x + 15, y + 1, 24, hui::gfx::Color::rgb(0xffffff), hui::gfx::Align::center);
+			}
+			hui::ui::text(list, fonts.semibold, name, x + 46, y, 25, look.text);
+			hui::ui::text(list, fonts.regular, state, x + 46, y + 26, 20, mark < 0 ? hui::gfx::mix(tone, hui::gfx::Color::rgb(0x1b2430), 0.45f) :
+				look.text_muted);
+		};
+		const float left = kCard.x + 72, right = kCard.x + 72 + 640, top = kCard.y + 240;
+		hui::ui::text(list, fonts.semibold, "REQUIRED", left, top, 19, look.text_muted);
+		for (int k = 0; k < PW_PAYLOAD_REQUIRED; ++k) {
+			const char *version = k == PW_PAYLOAD_SHADOWMOUNT ? f.shadowmount_version : k == PW_PAYLOAD_WEBSRV ? f.websrv_version : "";
+			std::string state;
+			if (r.ok[k]) state = std::string("Ready") + (*version ? std::string(" \u00b7 ") + version : "");
+			else if (!r.running[k]) state = "Missing: load it";
+			else if (k == PW_PAYLOAD_SHADOWMOUNT && *version) state = std::string("Too old (") + version + "): needs 1.7beta10 or later";
+			else if (k == PW_PAYLOAD_SHADOWMOUNT) state = "Not answering: turn its web API on";
+			else state = "Not answering";
+			if (r.running[k]) state += " \u00b7 " + mib(r.resident[k]);
+			row(left, top + 44 + k * 56, pw_payload_label(k), state, r.ok[k] ? 1 : -1, r.ok[k] ? look.success : look.danger);
+		}
+		hui::ui::text(list, fonts.semibold, "OPTIONAL", right, top, 19, look.text_muted);
+		int at = 0;
+		for (int k = PW_PAYLOAD_REQUIRED; k < PW_PAYLOAD_KNOWN; ++k, ++at)
+			row(right, top + 44 + at * 56, pw_payload_label(k), r.running[k] ? "Running \u00b7 " + mib(r.resident[k]) : "Not loaded", 0,
+				r.running[k] ? look.primary : look.outline);
+		// Each extra payload by name, as room allows (two rows); a third or more share the second row
+		const unsigned named = r.others <= 2 ? r.others : 1;
+		for (unsigned k = 0; k < named; ++k, ++at)
+			row(right, top + 44 + at * 56, r.other_names[k], "Not allowed: close it \u00b7 " + mib(r.other_each[k]), -1, look.danger);
+		if (r.others > named) {
+			uint64_t rest = r.other_resident;
+			for (unsigned k = 0; k < named; ++k) rest -= r.other_each[k];
+			row(right, top + 44 + at * 56, (std::to_string(r.others - named) + " more payloads").c_str(),
+				"Not allowed: close them \u00b7 " + mib(rest), -1, look.danger);
+		}
+		const float statusWidth = kCard.w - 144 - 300 - 24;
+		if (!payloadAdvice_.empty()) status(list, payloadAdvice_.c_str(), look.danger, kStatusY + 10, statusWidth);
+		else status(list, "Everything " PS5_TITLE_NAME " needs is ready.", look.success, kStatusY + 10, statusWidth);
+	}
+
 	void card(hui::gfx::DrawList &list, hui::ui::Painter &paint, const char *title, const char *body)
 	{
 		paint.panel(kCard);
@@ -1245,6 +1357,12 @@ private:
 		case T_STEAM_START: button(text(PW_TEXT_STEAM_START), hui::ui::ButtonKind::primary, 26); break;
 		case T_STEAM_NOT_NOW: button(text(PW_TEXT_STEAM_NOT_NOW), hui::ui::ButtonKind::secondary, 26); break;
 		case T_STEAM_RETRY: button(text(PW_TEXT_RETRY), hui::ui::ButtonKind::primary, 26); break;
+		case T_PAYLOAD_CHECK: {
+			char label[32];
+			snprintf(label, sizeof(label), "Continue (%d)", std::max(1, (int)std::ceil(payloadCountdown_)));
+			button(payloadReport_.pass ? label : "Check again", hui::ui::ButtonKind::primary, 26);
+			break;
+		}
 		case T_USB:
 		case T_FTP:
 		case T_INTERNET: {
@@ -1299,7 +1417,9 @@ private:
 		std::vector<hui::ui::Hint> row;
 		if (targets_.size() > 1) row.push_back({ hui::ui::Button::dpad, text(PW_TEXT_HINT_MOVE) });
 		if (!targets_.empty()) row.push_back({ hui::ui::Button::cross, text(PW_TEXT_HINT_SELECT) });
-		if (steam_) {
+		if (payloads_) {
+			row.push_back({ hui::ui::Button::circle, "Close " PS5_TITLE_NAME });
+		} else if (steam_) {
 			if (steamPage_ != PW_STEAM_PAGE_DOWNLOAD) row.push_back({ hui::ui::Button::circle, text(PW_TEXT_HINT_BACK) });
 		} else {
 			if (pw_setup_back(step_) != PW_SETUP_NONE && !busy()) row.push_back({ hui::ui::Button::circle, text(PW_TEXT_HINT_BACK) });
@@ -1342,4 +1462,11 @@ private:
 	PwSteamFailure failure_{ PW_STEAM_FAIL_NONE };
 	SteamFacts steamFacts_;
 	float countdown_{ 0.0f };                                     // the done page's seconds to Big Picture
+	// The payload checklist's mode
+	bool payloads_{ false }, payloadArmed_{ false };
+	static constexpr float kPayloadContinueS = 3.0f;
+	float payloadCountdown_{ kPayloadContinueS };                 // a passing page's seconds before it continues
+	PwPayloadReport payloadReport_{};
+	PwPayloadFacts payloadFacts_{};
+	std::string payloadAdvice_;
 };

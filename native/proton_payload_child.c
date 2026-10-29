@@ -179,7 +179,9 @@ int main(int argc,char **argv)
     /* payload_prepare_module wires each module: take the most the limit allows. */
     struct rlimit wired;
     if(!getrlimit(RLIMIT_MEMLOCK,&wired) && wired.rlim_cur!=wired.rlim_max) { wired.rlim_cur=wired.rlim_max;(void)setrlimit(RLIMIT_MEMLOCK,&wired); }
+    start_main_ms=payload_monotonic_ms();
     if(take_control(argc,argv))return 1;
+    start_control_ms=payload_monotonic_ms();
     wine_child_run();
     /* The kernel's exit, not libc's: Wine has killed its threads asynchronously, after which only async-signal-safe
      * calls are reliable. In a GPU helper libc's exit came back without running its handlers (v6/v7/v8-exit-2026-10-15:

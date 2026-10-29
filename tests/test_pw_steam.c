@@ -122,32 +122,46 @@ static void step_cases(void)
 static void rules_cases(void)
 {
     char rules[1024];
-    const size_t length = pw_steam_rules(rules, sizeof(rules), 1);
+    const size_t length = pw_steam_rules(rules, sizeof(rules));
     assert(length && length == strlen(rules) && length < 700);
     char tiny[16];
-    assert(pw_steam_rules(tiny, sizeof(tiny), 1) == 0 && !tiny[0]);   /* too small: nothing partial */
-    assert(pw_steam_rule_count() == 10);
+    assert(pw_steam_rules(tiny, sizeof(tiny)) == 0 && !tiny[0]);   /* too small: nothing partial */
+    assert(pw_steam_rule_count() == 11);
     unsigned fails = 0;
     for (unsigned i = 0; i < pw_steam_rule_count(); i++) {
         const char *name, *action, *value;
         assert(pw_steam_rule(i, &name, &action, &value) && *name);
-        assert(!strcmp(action, "fail") || !strcmp(action, "run") || !strcmp(action, "add"));
+        assert(!strcmp(action, "fail") || !strcmp(action, "run") || !strcmp(action, "add") || !strcmp(action, "hold"));
         assert(!strchr(name, ';') && !strchr(name, '|') && !strchr(value, ';') && !strchr(value, '|'));   /* the rule syntax */
         if (!strcmp(action, "fail")) { fails++; assert(!*value); }
         if (!strcmp(action, "add")) assert(value[0] == ' ');
     }
     assert(fails == 8 && !pw_steam_rule(pw_steam_rule_count(), NULL, NULL, NULL));
+    /* A stored list from an older build (no hold) gains the built-in rules it lacks; its own come first and win. */
+    char merged[2048];
+    const char *old = "steamsysinfo.exe|fail|;steamwebhelper.exe|add| --single-process;mygame.exe|add| -x";
+    assert(pw_steam_rules_merge(old, merged, sizeof(merged)) && !strncmp(merged, old, strlen(old)));
+    assert(strstr(merged, ";steamwebhelper.exe|hold|\\steamapps\\common\\") && strstr(merged, "gameoverlayui64.exe|fail|"));
+    assert(strstr(merged, "steamsysinfo.exe|fail|") == strstr(merged, "steamsysinfo.exe"));   /* not added twice */
+    assert(!strstr(strstr(merged, "--single-process") + 1, "--single-process"));
+    /* A user's own value for a built-in program and action is kept, any case. */
+    assert(pw_steam_rules_merge("SteamWebHelper.exe|HOLD|\\other\\", merged, sizeof(merged)) && !strstr(merged, "steamapps"));
+    /* The current list is unchanged; an empty one becomes the built-in list; too small gives nothing. */
+    assert(pw_steam_rules_merge(rules, merged, sizeof(merged)) == strlen(rules) && !strcmp(merged, rules));
+    char built_in[1024];
+    assert(pw_steam_rules(built_in, sizeof(built_in)));
+    assert(pw_steam_rules_merge("", merged, sizeof(merged)) && !strcmp(merged, built_in));
+    assert(pw_steam_rules_merge(NULL, merged, sizeof(merged)) && !strcmp(merged, built_in));
+    char small[32];
+    assert(pw_steam_rules_merge(old, small, sizeof(small)) == 0 && !small[0]);
     /* The two programs the client cannot run without are not refused. */
     assert(!strstr(rules, "|fail|;steam.exe") && !strstr(rules, "steamservice.exe") && !strstr(rules, "|steam.exe|"));
     assert(strstr(rules, "steamwebhelper.exe|add| --single-process"));
-    /* Where memory allows, the browser keeps its own processes: the same rules without that one, still well formed. */
-    char separate[1024];
-    const size_t separate_length = pw_steam_rules(separate, sizeof(separate), 0);
-    assert(separate_length && !strstr(separate, "steamwebhelper") && separate[0] != ';' && !strstr(separate, ";;"));
-    assert(strstr(separate, "gameoverlayui64.exe|fail|") && strstr(separate, "bin\\SteamService.exe|run|"));
+    assert(strstr(rules, "steamwebhelper.exe|hold|\\steamapps\\common\\"));   /* held while a library game runs */
+    /* The browser is one process on every console (its own processes took the system page tables a game needs). */
     char client[2048];
-    assert(pw_steam_client_entry(client, sizeof(client), 1, NULL, 0) && !strstr(client, "single-process"));
-    assert(pw_steam_client_entry(client, sizeof(client), 1, NULL, 1) && strstr(client, "single-process"));
+    assert(pw_steam_client_entry(client, sizeof(client), 1, NULL) && strstr(client, "single-process"));
+    assert(pw_steam_client_entry(client, sizeof(client), 0, NULL) && strstr(client, "single-process"));
 }
 
 static void entry_cases(void)
@@ -173,18 +187,18 @@ static void entry_cases(void)
            strstr(text, "\"arguments\": \"/S\"") && strstr(text, "\"prefix\": \"mihawk\"") && strstr(text, "\"desktop\": false") &&
            strstr(text, "PROTON_STEAM_GUIDE=install"));
     /* The client's entry: its own window (no arguments), the rules and the sign-in watch in its environment. */
-    assert(pw_steam_client_entry(text, sizeof(text), 0, NULL, 1));
+    assert(pw_steam_client_entry(text, sizeof(text), 0, NULL));
     assert(strstr(text, "\"executable\": \"C:\\\\Program Files (x86)\\\\Steam\\\\steam.exe\"") &&
            strstr(text, "\"arguments\": \"\"") && strstr(text, "WINE_PS5_PROCESS_RULES=steamsysinfo.exe|fail|;") &&
            strstr(text, "bin\\\\SteamService.exe|run|C:\\\\windows\\\\system32\\\\hostname.exe") &&
            strstr(text, "PROTON_STEAM_SIGNIN_WATCH=1") && strstr(text, "PROTON_SESSION_FOLLOWS=processes") && strstr(text, "WINE_PS5_WINDOW_SURFACES=1") &&
            strstr(text, "PROTON_STEAM_GUIDE=signin") && strstr(text, "\"desktop\": false"));
     /* Signed in: Big Picture, the rules and the window route, and no sign-in watch (the session ends when the user leaves Steam). */
-    assert(pw_steam_client_entry(text, sizeof(text), 1, NULL, 1));
+    assert(pw_steam_client_entry(text, sizeof(text), 1, NULL));
     assert(strstr(text, "\"arguments\": \"-bigpicture -noverifyfiles\"") && strstr(text, "WINE_PS5_PROCESS_RULES=") &&
            strstr(text, "PROTON_SESSION_FOLLOWS=processes") && strstr(text, "WINE_PS5_WINDOW_SURFACES=1") &&
            !strstr(text, "PROTON_STEAM_SIGNIN_WATCH") && !strstr(text, "PROTON_STEAM_GUIDE") && strstr(text, "\"desktop\": false"));
-    assert(pw_steam_client_entry(text, sizeof(text), 0, NULL, 1) && !strstr(text, "-bigpicture"));
+    assert(pw_steam_client_entry(text, sizeof(text), 0, NULL) && !strstr(text, "-bigpicture"));
     /* A test's own prefix: a plain word only, and the entries carry it */
     char word[40];
     assert(pw_steam_prefix_word("steamguide-fresh\n", 17, word, sizeof(word)) && !strcmp(word, "steamguide-fresh"));
@@ -193,8 +207,8 @@ static void entry_cases(void)
     assert(!pw_steam_prefix_word("abcdefghijklmnopqrstuvwxyz0123456", 33, word, sizeof(word)));
     assert(!pw_steam_prefix_word(NULL, 4, word, sizeof(word)) && !pw_steam_prefix_word("abc", 3, word, 3));
     assert(pw_steam_installer_entry(text, sizeof(text), "steamguide-fresh") && strstr(text, "\"prefix\": \"steamguide-fresh\""));
-    assert(pw_steam_client_entry(text, sizeof(text), 0, "steamguide-fresh", 1) && strstr(text, "\"prefix\": \"steamguide-fresh\""));
-    assert(pw_steam_client_entry(text, sizeof(text), 0, NULL, 1) && strstr(text, "\"prefix\": \"mihawk\""));
+    assert(pw_steam_client_entry(text, sizeof(text), 0, "steamguide-fresh") && strstr(text, "\"prefix\": \"steamguide-fresh\""));
+    assert(pw_steam_client_entry(text, sizeof(text), 0, NULL) && strstr(text, "\"prefix\": \"mihawk\""));
     /* The whole thing is balanced. */
     int braces = 0, brackets = 0, quotes = 0;
     for (const char *p = text; *p; p++) {

@@ -316,6 +316,34 @@ class StateTests(GuardCase):
         self.assertEqual(sorted(p.name for p in shared.parent.iterdir()), ['console-guard.json'])
 
 
+class PerConsoleTests(GuardCase):
+    def test_each_console_has_its_own_state_named_without_its_address(self):
+        base, pro = guard.console_key({'host': '192.168.0.10'}), guard.console_key({'host': '192.168.0.11'})
+        self.assertRegex(base, r'^[0-9a-f]{12}$')
+        self.assertNotEqual(base, pro)
+        with patch.object(guard, 'KEY', base):
+            self.assertEqual(guard.state_path(self.dir).name, f'console-guard-{base}.json')
+        with patch.object(guard, 'KEY', None):
+            self.assertEqual(guard.state_path(self.dir).name, 'console-guard.json')
+        self.console.load_settings = Mock(side_effect=SystemExit('PS5_HOST is not set'))
+        self.assertIsNone(guard.console_key())
+
+    def test_a_consoles_first_state_keeps_the_single_states_blocks_but_not_its_pid(self):
+        legacy = self.dir / 'console-guard.json'
+        legacy.write_text(json.dumps({'launches': 9, 'ps5vkctl_pid': 97, 'dropped': None, 'mode': 'lapy'}))
+        (self.dir / 'console-guard-sticky.json').write_text(json.dumps({'storage': {'run': 'old', 'lines': ['x']}}))
+        state = guard.load(self.dir / 'console-guard-aaaaaaaaaaaa.json')
+        self.assertEqual(state['storage']['run'], 'old')
+        self.assertNotIn('ps5vkctl_pid', state)
+        self.assertEqual(state['launches'], 0)
+        with patch.object(guard, 'STATE', self.dir / 'console-guard-aaaaaaaaaaaa.json'):
+            with self.assertRaisesRegex(SystemExit, 'storage damage'): guard.check_launch_allowed()
+            guard.clear_storage('checked')
+            self.assertIsNone(guard.load()['storage'])
+        self.assertEqual(json.loads((self.dir / 'console-guard-sticky.json').read_text())['storage']['run'], 'old')
+        self.assertTrue((self.dir / 'console-guard-aaaaaaaaaaaa-sticky.json').exists())
+
+
 class DeployTests(GuardCase):
     def test_a_deploy_is_unverified_until_read_back(self):
         guard.begin_write('title')

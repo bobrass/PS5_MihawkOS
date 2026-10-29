@@ -134,7 +134,10 @@ class HangBackstop(unittest.TestCase):
         # no lookup, no allocation, no Wine lock there (a stalled helper's malloc may wait on the engine lock).
         watch = body('native/proton_wine_child.c', 'stall_watch')
         # The rule sees EXIT's stamp (read before it) and the line sees STALL's (read again after the stamp).
-        rule = watch.index('pw_control_stalled(now.owner, now.held_us, now.doing, stamps[PW_CHILD_DOOM_EXIT - 1],')
+        rule = watch.index('pw_control_stalled(now.owner, vlock_us, now.doing, stamps[PW_CHILD_DOOM_EXIT - 1],')
+        # A hold counts from the app's last return, and nothing is stamped while it is away or just back (src/pw_suspend.h).
+        self.assertLess(watch.index('helper_suspend_held(payload_monotonic_ms(), &since_us)'), rule)
+        self.assertIn('if (!stall_list_ms && !held && pw_control_stalled(', watch)
         self.assertLess(watch.index('if (doom) (void)doom(stamps'), rule)
         self.assertLess(rule, watch.index('doomed(PW_CHILD_DOOM_STALL);'))
         self.assertLess(watch.index('doomed(PW_CHILD_DOOM_STALL);'), watch.rindex('if (doom) (void)doom(stamps'))
@@ -155,7 +158,9 @@ class HangBackstop(unittest.TestCase):
         self.assertNotIn('_tally(', text)
         loop = body('native/proton_wine_child.c', 'wine_child_run', 'void ')
         loop = loop[loop.index('PwControlDoom doom_watch={0};'):]
-        self.assertLess(loop.index('if (doom_tick(&doom_watch,now)) return;'), loop.index('POLLHUP'))
+        self.assertLess(loop.index('if (doom_tick(&doom_watch,now,helper_suspend_tick(now))) return;'), loop.index('POLLHUP'))
+        # A due doom waits while the app is away or just back: ending would free memory frozen GPU work may use.
+        self.assertLess(text.index('if (held) {'), text.index('payload doomed reason='))
 
     def test_a_helper_ends_with_the_engines_totals(self):
         loop = body('native/proton_wine_child.c', 'wine_child_run', 'void ')

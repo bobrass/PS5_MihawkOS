@@ -76,7 +76,7 @@ def main():
     print(json.dumps({'passed': record['passed'], 'startup': browser['startup'], 'loads': len(browser['loads']),
                       'download': browser['download'], 'handoff': browser['handoff']}, indent=1))
     for p in processes:
-        print(f"  {p['type']:9} {p['service'] or '':32} resident peak {p['resident_peak_mib']} MiB  images "
+        print(f"  {p['type'] or '-':9} {p['service'] or '':32} resident peak {p['resident_peak_mib']} MiB  images "
               f"{p['images_held_mib']} MiB  converted {(p['exec'] or {}).get('converted_kib')} KiB")
     return 0 if record['passed'] else 1
 

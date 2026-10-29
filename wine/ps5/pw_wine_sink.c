@@ -5,6 +5,7 @@
 #include "pw_wine_process.h"
 #include "../../src/pw_frame_page.h"
 #include "../../src/pw_audio_ring.h"
+#include "../../src/pw_suspend.h"
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <stdlib.h>
@@ -37,6 +38,7 @@ _Static_assert(PW_WINE_INPUT_PAGE_BYTES == 16384, "an input page is one console 
  * helper that finds the pad through raw HID, not XInput (a .NET (MonoGame) game's SDL with SDL_XINPUT_ENABLED=0), sees it. */
 typedef struct PwWineInputPage { uint32_t sequence, reserved; PwWinePad pad; uint32_t dualsense_connected;
                                  uint8_t dualsense[64]; } PwWineInputPage;
+_Static_assert(sizeof(PwWineInputPage) <= PW_SUSPEND_PAGE_OFFSET, "the title's suspend word is clear of the pad");
 static PwWineInputPage *input_page;   /* a child's own page, read here */
 static int input_page_tried,pad_set;
 /* The title: the pages its helpers gave it, written whenever the pad or the DualSense report changes. */
@@ -381,6 +383,19 @@ void *pw_wine_input_page_adopt(int fd)
     pthread_mutex_unlock(&lock);
     if(slot==PW_WINE_CHILD_PAGES) { munmap(page,PW_WINE_INPUT_PAGE_BYTES);return NULL; }
     return page;
+}
+/* The title's word to its helpers, every tick (src/pw_suspend.h): away while the system says the app is not in the
+ * foreground, and the tick as a beat, so a helper that reads the same beat a second knows the title is frozen. */
+void pw_wine_set_suspend(uint32_t away,uint32_t beat)
+{
+    pthread_mutex_lock(&lock);
+    for(unsigned i=0;i<PW_WINE_CHILD_PAGES;i++) {
+        if(!child_pages[i])continue;
+        PwSuspendPage *word=(PwSuspendPage *)((char *)child_pages[i]+PW_SUSPEND_PAGE_OFFSET);
+        __atomic_store_n(&word->away,away,__ATOMIC_RELAXED);
+        __atomic_store_n(&word->beat,beat,__ATOMIC_RELEASE);
+    }
+    pthread_mutex_unlock(&lock);
 }
 void pw_wine_input_page_release(void *page)
 {

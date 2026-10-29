@@ -124,11 +124,21 @@ int main(void)
     census.largest_pid = 222;
     census.processes = 90;
     census.helper_count = 6;
+    census.helpers_mapped = 810ull << 20;
+    census.page_tables = 8192;
+    census.page_tables_free = 3600;
     pw_memory_census_write(&page, &census);
     assert(!pw_memory_census_read(&page, &read));
     assert(read.system == census.system && read.helpers == census.helpers && read.largest == census.largest &&
            read.largest_pid == 222 && read.processes == 90 && read.helper_count == 6 && read.taken_ms == 123456 &&
            read.status == 0 && read.sequence == 2);
+    assert(read.helpers_mapped == 810ull << 20 && read.page_tables == 8192 && read.page_tables_free == 3600);
+    /* Payloads: not started by SceSysCore (pid 30 here) and not "Sce..." (Sony's services, our helpers). */
+    assert(pw_memory_is_payload(40, 30, "kstuff.elf") && pw_memory_is_payload(1, 30, "payload"));
+    assert(pw_memory_is_payload(77, 30, "shadowmountplus.elf") && pw_memory_is_payload(1, 30, "web-file-mgr"));
+    assert(!pw_memory_is_payload(40, 30, "SceSpZeroConf") && !pw_memory_is_payload(30, 30, "SceShellUI"));
+    assert(!pw_memory_is_payload(30, 30, "orbis_audiod.elf") && !pw_memory_is_payload(30, 30, "eboot.bin"));
+    assert(!pw_memory_is_payload(40, 30, "") && !pw_memory_is_payload(1, 30, NULL) && !pw_memory_is_payload(40, 0, "kstuff.elf"));
     census.system = 900ull << 20;
     pw_memory_census_write(&page, &census);
     assert(!pw_memory_census_read(&page, &read) && read.system == 900ull << 20 && read.sequence == 4);

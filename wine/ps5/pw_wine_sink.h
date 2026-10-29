@@ -132,6 +132,8 @@ int pw_wine_pad(PwWinePad *pad);
  * helper's, until pw_wine_input_page_release. NULL when it cannot be mapped or no place is free. */
 void *pw_wine_input_page_adopt(int fd);
 void pw_wine_input_page_release(void *page);
+/* The title, every tick: its suspend word in every adopted page (src/pw_suspend.h). */
+void pw_wine_set_suspend(uint32_t away,uint32_t beat);
 /* The rumble a game asked for (XInputSetState); speeds are clamped. */
 void pw_wine_set_rumble(uint32_t left,uint32_t right);
 /* 1 when the title set an audio sink, or, in a helper, when the title gave it an audio ring (WINE_PS5_AUDIO_FD,

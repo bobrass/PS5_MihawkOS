@@ -1,0 +1,81 @@
+{
+ "telemetry_hold": null,
+ "launch_readiness": {
+  "ready": true,
+  "seconds": 0.257,
+  "settle_seconds": 0.0,
+  "census_seconds": 0.244,
+  "previous_cleanup_verified": false
+ },
+ "native_close_failures": [],
+ "run": "payload-quick-2026-10-29-01",
+ "what": "wine-probe.exe",
+ "env": [
+  "PROTON_STOP_TERMINATE=0"
+ ],
+ "result": "crashed",
+ "seconds": 7.4,
+ "probe_verdict": null,
+ "stages": {
+  "launched": 1.16,
+  "title_started": 5.13,
+  "elevated": 5.13,
+  "closed": 7.41
+ },
+ "clean_owner_restart": false,
+ "launcher_end_status": null,
+ "initial_status": null,
+ "closed_on_request": false,
+ "child_logs": [],
+ "child_logs_missing": [],
+ "session_logs_status": 0,
+ "storage_errors": 0,
+ "stop_terminate": "0",
+ "injected_fault": null,
+ "exec_protection": null,
+ "code_share": null,
+ "helpers": [],
+ "start_stages": null,
+ "foreign_mappings": null,
+ "helper_sched": null,
+ "helpers_ended": null,
+ "helper_doom": null,
+ "broker_phases": null,
+ "memory_helper_slowest": null,
+ "memory_helper": {
+  "dead": [],
+  "stall_tests": 0,
+  "sections_mib": [],
+  "given_back": 0,
+  "lost": 0,
+  "gave_back_lines": 0
+ },
+ "assertion": false,
+ "chunk_maps": null,
+ "mapped_mib": null,
+ "ask_failures_max": null,
+ "misplaced_max": null,
+ "rep_step_us": null,
+ "exec_rewrites_us": null,
+ "exit_stall": false,
+ "stop_requested": null,
+ "returned_to_launcher": false,
+ "passed": false,
+ "bench": {},
+ "steady": {},
+ "intervals": {
+  "frames": [],
+  "server": [],
+  "top": []
+ },
+ "shown": {
+  "frames": 0,
+  "per_10s": [],
+  "longest_gap_ms": 0
+ },
+ "broker": null,
+ "pacing": null,
+ "captures": [],
+ "cleanup_verified": false,
+ "hooks_removed": true
+}

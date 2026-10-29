@@ -45,6 +45,36 @@ class BatteryTests(unittest.TestCase):
             self.output = output.getvalue()
             return status, calls, json.loads((root / 'evidence/host-test.json').read_text())
 
+    def test_player_settings_are_pinned_unless_a_case_names_its_own(self):
+        # The owner's "controller dualsense" failed wow64 in gate-0036-pro-01: a gate pins the player's settings.
+        pinned = battery.player_defaults(['--exe', 'x.exe'])
+        self.assertEqual(pinned, ['--env', 'WINE_PS5_CONTROLLER=xbox-360', '--env', 'WINE_PS5_GAME_MODE=1',
+                                  '--env', 'PROTON_120HZ=1'])
+        own = battery.player_defaults(['--exe', 'hid32-probe.exe', '--env', 'WINE_PS5_CONTROLLER=dualsense'])
+        self.assertNotIn('WINE_PS5_CONTROLLER=xbox-360', own)
+        self.assertIn('WINE_PS5_GAME_MODE=1', own)
+
+    def test_an_environment_skip_is_kept_beside_the_verdict(self):
+        line = 'PS5_PROTON_DNSAPI PASS checks=27 failures=0 skipped=1 (resolver refused TCP)'
+        outcome = battery.session_verdict('PS5_PROTON_DNSAPI', 0, 900, 'exited', line)
+        self.assertTrue(outcome['probe_passed'])
+        self.assertIn('resolver refused TCP', outcome['environment_skip'])
+        clean = battery.session_verdict('PS5_PROTON_DNSAPI', 0, 900, 'exited', line.replace('skipped=1', 'skipped=0'))
+        self.assertNotIn('environment_skip', clean)
+        failed = battery.session_verdict('PS5_PROTON_DNSAPI', 1, 900, 'exited', 'PS5_PROTON_DNSAPI FAIL checks=29 failures=2 skipped=0')
+        self.assertFalse(failed['probe_passed'])
+
+    def test_a_skip_is_neither_a_pass_nor_a_failure(self):
+        cases = [{'case': 'a', 'passed': True},
+                 {'case': 'dnsapi64', 'passed': True, 'environment_skip': 'skipped=1 (resolver refused TCP)'},
+                 {'case': 'b', 'passed': False}]
+        passed, skipped, failed = battery.tally(cases)
+        self.assertEqual((passed, failed), (1, 1))
+        self.assertEqual(len(skipped), 1)
+        self.assertIn('resolver refused TCP', skipped[0])
+        self.assertFalse(cases[1]['passed'])
+        self.assertEqual(battery.tally([{'case': 'a', 'passed': True}, dict(cases[1])])[2], 0)
+
     def test_gate_runs_every_required_case_and_keeps_timing(self):
         status, calls, record = self.run_fake()
         self.assertEqual(status, 0)
@@ -161,6 +191,20 @@ class BatteryTests(unittest.TestCase):
         self.assertTrue(record['complete'])
         self.assertEqual([c['case'] for c in record['cases'] if not c['passed']], ['dnsapi32'])
         self.assertIn('one session, 4 at a time (host-test-session)', self.output)
+
+    def test_an_alone_case_leaves_the_session_for_a_launch_of_its_own(self):
+        seen = {}
+        def fake_session(run, members, entries):
+            seen['members'] = [n for n, _ in members]
+            (battery.ROOT / 'evidence' / (run + '.json')).write_text(json.dumps(
+                {'passed': True, 'result': 'finished', 'returned_to_launcher': True, 'seconds': 1}))
+            return {n: battery.session_verdict(entries[n][1], 0, 1000, 'exited', f'{entries[n][1]} PASS\n')
+                    for n, _ in members}
+        with patch.object(battery, 'session_outcomes', side_effect=fake_session):
+            status, calls, record = self.run_fake(gate=False, extra=(
+                '--grouped', '--only', 'payload-memory', 'payload-eight', '--alone', 'payload-memory'))
+        self.assertEqual((status, calls, seen['members']), (0, ['payload-memory'], ['payload-eight']))
+        self.assertTrue(record['passed'])
 
     def test_a_launch_on_exhausted_pipe_memory_fails(self):
         with tempfile.TemporaryDirectory() as directory:

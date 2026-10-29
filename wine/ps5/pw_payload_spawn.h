@@ -36,6 +36,20 @@ static void payload_trace(const char *phase,int pid,int control,int status)
     errno=saved_errno;
 }
 
+#include <pthread.h>
+/* One upload to websrv's payload launcher at a time: starts overlap now (the title makes the next helper while one
+ * starts, src/pw_warm_helper.h), and elfldr has only ever been sent one request at a time from here. */
+static pthread_mutex_t payload_upload_lock = PTHREAD_MUTEX_INITIALIZER;
+/* When a start's steps ended, as monotonic ms (the clock the helper's "wine-child: start" lines and Wine's +timestamp use);
+ * spawn_native prints them as one "wine-ps5: spawn" line for tools/start_stages.py. 0: the step was not reached. */
+struct payload_spawn_times { long long read, answered, connected, held; unsigned attempts; };
+static long long payload_ms(void)
+{
+    struct timespec now = {0};
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now.tv_sec * 1000ll + now.tv_nsec / 1000000;
+}
+
 /* The resident loader performs the privileged spawn. This title uses sockets
  * only, then passes its already-tested packet control endpoint via SCM_RIGHTS
  * (pw_payload_rendezvous.h: the loader acknowledges it before the caller lets go). */
@@ -45,8 +59,11 @@ static int payload_write(int fd,const void *data,size_t bytes)
     while(bytes) { ssize_t n=send(fd,p,bytes,MSG_NOSIGNAL);if(n<0 && errno==EINTR)continue;if(n<=0)return -1;p+=n;bytes-=n; }
     return 0;
 }
-static int payload_spawn(int control,int *native_pid)
+static int payload_spawn(int control,int *native_pid,struct payload_spawn_times *times)
 {
+    struct payload_spawn_times unused;
+    if(!times)times=&unused;
+    memset(times,0,sizeof(*times));
     static unsigned long long serial;
     char token[35],path[108];
     snprintf(token,sizeof(token),"pp%016llx%016llx",(unsigned long long)getpid(),__atomic_add_fetch(&serial,1,__ATOMIC_RELAXED));
@@ -60,6 +77,7 @@ static int payload_spawn(int control,int *native_pid)
     char *elf=malloc((size_t)size);if(!elf) { fclose(file);return -1; }
     const int read_ok=fread(elf,1,(size_t)size,file)==(size_t)size;fclose(file);
     if(!read_ok) { free(elf);errno=EIO;return -1; }
+    times->read=payload_ms();
     PwElfUpload request;
     if(pw_elfldr_request(&request,"child.elf",token,elf,(size_t)size)) { free(elf);errno=EINVAL;return -1; }
     int web=socket(AF_INET,SOCK_STREAM,0),result=-1;
@@ -71,6 +89,7 @@ static int payload_spawn(int control,int *native_pid)
     /* What failed, when something did: the stage and the errno of the call that failed there (0 when the loader
      * answered, or closed, without a call failing). */
     char reply[128]={0};const char *stage="connect";int web_errno=0;
+    pthread_mutex_lock(&payload_upload_lock);
     clock_gettime(CLOCK_MONOTONIC,&asked);
     if(connect(web,(struct sockaddr *)&address,sizeof(address))) {
         web_errno=errno;
@@ -89,10 +108,11 @@ static int payload_spawn(int control,int *native_pid)
                 if(n<=0)break;
                 used+=(size_t)n;
             }
-            if(strstr(reply," 200 "))result=0;
+            if(strstr(reply," 200 ")) { result=0;times->answered=payload_ms(); }
         }
     }
     close(web);free(elf);
+    pthread_mutex_unlock(&payload_upload_lock);
     if(result) {
         /* The loader may have made the process before it failed: in step3-gate-2026-10-10-01-gpu-window64 two such
          * processes stayed stopped and the console needed a restart. Say what it answered, and the token it was given,
@@ -105,16 +125,25 @@ static int payload_spawn(int control,int *native_pid)
     }
     struct sockaddr_un channel={0};channel.sun_family=AF_UNIX;strcpy(channel.sun_path,path);
     int connection=-1;
-    for(unsigned n=0;n<200;++n) {
+    /* The loader listens a moment after elfldr answers. A refused connect costs microseconds, so the pause starts at
+     * 1 ms and stops growing at 8: a fixed 100 ms one kept every start waiting up to 100 ms for nothing (installers
+     * start a helper per custom action, docs/PLAN.md). The same 20 s limit as before. */
+    const long long deadline=payload_ms()+20000;
+    for(unsigned n=0,pause_us=1000;;++n) {
         connection=socket(AF_UNIX,SOCK_STREAM,0);if(connection<0)return -1;
-        if(!connect(connection,(struct sockaddr *)&channel,sizeof(channel)))break;
-        close(connection);connection=-1;usleep(100000);
+        times->attempts=n+1;
+        if(!connect(connection,(struct sockaddr *)&channel,sizeof(channel))) { times->connected=payload_ms();break; }
+        close(connection);connection=-1;
+        if(payload_ms()>=deadline)break;
+        usleep(pause_us);
+        if(pause_us<8000)pause_us*=2;
     }
     if(connection<0) { errno=ETIMEDOUT;return -1; }
     /* Returns once the loader holds control: only then may the caller close its copy (pw_payload_rendezvous.h). */
     int native=0;
     result=pw_payload_give(connection,control,&native);
     const int saved=errno;
+    if(!result)times->held=payload_ms();
     if(native>0) {
         *native_pid=native;
         fprintf(stderr,"wine-ps5: payload rendezvous native=%d held=%d errno=%d\n",native,!result,result ? saved : 0);

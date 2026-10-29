@@ -49,7 +49,7 @@ Status lives in [PLAN.md](PLAN.md); this file is the design.
 | Where consoles download from | GitHub Releases of the public repo, published by the owner, built on a clean machine, with a source bundle attached. Nothing is published before phase 9 (rule 10). |
 | How a user without a PC starts the first install | Copy the MihawkOS folder to `/data/homebrew` (FTP from a phone or a PC, or a file manager on the console), then open the tile. The title sets itself up (phase 7). This replaced, later on 2026-10-18, a setup program started from pldmgr or a USB stick: "the title can set itself up", as probe 3 proved. |
 | How MihawkOS is updated | MihawkOS updates itself, on request, from a signed manifest (phase 8). This replaced version 1's "run the newest setup program again". |
-| ShadowMountPlus | **Never shipped** (the owner, 2026-10-18): "we will not be shipping a patched shadowmountplus and instead wait for it to be fixed upstream. The user themselves must use their own SM+". Nothing MihawkOS ships carries or installs it. Stock 1.7beta4 can leave other homebrew unable to start after MihawkOS closes, a known issue: restart the PS5. |
+| ShadowMountPlus | **Never shipped** (the owner, 2026-10-18): "we will not be shipping a patched shadowmountplus and instead wait for it to be fixed upstream. The user themselves must use their own SM+". Nothing MihawkOS ships carries or installs it. Releases before 1.7beta6 could leave other homebrew unable to start after MihawkOS closes; MihawkOS requires 1.7beta10 or later (its payload check, `src/pw_payload_check.h`), which has the fix (`docs/LAUNCH_AFTER_EXIT.md`). |
 | The desktop in a public build | Bubble Earth, the project's own wallpaper (`tools/make-aero-wallpapers.py`), in every build (the owner, 2026-10-25); Aero Meadow before it replaced Bloom and the plain colour (the owner, 2026-10-18). |
 
 Defaults the plan takes unless the owner says otherwise:
@@ -555,9 +555,10 @@ Load kstuff, elfldr and websrv, and ShadowMountPlus after each cold boot; an aut
 them. A user without a PC needs no ftpsrv or klogsrv: only the PC tools use them. From phase 1 on, the title checks what
 is missing and says so on screen.
 
-**Known issue:** with stock ShadowMountPlus 1.7beta4, another homebrew can refuse to start after MihawkOS closes
-(`0x80940033`, `docs/LAUNCH_AFTER_EXIT.md`). Restart the PS5. MihawkOS waits for an upstream fix and ships no patched
-build.
+**Payload check:** MihawkOS opens only with the official payload set: Kstuff Lite 1.11 Beta or later, ShadowMountPlus
+1.7beta10 or later, elfldr, websrv and NanoDNS, with klog, ftpsrv and pldmgr allowed (`src/pw_payload_check.h`).
+Releases of ShadowMountPlus before 1.7beta6 could leave other homebrew unable to start after MihawkOS closed
+(`0x80940033`, `docs/LAUNCH_AFTER_EXIT.md`); the required 1.7beta10 has the fix.
 
 ## Who does what
 

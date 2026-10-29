@@ -8,8 +8,6 @@
 #include "proton_fetch.h"
 #include "proton_launch.h"
 #include "../../src/pw_steam.h"
-#include "../../src/pw_firmware.h"
-#include "../../src/pw_memory_guard.h"
 #include "../../src/pw_path_nocase.h"
 
 #include <errno.h>
@@ -230,9 +228,7 @@ bool proton_steam_game(ProtonGame *out, bool installer, std::string *problem, bo
 {
 	char text[2048];
 	const size_t length = installer ? pw_steam_installer_entry(text, sizeof(text), steam_prefix().c_str())
-		: pw_steam_client_entry(text, sizeof(text), big_picture, steam_prefix().c_str(),
-		                        // Steam's browser in one process only where memory needs it: before 12.00, the Pro's 990 MiB guard.
-		                        (pw_firmware_installed(nullptr) >> 24) < PW_MEMORY_GUARD_FIRMWARE_MIN);
+		: pw_steam_client_entry(text, sizeof(text), big_picture, steam_prefix().c_str());
 	std::string ignored;
 	if (!problem) problem = &ignored;
 	if (!length) {

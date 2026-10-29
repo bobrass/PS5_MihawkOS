@@ -1,0 +1,71 @@
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Subject: [PATCH] wineboot: PS5: a prefix without DefaultInstall's last service is updated again.
+
+A tester's Alpha 4 Steam (2026-10-29, fw 12.20) never showed its sign-in: steam.exe
+asserted "GetAdaptersAddresses returned 2", the webhelper's browser retried \\.\Nsi
+144 times and its renderer never loaded Steam's page, so after 30 s Steam's
+transport gave up ("Failed to reconnect to websocket"), shut down and relaunched,
+twice. The prefix's services.exe loaded four services (MountMgr, the Steam Client
+Service, winebth, wineusb) where a working prefix loads about twenty: PreInstall
+had run, DefaultInstall had not, so there was no nsiproxy service and no \\.\Nsi.
+
+wineboot cannot tell: a rundll32 that does not start returns no handle and the
+loop goes on, and one that ends early is waited for like one that finished. Patch
+0952 writes .update-timestamp after the update, so such a prefix is marked current
+and wine.inf's content-derived time keeps it so across builds.
+
+DefaultInstall registers nsiproxy last in each [DefaultInstall.*.Services]
+section (checked by tests/test_wineboot_install_sentinel.py). A prefix without it
+is updated at every start, and the timestamp is written only once it has it.
+A complete prefix is not affected; a broken one is repaired by its next start
+(about 75 s of update, during which AddService's start flag starts nsiproxy).
+---
+ programs/wineboot/wineboot.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/programs/wineboot/wineboot.c b/programs/wineboot/wineboot.c
+--- a/programs/wineboot/wineboot.c
++++ b/programs/wineboot/wineboot.c
+@@ -1731,6 +1731,20 @@
+     CertCloseStore( store, 0 );
+ }
+ 
++/* PS5: wine.inf's DefaultInstall registers nsiproxy last ([DefaultInstall.*.Services]), so a prefix without it never
++ * finished DefaultInstall: a first session cut short, or a rundll32 that did not start or ended early, both of which
++ * wineboot does not see. Such a prefix has no \\.\Nsi, GetAdaptersAddresses fails with error 2 and the game store's
++ * client never shows its sign-in (a tester's Alpha 4 prefix, 2026-10-29). It is updated until it has it. */
++static BOOL ps5_default_install_done(void)
++{
++    HKEY key;
++
++    if (RegOpenKeyExW( HKEY_LOCAL_MACHINE, L"System\\CurrentControlSet\\Services\\nsiproxy", 0, KEY_QUERY_VALUE, &key ))
++        return FALSE;
++    RegCloseKey( key );
++    return TRUE;
++}
++
+ /* execute rundll32 on the wine.inf file if necessary */
+ static void update_wineprefix( BOOL force )
+ {
+@@ -1753,7 +1767,7 @@
+     fstat( fd, &st );
+     close( fd );
+ 
+-    if (update_timestamp( config_dir, st.st_mtime, TRUE ) || force)
++    if (update_timestamp( config_dir, st.st_mtime, TRUE ) || force || !ps5_default_install_done())
+     {
+         HANDLE process;
+         DWORD count = 0;
+@@ -1785,7 +1799,9 @@
+         update_user_profile();
+         update_win_version();
+         update_root_certs();
+-        update_timestamp( config_dir, st.st_mtime, FALSE );
++        if (ps5_default_install_done()) update_timestamp( config_dir, st.st_mtime, FALSE );
++        else ERR( "wine.inf's DefaultInstall did not finish in %s; the next start updates it again\n",
++                  debugstr_w(prettyprint_configdir()) );
+ 
+         TRACE( "wine: configuration in %s has been updated.\n", debugstr_w(prettyprint_configdir()) );
+     }
+-- 
+2.56.0

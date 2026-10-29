@@ -171,6 +171,8 @@ int pw_ps5_code_offer(uint64_t hash, uint64_t bytes, int fd);
  * there is no census (no memory helper, or one that takes none) and EAGAIN when none is in yet. */
 struct pw_memory_census;
 int pw_ps5_memory_census(struct pw_memory_census *census);
+/* The first and the latest cold helper start this session, request to ready, ms (0 before one). */
+void pw_ps5_start_times(uint64_t *first_ms, uint64_t *last_ms);
 /* Native bootstrap verdict: -1 pending, 0 success, 1 failure. Windows keeps
  * the complete DWORD exit status in the shared wineserver. */
 int pw_ps5_root_result(void);

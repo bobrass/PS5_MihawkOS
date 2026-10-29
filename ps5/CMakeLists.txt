@@ -213,6 +213,8 @@ add_library(samples OBJECT
 	${ROOT}/src/pw_detailed_logs.c
 	${ROOT}/src/pw_log_sessions.c
 	${ROOT}/src/pw_setup.c
+	${ROOT}/src/pw_runtime_check.c
+	${ROOT}/src/pw_payload_check.c
 	${ROOT}/src/pw_qrcodegen.c
 	${ROOT}/src/pw_webui.cpp
 	${ROOT}/src/pw_webui_http.cpp
@@ -272,6 +274,8 @@ endif()
 # Link, sign and package: the title folder in dist/<TITLE_ID>/
 add_custom_command(
 	OUTPUT ${CMAKE_BINARY_DIR}/eboot.elf
+	# every other file the link reads (the SDK's libraries, RADV, the tools): link-title.sh lists them
+	DEPFILE ${CMAKE_BINARY_DIR}/eboot.elf.d
 	COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tools/link-title.sh ${CMAKE_BINARY_DIR} ${PS5_VULKAN_DIR} ${PS5_PAYLOAD_SDK} "$<TARGET_OBJECTS:samples>" ${webui_http_archive}
 	DEPENDS samples "$<TARGET_OBJECTS:samples>" ${CMAKE_CURRENT_SOURCE_DIR}/tools/link-title.sh ${webui_http_archive}
 		${ROOT}/webui/index.html ${ROOT}/webui/app.css ${ROOT}/webui/app.js ${ROOT}/webui/i18n.js

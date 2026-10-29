@@ -1,0 +1,154 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Thu, 29 Oct 2026 12:00:00 -0400
+Subject: [PATCH] ntdll, ntoskrnl: PS5: a program opens its own DualSense, not
+ the one of the program that started last
+
+Every program on the PS5 runs its own HID stack (patch 0870), all on the
+title's one wineserver, and the DualSense's HID interface has one name for
+all of them, "\??\HID#VID_054C&PID_0CE6#256&PS5-LOCAL-1&0&0&1#{4d1e55b2-
+...}". Each program's stack takes that link over when it starts (patches
+0941 and 1115), so an open of it reaches the device of the program that
+started last, and fails once that program ends.
+
+In a PS5 Pro session of 2026-10-29 (the player's controller the DualSense;
+its logs are not kept in the tree) the store client's SDL opened the
+DualSense 3.4 s after the client's browser helper had taken the link: the
+helper's hidclass logged files 1 to 5 opened at the moment the client's
+log said "Added HIDAPI device", and the client's own hidclass reached no
+reader in the whole session (readers-reached 0 for 98304 reports). When a
+library game started, the helper was ended (patch 2104 ends it once and
+holds its relaunches), and in the same second the client logged
+"Controller device closed after hid_read failure" and "Controller 0
+disconnected", and its controller configuration for the game, which would
+have given the game an Xbox controller, fell back to an empty one. The
+game, a 2020 demo that knows XInput and an older PlayStation controller
+but not the DualSense, opened the DualSense eight times and read nothing,
+and XInput reports no controller while the DualSense is chosen (patch
+2400): it found no controller at all.
+
+- ntoskrnl: enabling the DualSense's interface also makes this program's
+  own link, the shared name and "#<process id in hex>", to this program's
+  device, before the program starts (the start waits for the interface);
+  disabling it deletes it. A link left by an ended program with the same
+  id is replaced as the shared one is.
+- ntdll: NtCreateFile opens a name that is the DualSense's interface link
+  through this program's own link first, and the shared one only when
+  there is none (Wine's system programs start no HID stack).
+
+The shared link stays as it was. The name test is compiled by
+tests/test_process_hid_link.c straight out of this patch
+(PW_PROCESS_HID_LINK_BEGIN/END); both files build with the console
+build's flags. Not yet run on the console.
+---
+ dlls/ntdll/unix/file.c  | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
+ dlls/ntoskrnl.exe/pnp.c | 23 ++++++++++++++++++++++-
+ 2 files changed, 72 insertions(+), 1 deletion(-)
+
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -2388,6 +2388,52 @@
+ }
+ 
+ 
++#ifdef __PROSPERO__
++/* PW_PROCESS_HID_LINK_BEGIN */
++/* This program's own name for the DualSense's HID interface link: the name and "#<process id in hex>", which this
++ * program's HID stack makes beside the shared one (ntoskrnl pnp.c). Every program on the PS5 runs its own (patch 0870),
++ * all on one server, and the shared name leads to the program that enabled the interface last: a store client's
++ * DualSense was its browser helper's, and the client lost it ("hid_read failure", "Controller 0 disconnected") when
++ * the helper ended as a library game started (2026-10-29). Its length, or 0 for another name or one too long for out. */
++static size_t ps5_own_hid_link( const WCHAR *name, size_t length, unsigned int pid, WCHAR *out, size_t capacity )
++{
++    static const char prefix[] = "\\??\\HID#VID_054C&PID_0CE6#";
++    size_t i, n = sizeof(prefix) - 1, digits;
++
++    if (length <= n || length + 1 + 8 > capacity) return 0;
++    for (i = 0; i < length; i++)
++    {
++        WCHAR c = name[i] >= 'a' && name[i] <= 'z' ? name[i] - 'a' + 'A' : name[i];
++        if (i < n ? c != (WCHAR)prefix[i] : c == '\\') return 0;   /* a path below the device is not the link */
++        out[i] = name[i];
++    }
++    out[length] = '#';
++    for (digits = 1; digits < 8 && pid >> (4 * digits); digits++) ;
++    for (i = 0; i < digits; i++) out[length + digits - i] = "0123456789abcdef"[(pid >> (4 * i)) & 15];
++    return length + 1 + digits;
++}
++/* PW_PROCESS_HID_LINK_END */
++
++/* Open the DualSense through this program's own link; STATUS_OBJECT_NAME_NOT_FOUND for another name, or in a program
++ * without a HID stack of its own (Wine's system programs), which then open the shared one. */
++static unsigned int ps5_open_own_hid_link( HANDLE *handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
++                                           ULONG sharing, ULONG options )
++{
++    WCHAR own[256];
++    UNICODE_STRING own_name;
++    OBJECT_ATTRIBUTES own_attr = *attr;
++    size_t length = attr->RootDirectory ? 0 :
++        ps5_own_hid_link( attr->ObjectName->Buffer, attr->ObjectName->Length / sizeof(WCHAR),
++                          HandleToULong( NtCurrentTeb()->ClientId.UniqueProcess ), own, ARRAY_SIZE(own) );
++
++    if (!length) return STATUS_OBJECT_NAME_NOT_FOUND;
++    own_name.Buffer = own;
++    own_name.Length = own_name.MaximumLength = length * sizeof(WCHAR);
++    own_attr.ObjectName = &own_name;
++    return server_open_file_object( handle, access, &own_attr, sharing, options );
++}
++#endif
++
+ /* retrieve device/inode number for all the drives */
+ static unsigned int get_drives_info( struct file_identity info[MAX_DOS_DRIVES] )
+ {
+@@ -5394,6 +5440,10 @@
+ 
+     if (status == STATUS_BAD_DEVICE_TYPE)
+     {
++#ifdef __PROSPERO__
++        status = ps5_open_own_hid_link( handle, access, &new_attr, sharing, options );
++        if (status == STATUS_OBJECT_NAME_NOT_FOUND || status == STATUS_OBJECT_PATH_NOT_FOUND)
++#endif
+         status = server_open_file_object( handle, access, &new_attr, sharing, options );
+         if (status == STATUS_SUCCESS) io->Information = FILE_OPENED;
+         goto done;
+diff --git a/dlls/ntoskrnl.exe/pnp.c b/dlls/ntoskrnl.exe/pnp.c
+--- a/dlls/ntoskrnl.exe/pnp.c
++++ b/dlls/ntoskrnl.exe/pnp.c
+@@ -914,6 +914,23 @@
+     return FALSE;
+ }
+ 
++/* PS5: this program's own link to its own DualSense, the shared name and "#<process id in hex>" (ntdll's
++ * NtCreateFile opens it first, patch 2401). The shared name leads to the program that enabled the interface last, so
++ * a program opening it reached another program's device and lost the controller when that program ended: a store
++ * client's DualSense was its browser helper's, and the helper ending as a library game started took it (2026-10-29). */
++static void ps5_own_dualsense_link( DEVICE_OBJECT *device, const UNICODE_STRING *name, BOOLEAN enable )
++{
++    WCHAR buffer[256];
++    UNICODE_STRING own = {0, sizeof(buffer), buffer};
++    NTSTATUS ret;
++
++    if (name->Length / sizeof(WCHAR) + 10 > ARRAY_SIZE(buffer)) return;
++    own.Length = swprintf( buffer, ARRAY_SIZE(buffer), L"%.*s#%x", (int)(name->Length / sizeof(WCHAR)), name->Buffer,
++                           HandleToULong( PsGetCurrentProcessId() ) ) * sizeof(WCHAR);
++    ret = enable ? create_device_symlink( device, &own ) : IoDeleteSymbolicLink( &own );
++    if (ret) MESSAGE( "[PS5 Proton] %s: %s failed, status %#lx\n", debugstr_us( &own ), enable ? "making" : "deleting", ret );
++}
++
+ void  __RPC_FAR * __RPC_USER MIDL_user_allocate( SIZE_T len )
+ {
+     return HeapAlloc( GetProcessHeap(), 0, len );
+@@ -1167,7 +1184,11 @@
+     }
+ 
+     iface->enabled = enable;
+-    if (ps5_dualsense_interface( iface, name )) InterlockedExchange( &ps5_dualsense_enabled, enable );
++    if (ps5_dualsense_interface( iface, name ))
++    {
++        ps5_own_dualsense_link( iface->device, name, enable );
++        InterlockedExchange( &ps5_dualsense_enabled, enable );
++    }
+ 
+     len = offsetof(DEV_BROADCAST_DEVICEINTERFACE_W, dbcc_name[namelen + 1]);
+ 

@@ -38,10 +38,11 @@ class WindowCaptureChecks(unittest.TestCase):
                 Image.new('RGB', (1920, 1080)).save(background)
                 self.assertTrue(runner.display_verdict(captures, log)[1])
                 self.assertFalse(runner.display_verdict(captures[:5], log)[1])
-                # The GPU probe's six captures, the sixth another process's image in the owner's window.
+                # The GPU probe's seven captures, the sixth another process's image in the owner's window, the seventh a
+                # window larger than the screen: it covers the desktop, whose colour is not checked there.
                 graphics, glines = [], []
-                for number, count in enumerate((4, 4, 3, 4, 3, 3), 1):
-                    image = Image.new('RGB', (1920, 1080), (0, 0, 0))
+                for number, count in enumerate((4, 4, 3, 4, 3, 3, 4), 1):
+                    image = Image.new('RGB', (1920, 1080), (30, 180, 70) if number == 7 else (0, 0, 0))
                     path = f'g{number}.png'
                     graphics.append(path)
                     for x in range(count):
@@ -50,7 +51,9 @@ class WindowCaptureChecks(unittest.TestCase):
                                       'expected=30,110,210 result=PASS')
                     image.save(runner.ROOT / path)
                 self.assertTrue(runner.display_verdict(graphics, '\n'.join(glines), graphics=True)[1])
-                self.assertFalse(runner.display_verdict(graphics[:5], '\n'.join(glines), graphics=True)[1])
+                self.assertFalse(runner.display_verdict(graphics[:6], '\n'.join(glines), graphics=True)[1])
+                self.assertFalse(runner.display_verdict(graphics, '\n'.join(glines)[:-1], graphics=True)[1])
+                self.assertFalse(runner.display_verdict(graphics[6:] + graphics[1:], '\n'.join(glines), graphics=True)[1])
                 self.assertTrue(runner.display_verdict(captures, log + '\n' + log)[1])
                 self.assertFalse(runner.display_verdict(captures[:-1], log)[1])
                 self.assertFalse(runner.display_verdict(captures, '\n'.join(lines[1:]))[1])

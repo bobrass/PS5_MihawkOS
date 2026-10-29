@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 04:00:00 -0400
+Subject: [PATCH] win32u: the cursor clip stays inside the virtual screen.
+
+The PS5 display modes are emulated: a 640x480 mode is drawn letterboxed on the 1920x1080 display, so the raw
+coordinates the server keeps the clip in are the physical screen's. With no clip the server's rect is that whole
+screen, and mapped back into the 640x480 mode it is (-107,0)-(747,480), where Windows reports the screen,
+(0,0)-(640,480). Wine's d3d9 test checks it after a fullscreen mode change (device.c:14950); it showed on the Pro
+once the desktop could be made the foreground (patch 2151), which leaves the cursor unclipped there, and passes on the
+PC, whose mode changes are real. GetClipCursor now keeps the mapped rect inside the virtual screen, as Windows keeps
+every clip.
+---
+--- a/dlls/win32u/input.c
++++ b/dlls/win32u/input.c
+@@ -2791,7 +2791,14 @@
+     while ((status = get_shared_desktop( &lock, &desktop_shm )) == STATUS_PENDING)
+         *rect = wine_server_get_rect( desktop_shm->cursor.clip );
+ 
+-    if (!status && type == MDT_EFFECTIVE_DPI) *rect = map_rect_raw_to_virt( *rect, dpi );
++    if (!status && type == MDT_EFFECTIVE_DPI)
++    {
++        RECT virtual_rect = get_virtual_screen_rect( dpi, MDT_DEFAULT );
++
++        /* in an emulated display mode the unclipped raw rect is the whole physical screen, wider than the mode */
++        *rect = map_rect_raw_to_virt( *rect, dpi );
++        intersect_rect( rect, rect, &virtual_rect );
++    }
+     return !status;
+ }
+ 

@@ -45,9 +45,11 @@ taskbar, Start, File Explorer and a web browser of its own.
 changed and which consoles it was tested on.
 
 > [!WARNING]
-> **Designed around ShadowMountPlus 1.7beta4 or later.** MihawkOS starts from the home screen through your own copy of
-> [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus), which also makes the WebUI's home-screen tiles.
-> MihawkOS does not ship or change it.
+> **Needs the official payload set, and nothing more.** At every start MihawkOS checks for Kstuff Lite 1.11 Beta or
+> later, [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) 1.7beta10 or later, elfldr, websrv and NanoDNS
+> (klog, ftpsrv and pldmgr may also run). It stays on its payload check while one is missing or too old, or while any
+> other payload runs, and says what to load or close. It can see that kstuff runs but not its version: load 1.11 Beta
+> or later yourself. MihawkOS does not ship or change any of them.
 
 <a id="what-it-is"></a>
 
@@ -79,8 +81,8 @@ A full-screen game takes the screen directly (**Game Mode**), and the desktop co
 
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/orb-downloads-night.svg"><img src="docs/media/readme/orb-downloads-day.svg" width="34" height="34" alt=""></picture> Get started
 
-1. **Set up the console's homebrew tools.** Load your homebrew enabler, then **elfldr** and **websrv**, and check that
-   **ShadowMountPlus** is running. You set these up yourself, with tools from their own authors; see
+1. **Set up the console's homebrew tools.** Load the official payload set: **Kstuff Lite 1.11 Beta** or later,
+   **elfldr**, **websrv**, **NanoDNS** and **ShadowMountPlus 1.7beta10** or later, and no other payload. You set these up yourself, with tools from their own authors; see
    [Every time you play](#every-time-you-play) for the tested set. This project does not provide, link to or explain
    a jailbreak.
 2. **Install the title.** From a release, copy the `PPSA99170` folder to `/data/homebrew/PPSA99170/`, over FTP from a
@@ -140,13 +142,11 @@ keeps saying it until you are signed in:
    as your sign-in is saved.
 5. **Big Picture.** From then on, Steam opens straight into Big Picture, made for the controller.
 
-Big Picture runs smoothly now. On firmware 12.00 and later, Steam's built-in browser runs as separate processes. On a
-standard PS5 (firmware 13.60) at 120 Hz, the frames that took longer than 20 ms fell from 79 to 16 in the first
-minute, from 162 to 7 while scrolling (the worst frame from 190 to 53 ms) and from 74 to 24 in the menus. It costs
-memory: Steam's helpers use 429 MiB instead of 320. With a game started from Big Picture, the console's shared memory
-peaked at 1,123 MiB and the game held 60 frames a second. The PS5 Pro (firmware 10.01) has less memory to spare, so
-there the browser stays one process and its code budget grows when it needs to, which takes away about half of the
-hitches.
+Big Picture stutters less. Steam's built-in browser runs as one process, and its code budget now grows when it needs
+to. On a standard PS5 (firmware 13.60) at 120 Hz, the frames that took longer than 20 ms fell from 79 to 38 in the first
+minute, from 162 to 66 while scrolling and from 74 to 60 in the menus. Separate browser processes drew it more smoothly
+still (7 slow frames while scrolling), but each process takes part of the console's system page tables, and with them
+Steam alone left too few for a game to start.
 
 Steam games start in about half the time they used to: Steam's own file check is skipped, and a game's file reads are
 much cheaper. In the measured run, a 2D game launched from its library entry reached steady play in 66 seconds,
@@ -345,22 +345,27 @@ DualSense; in later sessions it did.
 ## <picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/orb-drive-night.svg"><img src="docs/media/readme/orb-drive-day.svg" width="34" height="34" alt=""></picture> Every time you play
 
 1. **Cold-boot the console.** Never use rest mode: it unloads the payloads, and only a real restart brings them back.
-2. **Load your homebrew enabler**, then **elfldr** and **websrv**. Keep elfldr loaded while you play: MihawkOS starts
-   its `/data` access service and every Windows helper through it.
-3. **Check that ShadowMountPlus is running.**
-4. **Open MihawkOS.**
+2. **Load Kstuff Lite 1.11 Beta** or later, then **elfldr**, **websrv**, **NanoDNS** and **ShadowMountPlus 1.7beta10**
+   or later. Keep elfldr loaded while you play: MihawkOS starts its `/data` access service and every Windows helper
+   through it.
+3. **Open MihawkOS.** Its payload check lists each payload. If one is missing it says which to load; press CROSS to
+   check again. If one is too old or an extra payload runs, restart the PS5 and load only the set above.
 
 What the tested consoles ran alongside MihawkOS. This repository ships none of them; each comes from its own project.
 
-| Payload | Version tested | Port | Needed for |
-| --- | --- | --- | --- |
-| [elfldr](https://github.com/ps5-payload-dev/elfldr) | v0.26 | through websrv | Always |
-| [websrv](https://github.com/ps5-payload-dev/websrv) | not recorded | 8080 | Always |
-| [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | 1.7beta4 | – | Starting from the home screen, WebUI tiles |
-| [ftpsrv](https://github.com/ps5-payload-dev/ftpsrv) | v0.21.1 | 2121 | Copying the title, the runtime or games over FTP |
-| [klogsrv](https://github.com/ps5-payload-dev/klogsrv) | not recorded | 3232 | The PC tools, and the kernel log in **Settings → Logging** |
+| Payload | Required | Minimum | Seen on the base PS5, 2026-10-29 | Port | Needed for |
+| --- | --- | --- | --- | --- | --- |
+| [Kstuff Lite](https://github.com/EchoStretch/kstuff-lite) | Yes | 1.11 Beta | 7.7 MiB | – | Everything |
+| [elfldr](https://github.com/ps5-payload-dev/elfldr) | Yes | – | 22.8 MiB | through websrv | Always |
+| [websrv](https://github.com/ps5-payload-dev/websrv) | Yes | – | v0.34, 8.2 MiB | 8080 | Always |
+| NanoDNS | Yes | – | 4.1 MiB | – | The official set |
+| [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | Yes | 1.7beta10 | 1.7beta10, 25.2 MiB | 10101 | Starting from the home screen, WebUI tiles |
+| [ftpsrv](https://github.com/ps5-payload-dev/ftpsrv) | Optional | – | 4.1 MiB | 2121 | Copying the title, the runtime or games over FTP |
+| [klogsrv](https://github.com/ps5-payload-dev/klogsrv) | Optional | – | 3.9 MiB | 3232 | The PC tools, and the kernel log in **Settings → Logging** |
+| pldmgr | Optional | – | 12.3 MiB | – | Loading the payloads |
 
-The tested consoles use kstuff alone; etaHEN is not needed.
+Any other payload keeps MihawkOS on its payload check, etaHEN among them: each one holds memory games need. The set above
+held 88 MiB on the base PS5 (`evidence/payloads-base-2026-10-29-01.json`).
 
 > [!WARNING]
 > **Never load OnionHEN.** The PC setup tool stops if the kernel log mentions it. Restart without it.
@@ -382,11 +387,11 @@ and firmwares are reported by testers, not proven here.
   by the memory guard during its start.
 - **Translations still need a native speaker's review.** All ten languages are complete, written with machine help.
   Mihawk OS's own desktop and the launcher around the setup stay in English.
-- **The per-boot setup is yours to do.** Your homebrew enabler, elfldr and websrv after every cold boot, as above. Rest
+- **The per-boot setup is yours to do.** The payload set after every cold boot, as above. Rest
   mode needs a full restart.
-- **ShadowMountPlus quirks.** With stock 1.7beta4 on firmware 10.01, another homebrew may not start after MihawkOS
-  closes, with launch error `0x80940033`; restart the console to recover
-  ([docs/LAUNCH_AFTER_EXIT.md](docs/LAUNCH_AFTER_EXIT.md)). It installs and removes nothing while MihawkOS runs, which
+- **ShadowMountPlus quirks.** Before 1.7beta6, another homebrew could refuse to start after MihawkOS closed
+  (`0x80940033`); 1.7beta6 and later keep ShellCore's launch hook in memory, the fix MihawkOS asks for by requiring
+  1.7beta10 ([docs/LAUNCH_AFTER_EXIT.md](docs/LAUNCH_AFTER_EXIT.md)). It installs and removes nothing while MihawkOS runs, which
   is why a new home-screen tile appears only after MihawkOS closes.
 - **Some games stop at an error of their own at start-up**, the same one they show under Proton on a PC.
 - **Not supported:** kernel drivers and anti-cheat. Rumble is not proven. The desktop's focus does not follow the D-pad.

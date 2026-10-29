@@ -45,33 +45,10 @@ extern "C" {
  * kernel's ~1039 at the signed-in peak, swap-out 64 to 113 MiB). 990 sits 49 MiB under the kernel's limit as the freeze it exists
  * for (1026 of 989 on 2026-10-11) is a few seconds of climb at 15-36 MiB/s, so the end mark is 20 MiB past it and the steep rule
  * (a rise of 120 MiB in 8 s to within 10 MiB of the limit) stays armed. A game that wants less says so with PROTON_SYSTEM_MEMORY_LIMIT. */
-#define PW_MEMORY_GUARD_LAST_RESORT_MIB 990u
 #define PW_MEMORY_GUARD_LAST_RESORT_END_MARGIN_MIB 20u
-/* Where the Pro's kernel starts to pay for real memory (pro-charge-distinct-2026-10-24-05: other processes trimmed from printed RSS
- * 540, swap-out 63 to 126 MiB at RSS 824; one object mapped again and again moved nothing up to 1175 MiB per-mapping, so only physical
- * pages count). The census counts a shared code copy once on every console now, so it reads about what the kernel acts on. At this census
- * the title only says so, once a session, with a notice; nothing is closed or ended below the last resort. */
-#define PW_MEMORY_GUARD_SWAP_NOTICE_MIB 800u
-/* The notice's mark from firmware 12.00 on (pw_memory_guard_swap_notice_mib). The kernel there gives no swap figure to
- * watch (13.60, 2026-10-26: vm.stats.vm.* and vm.swap_info answer ENOENT; vm.swap_total and vm.swap_reserved are sizes),
- * so it is where the standard PS5's swap-out grew: flat at a census of 1631 MiB (359 to 364 MiB over a sign-in run),
- * 255 MiB with Steam at 1700, 302 MiB at 1865. The console's own processes hold 731-1223 MiB before Wine starts, so 800
- * said it in every session (the Direct3D 12 game peaked at 917 MiB with swap-out flat at 334-336 MiB). */
-#define PW_MEMORY_GUARD_SWAP_NOTICE_13_MIB 1700u
-/* The limit on firmware 12.00 and later, measured on the base PS5 (13.40, 2026-10-20) and checked on a second 13.x
- * console. The census there is not the Pro's: with nothing of Wine's running it read 731 to 1223 MiB at the start of
- * launches on one console, 87 processes each time (the user's own payloads and services; about 245 MiB on the Pro),
- * and a Wine start is ten helpers holding 270-430 MiB, so the census went to 1237-1537 MiB in every gate launch. The
- * console took it: its own resident total reached 1447 MiB over a whole gate (1453 on the second) with swap-out at
- * 13.4 to 19.5 MiB throughout, so its swap does not begin where the Pro's does. A mark from the first census cannot
- * follow it (marks of +200, +300, +400 over it, and one that grew with it, ended the helpers of every launch:
- * base-desktop-01, -02, base-gate-01, -02, -03); the mark is the console generation's. The Pro (firmware 10.01) keeps
- * PW_MEMORY_GUARD_LIMIT_MIB. Steam needs more (standard 13.40, 2026-10-21): with the guard off its corrected census
- * peaked at 1700 MiB (1717 raw, 96 MiB of shared copies beyond the first left out) while the console held 1760-1856
- * MiB RSS with 255 MiB swap, drew 1074 frames and closed cleanly; at 1600 the guard ended a webhelper each time Steam
- * restarted it (startcount 0..5). 1800 keeps that below the close rule, and the steep band guards a runaway climb. */
+/* The old firmware-only marks (the notice at 800/1700, the limit at 990/1800) and the measurements behind them are in git
+ * history before the memory plan; pw_memory_marks_for replaces them. */
 #define PW_MEMORY_GUARD_FIRMWARE_MIN 0x12u   /* the version word's high byte, as BCD: 12.00 and later */
-#define PW_MEMORY_GUARD_LIMIT_13_MIB 1800u
 #define PW_MEMORY_GUARD_END_MARGIN_MIB 70u   /* how far past it a game is ended at once */
 #define PW_MEMORY_GUARD_WINDOW_MS 30000u     /* the window the limit is counted over */
 #define PW_MEMORY_GUARD_CLOSE_MS 20000u      /* how long at the limit, within it, asks the game to close */
@@ -100,20 +77,77 @@ struct pw_memory_guard {
     unsigned rise_count;
 };
 
+/* The system's page tables, a pool apart from its memory: every helper process takes about 140 of them, more as it maps
+ * more, and when the pool is out the kernel says "system page table exhausted" and a new process fails to start (EXECFAIL)
+ * or a mapping with EIO (errno 5). The base PS5 (13.x, owner-test-base-2026-10-28) held 4570 of 8192 used at rest; Steam's
+ * browser in many processes took them to 8192 at a census of only 1732 MiB, under the memory limit. So the guard asks the
+ * game to close once 768 or fewer are free, and ends it at 512 or fewer, or sooner on a fast fall (below). */
+#define PW_PAGE_TABLE_CLOSE_FREE 768u
+/* The owner's RE3 start with Steam on the base (re3-steam-base-2026-10-28): the pool fell from 7,016 to 8,188 used in
+ * about 6 s, up to 250 a quarter second; the close at 736 free came 4 s before it was out, and the end at 256, read half
+ * a second apart, came after one "system page table exhausted". So the end is at 512, and while 1,536 or fewer are free
+ * the game is ended once the last 2 s of fall, repeated, would take the pool to 512 (807 free after a fall of 369 there).
+ * A bounded fall is left to the marks: gpu2m-pro-gate-2026-10-29-01's 4 GiB probe fell 300 within 2 s to 1,526 free on a
+ * fresh Pro and was ended by the first rule (a fixed fall of 300), well before either mark. The title reads every 100 ms. */
+#define PW_PAGE_TABLE_END_FREE 512u
+#define PW_PAGE_TABLE_STEEP_FREE 1536u
+#define PW_PAGE_TABLE_STEEP_MS 2000u
+struct pw_page_table_guard {
+    int closed, ended, steep;      /* each verdict said once until more than PW_PAGE_TABLE_STEEP_FREE are free again */
+    uint64_t times[32];            /* the recent readings within PW_PAGE_TABLE_STEEP_MS, oldest first */
+    uint32_t frees[32];
+    unsigned count;
+};
+/* A census's page tables. Not known, so nothing to do: a total of 0, or more free than the total (the Pro at 10.01 read
+ * 9436 free of 9216 while SceShellCore's VM Stats printed "page table CPU 4294967019/9216", a used count that went
+ * negative, guided-setup's ceiling run of 2026-10-28). */
+static inline int pw_page_table_known(uint32_t total, uint32_t free_tables) { return total && free_tables <= total; }
+enum pw_memory_verdict pw_page_table_sample(struct pw_page_table_guard *guard, uint32_t total, uint32_t free_tables,
+                                            uint64_t now_ms);
+
+/* The marks of a console (the memory plan of 2026-10-28, docs/PLAN.md "Memory plan"), keyed on the console's generation
+ * and its INSTALLED firmware (pw_firmware_installed; an enabler spoofs the reported word, volunteers read 99.99 and 11.59):
+ * WARN, a notice on the resident census where the console starts to swap, and STOP, the clean close back to the launcher,
+ * on the same census. On a standard PS5 resident memory flattens at the swap point (1,800-1,846 MiB while the ceiling test
+ * filled 4 GiB), so its STOP comes from the slowdown (pw_memory_start_slowed) and the page-table net; a helper's mapped
+ * figure is its address space, not memory asked of the kernel (memplan-gate-2026-10-28-01 read 48 GiB), and no figure
+ * on the console counts what has been swapped.
+ * The swap points measured (docs/TESTER_MEMORY_RESULTS.md, the ceiling test): a standard PS5 or Slim from 12.00 at
+ * 1,790-1,886 MiB, before 12.00 at 1,698-1,818 (5.50's ~1,300 was a test's false stop), a Pro at 869 (10.01), 882 (9.60)
+ * and 926-969 (13.60); our Pro froze at 1,026. The stops for a standard PS5 are first marks, to be set by the owner's
+ * run that plays past WARN. Firmware 6.xx-9.xx is untested: it takes the marks
+ * of before 12.00, as does a firmware not known. */
+#define PW_CONSOLE_PRO_DIRECT_MIB 12288u   /* the application's direct pool: 12,928 MiB on a Pro, 11,712 on the others */
+enum pw_console_kind { PW_CONSOLE_STANDARD, PW_CONSOLE_PRO };
+struct pw_memory_marks { unsigned warn_mib, stop_mib; };   /* stop_mib 0: no resident mark, the triggers only */
+/* The generation from sceKernelGetDirectMemorySize's bytes: a Pro (CFI-7xxx) has the larger pool. A size not known (0)
+ * takes the Pro's marks, the lowest. */
+enum pw_console_kind pw_console_kind_of(uint64_t direct_bytes);
+struct pw_memory_marks pw_memory_marks_for(enum pw_console_kind kind, unsigned firmware);
+/* STOP's third trigger, on every console: resident memory held within PW_PLATEAU_BAND_MIB of the session's plateau (the
+ * highest it reached at WARN or past it) for PW_PLATEAU_HOLD_MS, while a frame gap of more than PW_PLATEAU_GAP_MS was
+ * seen in that time. Resident memory flattens where the console swaps: a standard PS5 at 1,800-1,846 MiB, our Pro at
+ * about 869 MiB in two runs, so a number above the knee may never be reached. A fall out of the band, or below WARN,
+ * starts the hold again. */
+#define PW_PLATEAU_BAND_MIB 32u
+#define PW_PLATEAU_HOLD_MS 60000u
+#define PW_PLATEAU_GAP_MS 1000u
+struct pw_plateau { uint64_t peak_mib, since_ms; int gap_seen; };
+/* 1 once the hold is met (and again each sample after); frame_gap_ms 0 when no frame is known. */
+int pw_plateau_sample(struct pw_plateau *plateau, uint64_t resident_mib, uint64_t now_ms, uint64_t frame_gap_ms,
+                      unsigned warn_mib);
+
+/* STOP's second trigger: a helper start more than 3 times slower than the session's first, and 150 ms or more. The
+ * ceiling test's starts took about 51 ms until 2.3 GiB had been swapped out, then 187-249 ms (our base, 2026-10-28). The
+ * title asks it only at WARN or past it. */
+int pw_memory_start_slowed(uint64_t first_ms, uint64_t last_ms);
+
 /* limit_mib 0 makes a guard that never acts; end_mib 0 puts the end mark PW_MEMORY_GUARD_END_MARGIN_MIB past the
  * limit. */
 void pw_memory_guard_init(struct pw_memory_guard *guard, unsigned limit_mib, unsigned end_mib);
 /* A census of system bytes taken at now_ms (the census's own time; one not newer than the last is ignored). */
 enum pw_memory_verdict pw_memory_guard_sample(struct pw_memory_guard *guard, uint64_t system, uint64_t now_ms);
-/* The default limit of a console, MiB, from the INSTALLED firmware's version word (pw_firmware_installed, src/pw_firmware.h;
- * never sceKernelGetSystemSwVersion, which an enabler spoofs: the Pro said 12.09 and ran with the 12.00-and-later limit
- * through alpha-2): the Pro's for an earlier firmware than 12.00 or none known (0), PW_MEMORY_GUARD_LIMIT_13_MIB from 12.00
- * on. The end mark's default is PW_MEMORY_GUARD_END_MARGIN_MIB past it. */
-unsigned pw_memory_guard_default_limit_mib(unsigned firmware);
-/* The census at which the title says the console starts to swap, MiB, from the same firmware word: PW_MEMORY_GUARD_SWAP_NOTICE_MIB
- * before 12.00 or none known, PW_MEMORY_GUARD_SWAP_NOTICE_13_MIB from 12.00 on. */
-unsigned pw_memory_guard_swap_notice_mib(unsigned firmware);
-/* The end mark that goes with a default limit: 20 MiB past the last-resort limit, 70 past the others. */
+/* The end mark that goes with a limit: 20 MiB past one under 1,100 MiB (a Pro's, close to its freeze), 70 past the others. */
 unsigned pw_memory_guard_default_end_mib(unsigned limit_mib);
 /* After the guard acted on one process in the desktop session (the title ends the process that holds the memory, not
  * the session): it starts over, so the next process that holds the memory is acted on too, after the same times. */

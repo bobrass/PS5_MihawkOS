@@ -134,6 +134,16 @@ for dir in base "${samples[@]}"; do
     cp "$root/shaders/glsl/$dir/"*.spv "$app/shaders/glsl/$dir/"
 done
 mv "$work/eboot.elf.new" "$work/eboot.elf"
+# What this link read, for Ninja (ps5/CMakeLists.txt's DEPFILE): the SDK's static libraries and stubs, the RADV
+# archive, the recipe and the tools. Without it a changed libps5platform.a (an SDK patch) left the old title linked
+# until build/ps5/eboot.elf was deleted by hand.
+inputs=("$archive" "$tool" "$param" "$sdk/bin/prospero-lld" "$vulkan/tools/radv-link.sh" "$vulkan/runtime/libc.prx"
+    "$vulkan/tooling/prospero-clang18" "$native/app_crt.cpp" "$native/app-symbols.map"
+    "$vulkan/vendor/ps5/sdk/stubs/agc_canary_link_stub.c" "$vulkan/vendor/ps5/sdk/stubs/agc_driver_canary_link_stub.c"
+    "$root/tools/check-title-imports.py" "$sdk"/target/lib/*.so)
+for input in "${radv_linker_script[@]}" "${radv_link_inputs[@]}"; do if [[ -f $input ]]; then inputs+=("$input"); fi; done
+[[ " ${inputs[*]} " == *"/libps5platform.a "* ]] || { echo "link-title.sh: the link took no libps5platform.a" >&2; exit 1; }
+{ printf '%s:' "$work/eboot.elf"; printf ' \\\n  %s' "${inputs[@]}"; printf '\n'; } > "$work/eboot.elf.d"
 archive_revision=$(sed -n 's/^revision: //p' "$(dirname "$(dirname "$archive")")/PROVENANCE.txt" 2>/dev/null || true)
 printf '==> %s: %s (eboot.bin %s bytes; %d samples; RADV %s)\n' "$title_id" "$app" \
     "$(stat -c %s "$app/eboot.bin")" "${#samples[@]}" "${archive_revision:0:11}"

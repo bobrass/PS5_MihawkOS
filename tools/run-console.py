@@ -66,6 +66,7 @@ import ps5_console  # noqa: E402
 sys.path.insert(0, str(ROOT / 'tools'))
 import console_guard  # noqa: E402
 import helper_sched  # noqa: E402
+import start_stages  # noqa: E402
 
 spec = importlib.util.spec_from_file_location('run_title', TOOLS / 'run-title.py')
 runner = importlib.util.module_from_spec(spec)
@@ -193,6 +194,17 @@ def probe_completed(verdict, stop_requested):
     # A watchdog stop can change the workload (e.g. disconnecting input unblocks a stuck message loop).
     # A PASS printed afterward is not an autonomous probe completion.
     return verdict == 'PASS' and not stop_requested
+
+
+def touchpad_touched_at_start(lines):
+    """The physical pad's touchpad count at the title's first pad line ("Wine: pad connected=1 buttons=... touch=N"), or
+    0. A contact there drives the title's touchpad-as-mouse, so every probe's parked cursor moves (17 cases of
+    alpha5-pro-2026-10-29-02, touch=1 in each): such a run says so and fails, instead of failing as a probe."""
+    for line in lines:
+        match = re.search(r'Wine: pad connected=(\d+) buttons=\S+ touch=(\d+)', line)
+        if match:
+            return int(match.group(2)) if match.group(1) == '1' else 0
+    return 0
 
 
 def native_close_failures(text):
@@ -1078,6 +1090,11 @@ def main():
                   (clean_owner_restart or launcher_end_status == 0))) and \
                  (not state['exit_stall'] or args.expect_ended) and state['loaded']
         passed = passed and launcher_end_status in (None, 0)
+        touched = touchpad_touched_at_start(lines)
+        if touched:
+            print(f'touchpad touched at start: {touched} contact(s) on the pad\'s touchpad move the pointer; leave the pad '
+                  'face-up and untouched, or switch it off, and run again')
+        passed = passed and not touched
         # The owner's verdict line (native/proton_wine.cpp) says FAIL when the initial program's exit status is not 0
         # or the broker did not stop. A probe's status is its verdict. A game the title asked to close (the run's
         # budget, a pad script's stop) and that closed by itself ends with a status of its own choosing, which is no
@@ -1115,6 +1132,9 @@ def main():
         passed = passed and logs_status == 0 and not child_logs_missing and not storage
         # Executable memory in a helper is JIT memory only (wine/ps5/pw_wine_dmem_ps5.c).
         child_texts = [path.read_text(errors='replace') for path in child_logs]
+        # Each helper start, step by step (tools/start_stages.py): the title's spawn line, the helper's stamps, Wine's lines.
+        child_by_pid = {int(m.group(1)): text for path, text in zip(child_logs, child_texts)
+                        if (m := re.search(r'-(\d+)\.log$', path.name))}
         initial = next((text for text in child_texts if 'wine-child: initial Windows client' in text), '')
         image = re.search(r'^.*trace:loaddll:build_module Loaded L"[^"]*\.exe"', initial, re.M)
         if image and (at := console_stage(marks, image.group(0))) is not None:
@@ -1196,6 +1216,7 @@ def main():
             'child_logs_missing': child_logs_missing, 'session_logs_status': logs_status,
             'storage_errors': len(storage), 'stop_terminate': stop_terminate,
             'injected_fault': fault, 'exec_protection': exec_record, 'code_share': code_share(child_texts), 'helpers': helper_rows(child_texts),
+            'start_stages': start_stages.summary(lines, child_by_pid),
             'foreign_mappings': foreign_record, 'helper_sched': sched, 'helpers_ended': ended_record,
             'helper_doom': doom, 'broker_phases': phases,
             'memory_helper_slowest': memory.pop('slowest'), 'memory_helper': memory, **robustness,
@@ -1207,6 +1228,7 @@ def main():
                                     or any('launch: mode=launcher' in line
                                            for line in lines[next((i for i, line in enumerate(lines)
                                                                    if 'launch: mode=game' in line), len(lines)):]),
+            'touchpad_touched_at_start': touched,
             'passed': passed, 'bench': bench, 'steady': aggregate(frames, server, args.skip),
             'intervals': {'frames': frames, 'server': server, 'top': top},
             # What the display showed of the foreground process, from the title's 10 s reports

@@ -138,8 +138,10 @@ int pw_window_scene_gpu(PwWindowScene *scene,int32_t presenter,uint32_t hwnd,uin
                         const void *pixels,uint32_t width,uint32_t height,uint32_t stride,
                         unsigned bgra,const PwWindowSnapshot *snapshot)
 {
-    if(!scene || presenter<=0 || !hwnd || !generation || !pixels || ((uintptr_t)pixels&3) || !width || width>1920 ||
-       !height || height>1080 || stride<width*4 || stride>1920*4 || stride%4 || bgra>1)
+    /* A window may be larger than the screen (Steam's restored window is 1922x1081): the compositor clips it. */
+    if(!scene || presenter<=0 || !hwnd || !generation || !pixels || ((uintptr_t)pixels&3) || !width ||
+       width>PW_WINDOW_WIDTH || !height || height>PW_WINDOW_HEIGHT || stride<width*4 || stride>PW_WINDOW_WIDTH*4 ||
+       stride%4 || bgra>1)
         {errno=EINVAL;return -1;}
     if(!valid_snapshot(snapshot))return -1;
     const PwWindowRow *row=window_of(snapshot,hwnd,generation);

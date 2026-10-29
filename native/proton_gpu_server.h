@@ -33,6 +33,8 @@ bool proton_gpu_broker_set_cover(const void *pixels);
  * recorder's (native/proton_flight_recorder.h). */
 struct ProtonGpuHealth { unsigned lock_busy,display_busy,fences_issued,fences_completed;const char *phase;unsigned long long phase_ms;int holder_tid; };
 void proton_gpu_broker_health(ProtonGpuHealth *health);
+/* The app is away from the foreground (src/pw_suspend.h): the broker drains and holds new GPU work (graphics patch 0038). */
+void proton_gpu_broker_set_away(bool away);
 /* Where the broker gets the memory it shares with a helper (a buffer's object, and its pages written through before the
  * broker maps it for the GPU): the title's memory helper. Unset, the broker makes it itself. */
 void proton_gpu_broker_set_shared_memory(int (*alloc)(size_t),int (*touch)(int,size_t,size_t));

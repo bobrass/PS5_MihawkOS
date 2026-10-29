@@ -723,6 +723,40 @@ Fixed:
   failure line: i386 matches the PC; x86_64 differs only in a skip. The console's device has no external-memory
   extensions (vulkan.c:1333 and 1545, "Failed to create device with external memory extensions, VkResult -7"), which
   is also why it runs 496 checks against the PC's 1,010; the PC skips present timing instead (vulkan.c:510).
+- Direct3D 9 focus loss: d3d9's tests take the focus from a fullscreen device with
+  SetForegroundWindow(GetDesktopWindow()) (device.c:5234 and 12142, d3d9ex.c:3629), which failed on the console only.
+  A probe (fgprobe-pro-01, 2026-10-28) showed why: no explorer owns the PS5 desktop window (the server creates it
+  detached, patch 0410), and the server refuses a window without a thread as the foreground. Patch 2151 makes the
+  thread-less desktop the foreground for the caller. That exposed a second difference: with no clip the cursor clip
+  is the whole physical screen, and inside an emulated 640x480 mode it read (-107,0)-(747,480) (device.c:14950);
+  patch 2152 keeps GetClipCursor inside the virtual screen. On the Pro (2026-10-28, build 2bf8276e) the console-only
+  lines went from 63 to 51 (x86_64) and 50 (i386) in device and from 42 to 32 in d3d9ex in both builds. One new line
+  in x86_64 (device.c:6727, an occlusion-query count) belongs to the query test whose neighbouring line 6780 already
+  reads different values from run to run. test_device_window_reset crashed with 0xc0000005 on the console only:
+  a Reset from fullscreen to fullscreen onto a new device window built DXVK's D3D9WindowMessageFilter for a window
+  DXVK never hooked, and the filter dereferenced its map's end() (d3d9-device-seh-pro-01: d3d9.dll+0x8968f, a read
+  at 0x19). The PC never reaches that Reset: its fullscreen device fails to create at 3440x1440 (device.c:5946,
+  skipped). DXVK patch 0006 skips the filter for an unhooked window; on the Pro (build 5105ced8) the function runs
+  to its end with no failure line in both builds. The crash also left its window class registered, so a batch that
+  ran d3d9ex after device in one process failed d3d9ex's RegisterClass. i386 device needs more than the 60 s default
+  file limit (80-120 s): run it with --file-timeout 240. With the PC's display awake (2026-10-28 morning, same
+  counts as the evening before) d3d9 has 136 console-only lines in each build: device 49, d3d9ex 32, visual 55.
+- Direct3D 11: 233 console-only lines in each build (2026-10-27) were mostly the oracle's. Wine's d3dcompiler_47
+  loads wined3d, and d3d11's tests read wined3d's Vulkan renderer as "damavand", which turns 228 todo checks of
+  test_clear_buffer_unordered_access_view (d3d11.c:16937-16949) into plain checks. Every console program gets that
+  renderer (WINE_D3D_CONFIG=renderer=vulkan, native/proton_wine.cpp); the PC's runs had wined3d's default, OpenGL.
+  tools/run-wine-tests.py now gives the PC's Direct3D runs the console's setting. DXVK still draws on both sides (a
+  probe, d3d11which-pro-01: DXVK's d3d11 and dxgi load, wined3d does not, until d3dcompiler_47 is imported). Three
+  more lines were a real crash: a texture with D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX (test_create_texture1d, 2d,
+  3d) called address 0, because DxvkFence asked vkGetSemaphoreWin32HandleKHR, null without
+  VK_KHR_external_semaphore_win32, for the handle of a semaphore it could not export. DXVK patch 0005 asks for no
+  handle then, as 0003 does for images. On the Pro (2026-10-28, build 7970d8a5) d3d11 leaves 2 console-only lines
+  in each build: VSInvocations reads 5 for a 4-vertex quad (d3d11.c:6392 and 6415), the console's AMD GPU against
+  the PC's NVIDIA one. evr stays skipped on the console (its GPU page fault, tests/wine-tests-skip-ps5.json). The
+  PC's dxgi oracle needs the owner's word (its tests switch the real display's modes). While the PC's display was
+  asleep (Xwayland reported a 0x0 screen) its d3d9 visual run stalled at test_texture_blending and its device and
+  d3d9ex results moved by 21-27 window and focus lines; with the display awake they match the evening's again. Take
+  the PC's Direct3D oracles with its display awake.
 - A module whose Unix side the console does not ship crashes on its first call when its Windows side ignores the
   failure: winscard (no pcsclite; "no pcsclite support, expect problems") and wpcap (no libpcap) both builds. The
   call faults in __wine_unix_call_dispatcher (ntdll.prx+0x39aae) and returns STATUS_ACCESS_VIOLATION, which the

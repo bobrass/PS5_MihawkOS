@@ -45,6 +45,8 @@ endian = 'little'
 needs_exe_wrapper = true
 CROSS
 export PATH="$mingw/bin:$PATH"
+# No link time in the DLLs (--no-insert-timestamp), as the x86_64 build (foundation patch 0050): the same source gives
+# the same bytes.
 reconfigure=()
 [ ! -f "$work/build/build.ninja" ] || reconfigure=(--reconfigure)
 meson setup "${reconfigure[@]}" "$work/build" "$work/source" --cross-file "$work/cross.ini" \
@@ -54,6 +56,7 @@ meson setup "${reconfigure[@]}" "$work/build" "$work/source" --cross-file "$work
     -Dllvm=disabled -Dzlib=disabled -Dzstd=disabled -Dshader-cache=disabled \
     -Dxmlconfig=disabled -Dexpat=disabled -Dlibunwind=disabled -Dvalgrind=disabled \
     -Dvideo-codecs= -Dbuild-tests=false -Dtools= -Dgallium-va=disabled -Dgallium-rusticl=false \
+    -Dc_link_args=-Wl,--no-insert-timestamp -Dcpp_link_args=-Wl,--no-insert-timestamp \
     > "$work/meson.log" 2>&1 || { tail -30 "$work/meson.log" >&2; exit 1; }
 ninja -C "$work/build" -j "${JOBS:-12}" \
     src/gallium/targets/libgl-gdi/opengl32.dll src/gallium/targets/wgl/libgallium_wgl.dll \

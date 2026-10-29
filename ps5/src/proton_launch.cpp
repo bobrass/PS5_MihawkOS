@@ -6,6 +6,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #include "proton_launch.h"
+#include "../../src/pw_runtime_check.h"
+#include "../../src/pw_memory_helper.h"
+#include "../../src/pw_steam.h"
 #include <functional>
 #include "platform.h"
 
@@ -19,6 +22,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <exception>
 #include <utility>
 
@@ -27,6 +31,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
 #include <ps5platform/elevation.h>
 #include <ps5platform/kernel.h>
 #include "../../src/pw_elfldr.h"
@@ -504,11 +510,9 @@ std::string proton_data_problem()
 #endif
 }
 
-std::string proton_runtime_problem()
+int proton_runtime_state()
 {
 	const std::string runtime = PROTON_DATA_ROOT "/runtime/ge11-7";
-	if (access((runtime + "/lib/wine/x86_64-unix/ntdll.prx").c_str(), R_OK) != 0)
-		return "The Wine runtime is not installed in " + runtime + ". Install it, then reopen " PS5_TITLE_NAME ".";
 	auto read = [](const std::string &path) {
 		std::string text;
 		if (FILE *file = fopen(path.c_str(), "rb")) {
@@ -518,11 +522,50 @@ std::string proton_runtime_problem()
 		}
 		return text;
 	};
-	const std::string pinned = read(proton_title_path("/app0/runtime-stamp"));
-	/* shortcut: a title built without its pin (ps5/tools/build.sh alone) checks only that the runtime is there. */
-	if (pinned.empty() || read(runtime + "/runtime-stamp") == pinned) return {};
-	return "The Wine runtime in " + runtime + " is not the one this " PS5_TITLE_NAME " build was made with. Install the "
-		"runtime of this build, then reopen " PS5_TITLE_NAME ".";
+	return pw_runtime_state(access((runtime + "/lib/wine/x86_64-unix/ntdll.prx").c_str(), R_OK) == 0,
+	                        read(runtime + "/runtime-stamp").c_str(), read(proton_title_path("/app0/runtime-stamp")).c_str());
+}
+
+std::string proton_build_identity()
+{
+	auto read = [](const std::string &path) {
+		std::string text;
+		if (FILE *file = fopen(path.c_str(), "rb")) {
+			char buffer[4096];
+			text.assign(buffer, fread(buffer, 1, sizeof(buffer), file));
+			fclose(file);
+		}
+		return text;
+	};
+	auto short_stamp = [](std::string text) {
+		text = text.substr(0, text.find_first_of(" \t\r\n"));
+		return text.empty() ? std::string("-") : text.substr(0, 16);
+	};
+	const nlohmann::json param = nlohmann::json::parse(read(proton_title_path("/app0/sce_sys/param.json")), nullptr, false);
+	std::string version = "-";
+	if (param.is_object()) {
+		const auto found = param.find("contentVersion");
+		if (found != param.end() && found->is_string()) version = found->get<std::string>();
+	}
+	static const char *const states[] = { "this build's", "missing", "another build's" };
+	const int state = proton_runtime_state();
+	return "title " + version + ", runtime stamp pinned " + short_stamp(read(proton_title_path("/app0/runtime-stamp"))) +
+		" installed " + short_stamp(read(PROTON_DATA_ROOT "/runtime/ge11-7/runtime-stamp")) + " (" +
+		states[state >= 0 && state <= 2 ? state : 2] + ")";
+}
+
+std::string proton_runtime_problem()
+{
+	const std::string runtime = PROTON_DATA_ROOT "/runtime/ge11-7";
+	switch (proton_runtime_state()) {
+	case PW_RUNTIME_MISSING:
+		return "The Wine runtime is not installed in " + runtime + ". Install it, then reopen " PS5_TITLE_NAME ".";
+	case PW_RUNTIME_OTHER_BUILD:
+		return "The Wine runtime on this console is from another " PS5_TITLE_NAME " build than this one. Install the "
+			"runtime of this build: the setup's install opens next.";
+	default:
+		return {};
+	}
 }
 
 namespace {
@@ -612,6 +655,12 @@ ProtonGame read_game(const std::string &id, const std::string &directory)
 				const std::string setting = item.is_string() ? trim(item.get<std::string>()) : std::string();
 				if (setting.find('=') == std::string::npos || setting[0] == '=') {
 					game.complaint = "env words are NAME=VALUE: " + setting;
+				} else if (setting.rfind("WINE_PS5_PROCESS_RULES=", 0) == 0) {
+					// An entry an older build wrote keeps its rules and gains this build's (src/pw_steam.h).
+					char merged[2048];
+					const size_t length = pw_steam_rules_merge(setting.c_str() + strlen("WINE_PS5_PROCESS_RULES="),
+					                                           merged, sizeof(merged));
+					game.env.push_back(length ? "WINE_PS5_PROCESS_RULES=" + std::string(merged) : setting);
 				} else {
 					game.env.push_back(setting);
 				}
@@ -934,4 +983,123 @@ void proton_selftest_note(const char *what, unsigned cycle)
 	fclose(file);
 	chmod(log.c_str(), 0666);
 	proton_say("selftest: %s cycle=%u", what, cycle);
+}
+
+#if !defined(PS5_HOST_REFERENCE)
+namespace {
+
+/* One request to a payload on the loopback; the reply's body, or empty. */
+std::string loopback_http(int port, const std::string &request)
+{
+	const int fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (fd < 0) return {};
+	struct timeval timeout = { 1, 0 };
+	setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+	setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	struct sockaddr_in address = {};
+	address.sin_family = AF_INET;
+	address.sin_port = htons((uint16_t)port);
+	address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	std::string reply;
+	if (connect(fd, (struct sockaddr *)&address, sizeof(address)) == 0 && send_all(fd, request.data(), request.size())) {
+		char buffer[4096];
+		ssize_t got;
+		while (reply.size() < 65536 && (got = recv(fd, buffer, sizeof(buffer), 0)) > 0) reply.append(buffer, (size_t)got);
+	}
+	close(fd);
+	const size_t body = reply.find("\r\n\r\n");
+	return body == std::string::npos ? std::string() : reply.substr(body + 4);
+}
+
+/* A string field of a JSON reply, or empty. */
+std::string json_text(const std::string &body, const char *field)
+{
+	const auto json = nlohmann::json::parse(body, nullptr, false);
+	const auto found = json.is_object() ? json.find(field) : json.end();
+	return found != json.end() && found->is_string() ? found->get<std::string>() : std::string();
+}
+
+} // namespace
+#endif
+
+static PwPayloadReport gPayloads;
+static PwPayloadFacts gPayloadFacts;
+static bool gPayloadsTaken = false;
+
+const PwPayloadReport &proton_payloads_check()
+{
+	gPayloadsTaken = true;
+	memset(&gPayloadFacts, 0, sizeof(gPayloadFacts));
+#if defined(PS5_HOST_REFERENCE)
+	memset(&gPayloads, 0, sizeof(gPayloads));
+	gPayloads.listed = gPayloads.pass = 1;   /* the PC has no payloads */
+	return gPayloads;
+#else
+	std::vector<PwPayloadProcess> list;
+	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PROC, 0 };
+	size_t bytes = 0;
+	if (!sysctl(mib, 4, nullptr, &bytes, nullptr, 0) && bytes) {
+		bytes += bytes / 4;
+		std::vector<char> raw(bytes);
+		if (!sysctl(mib, 4, raw.data(), &bytes, nullptr, 0)) {
+			gPayloadFacts.listed = 1;
+			const uint64_t page = (uint64_t)sysconf(_SC_PAGESIZE);
+			/* The console's records are ki_structsize apart (1096 bytes, the SDK's 1088); the fields read come first. */
+			for (size_t at = 0; at + sizeof(int) <= bytes;) {
+				int size;
+				memcpy(&size, raw.data() + at, sizeof(size));
+				if (size <= 0 || at + (size_t)size > bytes) break;
+				struct kinfo_proc record = {};
+				memcpy(&record, raw.data() + at, std::min((size_t)size, sizeof(record)));
+				at += (size_t)size;
+				PwPayloadProcess process = { record.ki_pid, record.ki_ppid, {}, (uint64_t)record.ki_rssize * page };
+				snprintf(process.name, sizeof(process.name), "%s", record.ki_comm);
+				list.push_back(process);
+			}
+		}
+	}
+	/* kstuff by its process: a title may not make a raw system call (a kekcall from the title ended it with
+	 * SYSTEM_ILLEGAL_FUNCTION_CALL, "directly issued a syscall 39", payload-quick-2026-10-29-01), so its version is not read */
+	for (const auto &process : list)
+		if (!strcmp(process.name, "kstuff.elf") || !strcmp(process.name, "kstuff")) gPayloadFacts.kstuff = PW_KSTUFF_OK;
+	snprintf(gPayloadFacts.shadowmount_version, sizeof(gPayloadFacts.shadowmount_version), "%s",
+		json_text(loopback_http(10101, "POST /api/v1/version HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\n"
+			"Content-Length: 2\r\nConnection: close\r\n\r\n{}"), "shadowmount_version").c_str());
+	snprintf(gPayloadFacts.websrv_version, sizeof(gPayloadFacts.websrv_version), "%s",
+		json_text(loopback_http(PW_ELFLDR_PORT, "GET /version HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"),
+			"tag").c_str());
+	pw_payload_check(list.data(), (unsigned)list.size(), (int)getpid(), &gPayloadFacts, &gPayloads);
+	int syscore = 0;
+	for (const auto &process : list)
+		if (!strncmp(process.name, "SceSysCore", 10)) syscore = process.pid;
+	for (const auto &process : list)
+		if (pw_memory_is_payload(process.ppid, syscore, process.name))
+			proton_say("payloads: pid=%d ppid=%d name=%s resident=%.1f MiB", process.pid, process.ppid, process.name,
+				process.resident / 1048576.0);
+	proton_say("payloads: pass=%d listed=%d processes=%zu kstuff=%s shadowmountplus=%s websrv=%s others=%u (%.1f MiB) "
+		"payloads=%.1f MiB", gPayloads.pass, gPayloads.listed, list.size(),
+		gPayloadFacts.kstuff == PW_KSTUFF_OK ? "running" : "absent",
+		gPayloadFacts.shadowmount_version[0] ? gPayloadFacts.shadowmount_version : "-",
+		gPayloadFacts.websrv_version[0] ? gPayloadFacts.websrv_version : "-", gPayloads.others,
+		gPayloads.other_resident / 1048576.0, gPayloads.payload_resident / 1048576.0);
+	return gPayloads;
+#endif
+}
+
+const PwPayloadReport &proton_payloads()
+{
+	return gPayloadsTaken ? gPayloads : proton_payloads_check();
+}
+
+const PwPayloadFacts &proton_payload_facts()
+{
+	proton_payloads();
+	return gPayloadFacts;
+}
+
+std::string proton_payloads_problem()
+{
+	char advice[1024];
+	pw_payload_advice(&proton_payloads(), &gPayloadFacts, advice, sizeof(advice));
+	return advice;
 }

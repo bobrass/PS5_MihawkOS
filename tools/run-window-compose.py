@@ -13,7 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def display_verdict(captures, log, graphics=False):
-    sample_counts = (4, 4, 3, 4, 3, 3) if graphics else (4, 4, 3, 4, 3, 4, 3, 3, 3, 3, 3, 3, 3, 3)
+    sample_counts = (4, 4, 3, 4, 3, 3, 4) if graphics else (4, 4, 3, 4, 3, 4, 3, 3, 3, 3, 3, 3, 3, 3)
+    # The GPU probe's seventh capture is a window larger than the screen (graphics patch 0036): no desktop shows.
+    covered = {7} if graphics else set()
     samples = re.findall(r'window-compose capture=(\d+) phase=([\w-]+) sample=(\d+),(\d+) '
                          r'expected=(\d+),(\d+),(\d+) result=(PASS|FAIL)', log)
     results = []
@@ -40,7 +42,7 @@ def display_verdict(captures, log, graphics=False):
             background = image.getpixel((1600, 900)) if image.size == (1920, 1080) else None
             results.append({'capture': capture, 'number': number, 'pixels': pixels,
                             'desktop_background': background, 'expected_background': expected_background,
-                            'passed': expected_background is not None and background == expected_background and number <= len(sample_counts) and len(pixels) == sample_counts[number - 1] and all(p['passed'] for p in pixels)})
+                            'passed': (number in covered or expected_background is not None and background == expected_background) and number <= len(sample_counts) and len(pixels) == sample_counts[number - 1] and all(p['passed'] for p in pixels)})
     return results, len(results) == len(sample_counts) and all(r['passed'] for r in results)
 
 

@@ -346,6 +346,17 @@ void mainCRTStartup(void)
         check(host&&IsWindow(host),"the owner's window survives its presenter");
         if(host)DestroyWindow(host);
     }
+    if(IsWindow(root)) {
+        /* Steam's restored window (2026-10-27): frameless, its client area two pixels past the 1920x1080 screen. Windows
+         * makes that swapchain and shows the part on screen; the broker refused it and the screen stayed black. */
+        gpu_colour=green;
+        SetWindowLongW(root,GWL_STYLE,(GetWindowLongW(root,GWL_STYLE)&~WS_OVERLAPPEDWINDOW)|WS_POPUP);
+        SetWindowPos(root,HWND_TOP,-1,-1,1922,1081,SWP_FRAMECHANGED);pump(200);
+        RECT client={0};GetClientRect(root,&client);
+        check(client.right==1922&&client.bottom==1081,"client area larger than the screen");
+        struct Sample oversize[]={{4,540,green},{1915,600,green},at(root,430,130,yellow)};
+        check(capture("gpu-oversize",oversize,3),"GPU window larger than the screen, shown clipped");
+    }
     check(graphics_okay,"every parent presentation completed without graphics error");
     check(IsWindow(shell),"shell survives graphics child exit");
     graphics_close();if(root)DestroyWindow(root);

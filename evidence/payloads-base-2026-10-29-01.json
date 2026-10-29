@@ -1,0 +1,87 @@
+{
+ "run": "payloads-base-2026-10-29-01",
+ "what": "Read-only payload census of the owner's base PS5 with the official payload set loaded, no title running",
+ "console": "base PS5 CFI-1215A, firmware 13.60 (ShadowMountPlus log: FW 13.60)",
+ "how": [
+  "tools/console-processes.py and tools/console-memory.py through websrv POST /elfldr (short-lived, read-only)",
+  "TCP connects and HTTP GET/POST from the PC",
+  "FTP read of /data/shadowmount/debug.log"
+ ],
+ "elfldr_parent": "SceRedisServer (pid 69); every other payload is elfldr's child",
+ "payloads": [
+  {
+   "pid": 104,
+   "ppid": 87,
+   "name": "ftpsrv.elf",
+   "resident_mib": 4.1
+  },
+  {
+   "pid": 103,
+   "ppid": 87,
+   "name": "klogsrv.elf",
+   "resident_mib": 3.9
+  },
+  {
+   "pid": 102,
+   "ppid": 87,
+   "name": "websrv.elf",
+   "resident_mib": 8.2
+  },
+  {
+   "pid": 101,
+   "ppid": 87,
+   "name": "shadowmountplus.elf",
+   "resident_mib": 25.2
+  },
+  {
+   "pid": 100,
+   "ppid": 87,
+   "name": "kstuff.elf",
+   "resident_mib": 7.7
+  },
+  {
+   "pid": 97,
+   "ppid": 87,
+   "name": "nanodns.elf",
+   "resident_mib": 4.1
+  },
+  {
+   "pid": 93,
+   "ppid": 87,
+   "name": "pldmgr.elf",
+   "resident_mib": 12.3
+  },
+  {
+   "pid": 87,
+   "ppid": 69,
+   "name": "elfldr.elf",
+   "resident_mib": 22.8
+  },
+  {
+   "pid": 75,
+   "ppid": 53,
+   "name": "fs_cleaner.elf",
+   "resident_mib": 2.7
+  }
+ ],
+ "payload_resident_mib_total": 88.3,
+ "not_payloads": {
+  "fs_cleaner.elf": "started by SceSysCore (pid 53), so pw_memory_is_payload leaves it out"
+ },
+ "versions": {
+  "shadowmountplus": "POST /api/v1/version on port 10101: shadowmount_version 1.7beta10, api_version 1",
+  "websrv": "GET /version on port 8080: tag v0.34 (Aug 2 2026)",
+  "kstuff": "no version call; kekcall 7 exists only from kstuff-lite v1.11 (not probed in this run)"
+ },
+ "ports_from_pc": {
+  "2121 ftpsrv": "open",
+  "3232 klogsrv": "open",
+  "8080 websrv": "open",
+  "10101 shadowmountplus": "open",
+  "9021 elfldr": "refused",
+  "53 tcp": "refused",
+  "53 udp (nanodns)": "no answer"
+ },
+ "shadowmount_hooks": "[SHELLCORE] hook pages retained: cave=1 sites=3, then hooks installed (fw 13.60): upstream 35fff9fc, the fix PR 139 proposed",
+ "notes": "pldmgr.elf is running; the owner allowed it as optional (2026-10-29)."
+}

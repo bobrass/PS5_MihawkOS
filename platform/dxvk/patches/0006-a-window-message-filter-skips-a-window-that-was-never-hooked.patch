@@ -1,0 +1,34 @@
+DXVK 601930949d111edbbcf9dd463948426d9f8f6ddd
+
+A D3D9 Reset from fullscreen to fullscreen that names a new device window
+(D3DPRESENT_PARAMETERS.hDeviceWindow) makes it the swapchain's window and then
+builds a D3D9WindowMessageFilter for it. Only the window the swapchain entered
+fullscreen with was hooked, so g_windowProcMap has no entry for the new one,
+and the filter dereferenced the map's end(): a read at 0x19 through a null
+node. Wine's d3d9 test_device_window_reset crashed so on the PS5 Pro in both
+builds (2026-10-28, d3d9-device-seh-pro-01: c0000005 at d3d9.dll+0x8968f,
+D3D9WindowMessageFilter::D3D9WindowMessageFilter); a game that resets onto
+another window would crash the same way. A window that was never hooked has
+no message filter to set or restore: skip it.
+
+--- a/src/d3d9/d3d9_window.cpp
++++ b/src/d3d9/d3d9_window.cpp
+@@ -22,13 +22,16 @@
+     : m_window(window) {
+     std::lock_guard lock(g_windowProcMapMutex);
+     auto it = g_windowProcMap.find(m_window);
+-    m_filter = std::exchange(it->second.filter, filter);
++    // a Reset can name a device window that was never hooked: nothing to filter then
++    if (it != g_windowProcMap.end())
++      m_filter = std::exchange(it->second.filter, filter);
+   }
+ 
+   D3D9WindowMessageFilter::~D3D9WindowMessageFilter() {
+     std::lock_guard lock(g_windowProcMapMutex);
+     auto it = g_windowProcMap.find(m_window);
+-    it->second.filter = m_filter;
++    if (it != g_windowProcMap.end())
++      it->second.filter = m_filter;
+   }
+ 
+   LRESULT CALLBACK D3D9WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {

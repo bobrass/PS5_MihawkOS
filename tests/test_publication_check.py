@@ -99,16 +99,19 @@ class PublicationCheck(unittest.TestCase):
         (self.repo / 'tools').mkdir()
         (self.repo / 'evidence').mkdir()
         (self.repo / 'tools/publication-names.txt').write_text(
-            f'# exact paths\n[{client.lower()}] the guide\nguide.c\n\n[records] runs kept as measured\n{record}\n')
+            f'# exact paths\n[{client.lower()}] the guide\nguide.c\n\n[records] runs kept as measured\n{record}\n'
+            f'\n[games] a measurement by its game\nguard.c\n')
         spdx = '/* SPDX-License-Identifier: GPL-3.0-or-later */\n'
         (self.repo / 'guide.c').write_text(f'{spdx}/* {client} updates itself */\n')
         (self.repo / record).write_text(f'{{"game": "{game}"}}\n')
         (self.repo / 'notes.md').write_text(f'see `{Path(record).stem}` for the load\n')
+        (self.repo / 'guard.c').write_text(f'{spdx}/* {other} with {client} filled the pool */\n')
         code, output = self.run_tool('tree')
         self.assertEqual(code, 0, output)
         self.assertIn('allowed  named game or launcher: 1 in guide.c (the guide)', output)
         self.assertIn(f'allowed  named game or launcher: 1 in {record} (runs kept as measured)', output)
         self.assertIn('allowed  named game or launcher: 1 in notes.md (a kept record cited by its run name)', output)
+        self.assertIn('allowed  named game or launcher: 1 in guard.c (a measurement by its game)', output)
         # The store client in a file not listed, another game in a listed one, a game beside a record's name: refused
         (self.repo / 'other.c').write_text(f'{spdx}/* {client} */\n')
         (self.repo / 'guide.c').write_text(f'{spdx}/* {client} and {other} */\n')
@@ -132,7 +135,8 @@ class PublicationCheck(unittest.TestCase):
     def test_a_build_must_not_carry_what_never_ships(self):
         (self.repo / '.gitignore').write_text('.deps/\ndist/\n')  # build output is ignored, as in this repository
         (self.repo / 'dist/PPSA99170').mkdir(parents=True)  # a title folder without licenses/
-        (self.repo / 'dist/PPSA99170/eboot.bin').write_bytes(b'\0')
+        # the title names ShadowMountPlus in its payload checklist: not a bundled copy
+        (self.repo / 'dist/PPSA99170/eboot.bin').write_bytes(b'\x7fELF' + b'\0' * 60 + b'ShadowMountPlus 1.7beta10 or later')
         runtime = self.repo / '.deps/staged/runtime/ge11-7'
         (runtime / 'share/licenses').mkdir(parents=True)
         wallpaper = runtime / 'lib/wine/prefix/drive_c/windows/web/wallpaper'
@@ -145,7 +149,7 @@ class PublicationCheck(unittest.TestCase):
         (modules / 'd3d9.dll').write_bytes(b'MZ' + b'\0' * 62 + b'Wine builtin DLL' + b'\0' * 62 + microsoft)  # Wine's
         (modules / 'wine-probe.exe').write_bytes(b'MZ')
         (self.repo / 'dist/release').mkdir(parents=True)
-        (self.repo / 'dist/release/mount.elf').write_bytes(b'\x7fELF' + b'\0' * 60 + b'ShadowMountPlus 1.7')
+        (self.repo / 'dist/release/mount.elf').write_bytes(b'\x7fELF' + b'\0' * 60 + b'ShadowMount+ v%s')
         code, output = self.run_tool('tree')
         self.assertEqual(code, 1, output)
         self.assertEqual(self.failed(output), {'licence text missing beside a build', 'file that must never ship in a build'})
@@ -155,6 +159,7 @@ class PublicationCheck(unittest.TestCase):
         self.assertIn('a wallpaper that is not Bubble Earth', output)
         self.assertIn('title: no licenses/ folder', output)
         self.assertNotIn('d3d9.dll', output)
+        self.assertNotIn('eboot.bin (ShadowMountPlus)', output)
 
     def test_a_build_with_bubble_earth_passes(self):
         (self.repo / '.gitignore').write_text('.deps/\ndist/\n')

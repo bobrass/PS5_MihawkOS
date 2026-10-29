@@ -17,6 +17,7 @@ mkdir -p "$out"
 declare -A sources=(
     [test_pw_control_watch]=""
     [test_pw_payload_close]=""
+    [test_pw_warm_helper]=""
     [test_pw_payload_rendezvous]="wine/ps5/pw_wine_process_io.c"
     [test_pw_frame_pacing]="src/pw_frame_pacing.c"
     [test_pw_aurelia]="src/pw_aurelia.c"
@@ -35,6 +36,7 @@ declare -A sources=(
     [test_pw_speed_defaults]=""
     [test_pw_display_rate]=""
     [test_pw_present_retry]=""
+    [test_pw_suspend]=""
     [test_pw_window_direct]="src/pw_window_direct.c src/pw_window_compose.c src/pw_window_effects.c"
     [test_pw_desktop_session]="src/pw_desktop_session.c"
     [test_pw_app_environment]="src/pw_app_environment.c src/pw_environment.c"
@@ -49,6 +51,8 @@ declare -A sources=(
     [test_pw_high_refresh]="src/pw_high_refresh.c"
     [test_pw_controller]="src/pw_controller.c"
     [test_pw_setup]="src/pw_setup.c"
+    [test_pw_runtime_check]="src/pw_runtime_check.c src/pw_setup.c"
+    [test_pw_payload_check]="src/pw_payload_check.c"
     [test_pw_loading_art]="src/pw_loading_art.c"
     [test_pw_taskbar_layout]=""
     [test_pw_text_glyphs]=""
@@ -138,6 +142,7 @@ declare -A sources=(
     [test_wine_fault_served]=""
     [test_wine_virtual_guard]=""
     [test_process_rules]="src/pw_steam.c"
+    [test_process_hid_link]=""
     [test_crash_replays]="tests/fake_ps5_kernel.c wine/ps5/pw_wine_dmem_ps5.c wine/ps5/pw_wine_dmem.c wine/ps5/pw_wine_heap.c
         wine/ps5/pw_wine_pages.c wine/ps5/pw_wine_pages_ps5.c wine/ps5/pw_wine_vm.c wine/ps5/pw_wine_prx.c wine/ps5/pw_wine_alias.c
         wine/ps5/pw_wine_mmu4k_ps5.c wine/ps5/pw_wine_mmu4k.c wine/ps5/pw_wine_mmu4k_slot.S src/pw_ia32_isa.c src/pw_ia32_decode.c
@@ -155,6 +160,7 @@ declare -A flags=(
     # Patch 1128's guard in virtual.c, extracted from the applied Wine tree into $out (below).
     [test_wine_virtual_guard]="-I$out"
     [test_process_rules]="-I$out"
+    [test_process_hid_link]="-I$out"
     # The shared fake kernel owns console addresses as host addresses, which below 0x2008fff7000 lie in AddressSanitizer's
     # shadow gap: no ASan here (UBSan stays). The wrapped libc calls reach the fake; Wine's extracted code is built with
     # Wine's warnings, and the host's mincore takes unsigned char where the console's takes char.
@@ -216,7 +222,11 @@ for test in "$root"/tests/test_*.c; do
         python3 "$root/tools/build-tooltip-glyphs.py" > /dev/null
     fi
     if [[ $name == test_process_rules ]]; then
-        python3 "$root/tests/extract_process_rules.py" "$root"/wine/patches/2070-*.patch "$out/process_rules.inc"
+        python3 "$root/tests/extract_process_rules.py" "$root"/wine/patches/2070-*.patch "$out/process_rules.inc" \
+            "$root"/wine/patches/2104-*.patch
+    fi
+    if [[ $name == test_process_hid_link ]]; then
+        python3 "$root/tests/extract_process_rules.py" "$root"/wine/patches/2401-*.patch "$out/process_hid_link.inc"
     fi
     if [[ $name == test_wine_virtual_guard ]]; then
         # shortcut: reads the tree the last build-wine-ps5.sh applied, not the patch series; build after editing 1128.
@@ -273,10 +283,10 @@ if (( $# == 0 )) || [[ "$*" == *webui* ]]; then
     ran=$((ran + 1))
 fi
 if (( $# == 0 )) || [[ "$*" == *console_guard* ]]; then
-    for test in console_guard battery_runner shell_capture window_compose_runner appearance_runner profile_report \
+    for test in console_guard battery_runner gate_quick shell_capture window_compose_runner appearance_runner profile_report \
             desktop_session_runner desktop_input_runner tls_fixture telemetry_teardown \
             window_material_tokens window_effects_runner frame_pacing_runner deploy_folder console_setup sched_watch run_console_verdicts \
-            placed_unmap_order module_wiring helper_opengl privacy_check dll_overrides prx_exports taskbar_logo stage_licences publication_check title_icon pack_runtime pw_https mihawk_wallpaper aero_wallpapers mihawk_music browser_lines sign_release package_install check_title_imports carrier_image_probe payload_firmware memory_breakdown run_shared_charge webui_http webui_i18n deploy_wine_retire; do
+            placed_unmap_order module_wiring helper_opengl privacy_check dll_overrides prx_exports taskbar_logo stage_licences publication_check title_icon pack_runtime pw_https mihawk_wallpaper aero_wallpapers mihawk_music browser_lines sign_release package_install check_title_imports carrier_image_probe payload_firmware memory_breakdown run_shared_charge webui_http webui_i18n deploy_wine_retire start_stages wineboot_install_sentinel build_stamp; do
         python3 "$root/tests/test_$test.py"
         ran=$((ran + 1))
     done

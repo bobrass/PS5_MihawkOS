@@ -38,13 +38,21 @@ sources=(
     "$root/native/pw_malloc_trace_ps5.c"
     "$root/src/pw_firmware.c"
     "$root/native/pw_firmware_ps5.c"
+    "$root/src/pw_fd_census.c"
 )
 
 mkdir -p "$(dirname -- "$output")"
+# The helper's build id: a digest of every source and header the compiler reads for it (its -MM list), so a helper's
+# log names the build that made it (PW_HELPER_BUILD, native/proton_wine_child.c) and two builds of the same code agree.
+build_id=$("$sdk/bin/prospero-clang" -std=gnu11 -MM -DPW_MEMORY_HELPER_CENSUS -DPW_MEMORY_HELPER_PHYSICAL \
+    -DPW_MEMORY_HELPER_DMEM -I"$root/src" -I"$root/wine/ps5" -I"$root/native" "${sources[@]}" |
+    tr ' \\' '\n\n' | grep -E '\.(c|h|inc)$' | sort -u | xargs cat | sha256sum | cut -c1-16)
+# The SDK's driver links with --build-id=uuid, a new id each build; md5 is the output's own hash, as the forwarder's
+# (tools/build-forwarder.sh): the same source gives the same loader.
 # PW_MEMORY_HELPER_CENSUS: the memory helper takes the census of the console's system memory (src/pw_memory_helper.h).
 "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -g -DPW_MEMORY_HELPER_CENSUS -DPW_MEMORY_HELPER_PHYSICAL -DPW_MEMORY_HELPER_DMEM \
-    -I"$root/src" -I"$root/wine/ps5" -I"$root/native" \
-    -Wl,--wrap=kernel_mprotect -Wl,--wrap=kernel_set_vmem_protection \
+    -DPW_HELPER_BUILD="\"$build_id\"" -I"$root/src" -I"$root/wine/ps5" -I"$root/native" \
+    -Wl,--wrap=kernel_mprotect -Wl,--wrap=kernel_set_vmem_protection -Wl,--build-id=md5 \
     -o "$output" "${sources[@]}" \
     "$sdk/target/lib/libps5platform.a" -lkernel_sys
 # The SDK's grant of execute writes the kernel's vm_map entry without its lock (native/proton_payload_child.c): the
@@ -68,7 +76,7 @@ python3 - "$root" "$sdk" "$output" <<'PYMANIFEST'
 import hashlib,json,sys
 from pathlib import Path
 root,sdk,out=map(Path,sys.argv[1:]);digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
-inputs=['native/proton_payload_child.c','native/proton_wine_child.c','src/pw_wine_start.c','src/pw_control_watch.h','src/pw_environment.c','src/pw_environment.h','wine/ps5/pw_wine_prx.c','wine/ps5/pw_wine_process_io.c','src/pw_memory_helper.c','src/pw_memory_helper.h','src/pw_vm_census.c','src/pw_vm_census.h','native/pw_physical_shared.h','native/pw_dmem_share.h','src/pw_shared_page.h','src/pw_memory_file.c','src/pw_memory_file.h','src/pw_memory_service.c','src/pw_memory_service.h','wine/ps5/pw_wine_process.h','wine/ps5/pw_payload_rendezvous.h','wine/ps5/pw_wine_process_io.h','src/pw_gpu_broker.h','src/pw_helper_sched.c','src/pw_helper_sched.h','src/pw_cpu_placement.c','src/pw_cpu_placement.h','src/pw_prx_elf.c','src/pw_prx_elf.h','native/pw_prx_elf_ps5.c','native/pw_prx_elf_ps5.h','src/pw_firmware.c','src/pw_firmware.h','native/pw_firmware_ps5.c','src/pw_log_sessions.h','wine/ps5/pw_wine_threads.h','wine/ps5/pw_wine_perf.h','tools/build-payload-loader.sh']
+inputs=['native/proton_payload_child.c','native/proton_wine_child.c','src/pw_wine_start.c','src/pw_control_watch.h','src/pw_suspend.h','src/pw_fd_census.c','src/pw_fd_census.h','src/pw_environment.c','src/pw_environment.h','wine/ps5/pw_wine_prx.c','wine/ps5/pw_wine_process_io.c','src/pw_memory_helper.c','src/pw_memory_helper.h','src/pw_vm_census.c','src/pw_vm_census.h','native/pw_physical_shared.h','native/pw_dmem_share.h','src/pw_shared_page.h','src/pw_memory_file.c','src/pw_memory_file.h','src/pw_memory_service.c','src/pw_memory_service.h','wine/ps5/pw_wine_process.h','wine/ps5/pw_payload_rendezvous.h','wine/ps5/pw_wine_process_io.h','src/pw_gpu_broker.h','src/pw_helper_sched.c','src/pw_helper_sched.h','src/pw_cpu_placement.c','src/pw_cpu_placement.h','src/pw_prx_elf.c','src/pw_prx_elf.h','native/pw_prx_elf_ps5.c','native/pw_prx_elf_ps5.h','src/pw_firmware.c','src/pw_firmware.h','native/pw_firmware_ps5.c','src/pw_log_sessions.h','wine/ps5/pw_wine_threads.h','wine/ps5/pw_wine_perf.h','tools/build-payload-loader.sh']
 manifest={'graphics_foundation_revision':(root/'.deps/graphics-foundation/.revision').read_text().strip(),'payload':True,'gpu_broker':True,'sdk_revision':(sdk/'.ps5-sdk-revision').read_text().strip(),'sha256':digest(out),'sources':{n:digest(root/n) for n in inputs}}
 out.with_suffix('.json').write_text(json.dumps(manifest,indent=2)+'\n')
 PYMANIFEST

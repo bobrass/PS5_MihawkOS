@@ -1,0 +1,49 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.168,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.152,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": null,
+  "title": "PPSA99170",
+  "identity": "5dcbe70ceb4841628b4c6cc6f55c50d8",
+  "frames_requested": 300,
+  "eboot_sha256": "f81d537410395e3bf94def36b1ff21466b72455eead387950a770d648512e110",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 300 frames in 5.38 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "3 game(s); searched: /data/ps5proton/games (2 entries); /data/homebrew/PPSA99170/games (not there)",
+    "library shows 3 of 3 (every entry but those with \"launcher\": false; /data/ps5proton/library-show-all shows them all)",
+    "Payloads are using about 92 MiB; closing them frees room for games."
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.55,
+    "elevation": 0.56,
+    "library": 0.64,
+    "ui": 0.7
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": "remapped",
+  "passed": true,
+  "capture": "klog/payloads-gate-2026-10-29-01-controls-menu",
+  "forced_close": false,
+  "storage_errors": 0,
+  "controls_selection_verified": true
+}

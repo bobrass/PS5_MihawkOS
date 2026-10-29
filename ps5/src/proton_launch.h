@@ -26,6 +26,7 @@
 
 #include <string>
 #include <vector>
+#include "../../src/pw_payload_check.h"
 
 /* One game the launcher can start. */
 struct ProtonGame {
@@ -83,6 +84,9 @@ struct ProtonLaunch {
  * After a grant the title's own folder is no longer at /app0 but in the
  * sandbox, so proton_app_root() and proton_title_path() resolve it. */
 #define PROTON_DATA_ROOT "/data/ps5proton"
+/* What the user's payloads held at the last session's start, MiB, as text (native/proton_wine.cpp writes it, the launcher
+ * shows the startup tip from it: the launcher itself cannot take the census, which only a helper may). */
+#define PROTON_PAYLOADS_FILE PROTON_DATA_ROOT "/payloads-mib"
 #define PROTON_SANDBOX_APP0 "/mnt/sandbox/" PS5_TITLE_ID "_000/app0"
 
 /* Ask for /data, before any other thread exists, through the platform layer's
@@ -97,6 +101,12 @@ const char *proton_data_status();
 const char *proton_data_note();
 /* Why /data is not reachable, in plain words for the launcher's screen; empty when it is. */
 std::string proton_data_problem();
+/* Whether the installed Wine runtime is this build's (src/pw_runtime_check.h): the title folder's runtime-stamp
+ * against the runtime's. Needs /data. */
+int proton_runtime_state();
+/* This title's build, for the top of every session log: its contentVersion, the runtime stamp it pins and the installed
+ * one (16 hex digits each, "-" for none), and what that makes the runtime. Needs /data for the installed stamp. */
+std::string proton_build_identity();
 /* Why the Wine runtime cannot run a game, in plain words: missing, or not the one this title folder pins
  * (runtime-stamp, tools/build-production.sh); empty when it can. Needs /data. */
 std::string proton_runtime_problem();
@@ -107,6 +117,15 @@ void proton_retry_elevation(int argc, char **argv);
 const char *proton_app_root();
 /* "/app0/x" resolved for the current view (unchanged before a grant). */
 std::string proton_title_path(const char *path);
+/* The payload checklist (src/pw_payload_check.h): taken now, from the processes, kstuff's kekcalls and the versions
+ * ShadowMountPlus and websrv give on the loopback; every payload seen goes to the log. The launcher refuses entry and a
+ * game start ends while it fails. */
+const PwPayloadReport &proton_payloads_check();
+/* The last one taken (one is taken if none was). */
+const PwPayloadReport &proton_payloads();
+const PwPayloadFacts &proton_payload_facts();
+/* What the user must do, in plain words; empty when it passed. */
+std::string proton_payloads_problem();
 /* Global mouse assignments, shared by the launcher and game owner. */
 std::string proton_controls_path();
 /* The Game Mode setting (src/pw_game_mode.h), beside controls.txt. */

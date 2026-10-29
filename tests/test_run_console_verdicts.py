@@ -450,5 +450,20 @@ class TitleCrash(unittest.TestCase):
         self.assertTrue(crash.search('GPU_FAULT in vm 1'))
 
 
+
+class TouchpadAtStart(unittest.TestCase):
+    def test_source_prints_the_pad_line(self):
+        printed('native/proton_wine.cpp', '"Wine: pad connected=%d buttons=%#x touch=%u"')
+
+    def test_a_contact_at_start_is_named(self):
+        touched = ['[MihawkOS] Wine: pad connected=1 buttons=0 touch=1\n']
+        self.assertEqual(runner.touchpad_touched_at_start(touched), 1)
+        # the first pad line counts; a later touch (a pad script's) does not
+        later = ['[MihawkOS] Wine: pad connected=1 buttons=0 touch=0\n', '[MihawkOS] Wine: pad connected=1 buttons=0x4 touch=2\n']
+        self.assertEqual(runner.touchpad_touched_at_start(later), 0)
+        # no pad, or no line at all
+        self.assertEqual(runner.touchpad_touched_at_start(['[MihawkOS] Wine: pad connected=0 buttons=0 touch=1\n']), 0)
+        self.assertEqual(runner.touchpad_touched_at_start([]), 0)
+
 if __name__ == '__main__':
     unittest.main()

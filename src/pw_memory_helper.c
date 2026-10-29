@@ -153,6 +153,11 @@ void pw_memory_census_write(volatile struct pw_memory_census *page, const struct
     page->processes = census->processes;
     page->helper_count = census->helper_count;
     page->status = census->status;
+    page->page_tables = census->page_tables;
+    page->page_tables_free = census->page_tables_free;
+    page->helpers_mapped = census->helpers_mapped;
+    page->payloads = census->payloads;
+    page->payload_count = census->payload_count;
     page->magic = census->magic;
     __atomic_store_n(&page->sequence, sequence + 2, __ATOMIC_RELEASE);
 }
@@ -171,6 +176,11 @@ int pw_memory_census_read(const volatile struct pw_memory_census *page, struct p
         census->processes = page->processes;
         census->helper_count = page->helper_count;
         census->status = page->status;
+        census->page_tables = page->page_tables;
+        census->page_tables_free = page->page_tables_free;
+        census->helpers_mapped = page->helpers_mapped;
+        census->payloads = page->payloads;
+        census->payload_count = page->payload_count;
         __atomic_thread_fence(__ATOMIC_ACQUIRE);
         if (__atomic_load_n(&page->sequence, __ATOMIC_RELAXED) != before) continue;
         if (census->magic != PW_MEMORY_CENSUS_MAGIC) break;
@@ -193,6 +203,8 @@ int pw_memory_census_read(const volatile struct pw_memory_census *page, struct p
 /* Two counts in 16 KiB pages, both written: what the process holds resident, and what it has mapped (SceShellCore's
  * FMEM pair). Without the second pointer it refuses (EFAULT) and writes neither (console-memory-2026-10-07-07). */
 int sceKernelGetResidentFmemCount(int pid, uint64_t *resident, uint64_t *mapped);
+/* The pool SceShellCore's VM Stats line prints as "page table CPU used/total" (8192 on the base PS5, 9216 on the Pro). */
+int sceKernelGetPageTableStats(int *cpu_total, int *cpu_free, int *gpu_total, int *gpu_free);
 
 static int census_take(int title_pid, struct pw_memory_census *census)
 {
@@ -211,7 +223,20 @@ static int census_take(int title_pid, struct pw_memory_census *census)
         errno = saved;
         return -1;
     }
-    census->system = census->helpers = census->largest = 0;
+    census->system = census->helpers = census->largest = census->helpers_mapped = census->payloads = 0;
+    census->payload_count = 0;
+    /* SceSysCore's pid first: what it starts is Sony's (pw_memory_is_payload). */
+    int syscore = 0;
+    for (const char *cursor = raw; cursor + sizeof(int) <= raw + bytes;) {
+        struct kinfo_proc record;
+        int size;
+        memcpy(&size, cursor, sizeof(size));
+        if (size <= 0 || cursor + size > raw + bytes) break;
+        memset(&record, 0, sizeof(record));
+        memcpy(&record, cursor, (size_t)size < sizeof(record) ? (size_t)size : sizeof(record));
+        cursor += size;
+        if (!strncmp(record.ki_comm, "SceSysCore", 10)) syscore = record.ki_pid;
+    }
     census->largest_pid = 0;
     census->processes = census->helper_count = 0;
     /* The console's records are ki_structsize apart (1096 bytes, the SDK's 1088); the fields read come first
@@ -230,8 +255,13 @@ static int census_take(int title_pid, struct pw_memory_census *census)
         if (record.ki_pid == title_pid || sceKernelGetResidentFmemCount(record.ki_pid, &pages, &mapped)) continue;
         census->system += pages * page;
         census->processes++;
+        if (record.ki_pid != syscore && pw_memory_is_payload(record.ki_ppid, syscore, record.ki_comm)) {
+            census->payloads += pages * page;
+            census->payload_count++;
+        }
         if (record.ki_ppid == parent) {
             census->helpers += pages * page;
+            census->helpers_mapped += mapped * page;
             census->helper_count++;
             if (pages * page > census->largest) {
                 census->largest = pages * page;
@@ -243,6 +273,15 @@ static int census_take(int title_pid, struct pw_memory_census *census)
     return 0;
 }
 
+/* As the kernel gave them: the title decides what a reading is worth (pw_page_table_known) and names a bad one. */
+static void census_page_tables(struct pw_memory_census *census)
+{
+    int total = 0, spare = 0, gpu_total = 0, gpu_free = 0;
+    const int tables = !sceKernelGetPageTableStats(&total, &spare, &gpu_total, &gpu_free) && total > 0;
+    census->page_tables = tables ? (uint32_t)total : 0;
+    census->page_tables_free = tables ? (uint32_t)spare : 0;
+}
+
 struct census_state { volatile struct pw_memory_census *page; int title_pid; };
 
 static void *census_loop(void *opaque)
@@ -251,21 +290,26 @@ static void *census_loop(void *opaque)
     struct pw_memory_census census;
 
     memset(&census, 0, sizeof(census));
-    for (;;) {
-        struct pw_memory_census fresh = census;
-        struct timespec now;
+    /* The processes every half second, the page tables every 100 ms: a game's start took 200 of them a second
+     * (re3-steam-base-2026-10-28), and their guard needs a reading each tenth of that. */
+    for (unsigned beat = 0;; ++beat) {
+        if (beat % 5 == 0) {
+            struct pw_memory_census fresh = census;
+            struct timespec now;
 
-        if (census_take(state->title_pid, &fresh)) {
-            census.status = errno ? errno : EIO;
-        } else {
-            clock_gettime(CLOCK_MONOTONIC, &now);
-            census = fresh;
-            census.taken_ms = (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000;
-            census.status = 0;
-            census.magic = PW_MEMORY_CENSUS_MAGIC;
+            if (census_take(state->title_pid, &fresh)) {
+                census.status = errno ? errno : EIO;
+            } else {
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                census = fresh;
+                census.taken_ms = (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000;
+                census.status = 0;
+                census.magic = PW_MEMORY_CENSUS_MAGIC;
+            }
         }
-        pw_memory_census_write(state->page, &census);
-        usleep(500000);
+        census_page_tables(&census);
+        if (census.magic == PW_MEMORY_CENSUS_MAGIC) pw_memory_census_write(state->page, &census);
+        usleep(100000);
     }
     return NULL;
 }

@@ -36,13 +36,16 @@ static void Sleep(DWORD ms) { (void)ms; }
 #define wcsnicmp wcsncasecmp
 
 static const WCHAR *environment;   /* the rules as the test sets them; NULL: the variable is not there */
+static const WCHAR *hold_switch;   /* WINE_PS5_PROCESS_HOLD as the test sets it; NULL: not there */
 static DWORD GetEnvironmentVariableW(const WCHAR *name, WCHAR *out, DWORD size)
 {
-    assert(!wcscmp(name, L"WINE_PS5_PROCESS_RULES"));
-    if (!environment) return 0;
-    const DWORD needed = (DWORD)wcslen(environment) + 1;
+    const int hold = !wcscmp(name, L"WINE_PS5_PROCESS_HOLD");
+    assert(hold || !wcscmp(name, L"WINE_PS5_PROCESS_RULES"));
+    const WCHAR *value = hold ? hold_switch : environment;
+    if (!value) return 0;
+    const DWORD needed = (DWORD)wcslen(value) + 1;
     if (size < needed) return needed;
-    wcscpy(out, environment);
+    wcscpy(out, value);
     return needed - 1;
 }
 
@@ -105,7 +108,7 @@ int main(void)
     {
         char text[1024];
         WCHAR wide[1024];
-        assert(pw_steam_rules(text, sizeof(text), 1));
+        assert(pw_steam_rules(text, sizeof(text)));
         for (size_t i = 0; text[i]; i++) wide[i] = (unsigned char)text[i];
         wide[strlen(text)] = 0;
         reset(wide);
@@ -118,6 +121,21 @@ int main(void)
         assert(ps5_process_rule(L"\"C:\\Program Files (x86)\\Steam\\bin\\gameoverlayui64.exe\" -steampid=1", L"fail"));
         const WCHAR *install = ps5_process_rule(L"\"C:\\Program Files (x86)\\Steam\\bin\\SteamService.exe\" /installscript x", L"run");
         assert(install && !wcscmp(install, L"C:\\windows\\system32\\hostname.exe"));
+        /* Patch 2104: the browser is held while a library game runs; the game is any program under steamapps\\common. */
+        const WCHAR *hold = ps5_process_rule(L"C:\\Program Files (x86)\\Steam\\bin\\cef\\cef.win64\\steamwebhelper.exe", L"hold");
+        assert(hold && !wcscmp(hold, L"\\steamapps\\common\\"));
+        assert(ps5_hold_is_game(L"C:\\users\\Mihawk\\Games\\Aurelia\\steamapps\\common\\The Binding of Isaac Rebirth\\isaac-ng.exe"));
+        assert(ps5_hold_is_game(L"D:\\SteamLibrary\\SteamApps\\Common\\Game\\game.exe"));   /* any case, any library */
+        assert(!ps5_hold_is_game(L"C:\\Program Files (x86)\\Steam\\steam.exe"));
+        assert(!ps5_hold_is_game(L"C:\\Program Files (x86)\\Steam\\bin\\cef\\cef.win64\\steamwebhelper.exe"));
+        assert(!ps5_hold_is_game(L"C:\\Program Files (x86)\\Steam\\steamapps\\downloading\\1\\setup.exe"));
+        assert(!ps5_process_rule(L"C:\\users\\Mihawk\\Games\\Aurelia\\steamapps\\common\\Game\\game.exe", L"hold"));
+        assert(!ps5_hold_off());
+        hold_switch = L"0";
+        assert(ps5_hold_off());
+        hold_switch = L"1";
+        assert(!ps5_hold_off());
+        hold_switch = NULL;
         /* The client, its service and its game are left alone. */
         static const WCHAR *const actions[] = { L"fail", L"run", L"add" };
         for (unsigned i = 0; i < 3; i++) {
@@ -126,6 +144,10 @@ int main(void)
             assert(!ps5_process_rule(L"C:\\users\\Mihawk\\Games\\App\\game.exe", actions[i]));
         }
     }
+    /* No hold rule: nothing is a game, and an empty part matches nothing. */
+    reset(L"a.exe|fail|");
+    assert(!ps5_hold_is_game(L"C:\\x\\steamapps\\common\\y.exe"));
+    assert(!ps5_path_has(L"C:\\x", L"") && !ps5_path_has(NULL, L"x") && ps5_path_has(L"abc", L"B"));
     reset(NULL);
     return puts("process rules: parsing, matching by whole file name, actions, malformed rules, the table limit"), 0;
 }

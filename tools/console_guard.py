@@ -16,9 +16,14 @@ What refuses, in order (refusal()); each lasts until its fix:
             run clear-storage. new-boot keeps it: the SSD errors of 2026-10-13/14 came back on the next boots.
   deploys   the title or the runtime on the console is not verified: a deploy did not finish, or (the title) the console
             restarted since its read-back. tools/verify-title.py reads the title back.
-The storage and deploy blocks live in console-guard-sticky.json beside the shared state file. The sibling checkout
-(../PS5_Proton) shares the state through a symlink, and its older guard honours only `dropped`: a storage block is
-therefore also recorded as a drop, and that guard ignores the deploy records until it carries this guard.
+Each console has its own state (STATE: .deps/console-guard-<key>.json, the key a hash of the console's address from
+PS5_HOST or PS5_Vulkan/.env, so no address is written into a name or a log), so a run on the standard PS5 and one on
+the Pro go at once from checkouts that share .deps (docs/CONSOLE_TESTING.md). A console's first state starts with the
+blocks of the single state file of before (console-guard.json): they may have been this console's. With no console
+set, that single file is used. The storage and deploy blocks live in <state>-sticky.json beside the state file. The
+sibling checkout (../PS5_Proton) shares the state through a symlink, and its older guard honours only `dropped`: a
+storage block is therefore also recorded as a drop, and that guard ignores the deploy records until it carries this
+guard.
 Every deploy (ps5/tools/deploy.sh, deploy-wine, deploy-folder, console-setup) and the probe tools that
 upload (prefix-forget-dualsense, run-process-probe, restore-process-probe, deploy-d3d-probe,
 recover-child-probe, run-payload-start-test, run-mesa-zink-probe) calls
@@ -41,6 +46,7 @@ ps5vkctl got pid 97 again after a real restart on 2026-10-17).
   tools/console_guard.py mode lapy|legacy     record which elevation the title uses
 """
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -53,11 +59,10 @@ from pathlib import Path
 from console_log import LineLog, redact
 
 ROOT = Path(__file__).resolve().parents[1]
-STATE = ROOT / '.deps' / 'console-guard.json'
+LEGACY_STATE = 'console-guard.json'   # the one state every console shared before 2026-10-28
 KLOG = ROOT / 'klog'
 MIN_GAP = 60.0
 SETTLE = 8.0
-LAST_RUN = ROOT / '.deps' / 'last-console-run'
 # The SSD's read errors before format #1 (a klog of 2026-10-13) and reinstall #2 (a klog of 2026-10-14); none in
 # the 34,424 klogs before them. Routine lines stay out: '[fserr] ClearSlotInfoCache()' and a repaired fsck (two
 # klogs of 2026-10-14).
@@ -74,6 +79,35 @@ VERIFY = {'title': 'python3 tools/verify-title.py, or deploy again: bash ps5/too
           'runtime': 'deploy again: python3 tools/deploy-wine.py'}
 
 
+def ps5_console_module():
+    tools = str(ROOT.parent / 'PS5_Vulkan/tools')
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import ps5_console
+    return ps5_console
+
+
+def console_key(settings=None):
+    """The console PS5_HOST (or PS5_Vulkan/.env) names, as 12 hex digits of its address's sha256: the name its guard
+    state and gate records are kept under. None when no console is set."""
+    try:
+        host = (settings or ps5_console_module().load_settings())['host']
+    except (SystemExit, ImportError, OSError, KeyError):
+        return None
+    return hashlib.sha256(host.encode()).hexdigest()[:12]
+
+
+KEY = console_key()
+
+
+def state_path(root=ROOT):
+    return root / '.deps' / (f'console-guard-{KEY}.json' if KEY else LEGACY_STATE)
+
+
+STATE = state_path()
+LAST_RUN = ROOT / '.deps' / (f'last-console-run-{KEY}' if KEY else 'last-console-run')
+
+
 def fresh():
     return {'launches': 0, 'dropped': None, 'last_launch': 0.0, 'boot_started': time.time()}
 
@@ -84,7 +118,8 @@ STICKY_KEYS = ('storage', 'storage_cleared', 'deploys')
 
 
 def sticky_path(path=None):
-    return (path or STATE).resolve().with_name('console-guard-sticky.json')
+    path = (path or STATE).resolve()
+    return path.with_name(path.stem + '-sticky.json')
 
 
 def read_state(path, missing):
@@ -97,9 +132,22 @@ def read_state(path, missing):
                          'nothing launches or writes until then') from None
 
 
+# What a console's first state takes from the single state of before: the blocks, never the ps5vkctl pid or the
+# launch count of whichever console that was (another console's pid would read as a drop).
+INHERITED_KEYS = ('dropped', 'storage', 'storage_cleared')
+
+
 def load(path=None):
-    """A missing file is a fresh state; an unreadable one refuses everything (it may have held a block)."""
-    state = read_state(path or STATE, fresh())
+    """A missing file is a fresh state, with the single state's blocks for a console's first; an unreadable one
+    refuses everything (it may have held a block)."""
+    path = path or STATE
+    state = read_state(path, None)
+    if state is None:
+        state = fresh()
+        legacy = path.with_name(LEGACY_STATE)
+        if path.name != LEGACY_STATE and legacy.exists():
+            old = load(legacy)
+            state.update({key: old[key] for key in INHERITED_KEYS if old.get(key)})
     state.update(read_state(sticky_path(path), {}))   # an older state's own sticky keys stay until the next save
     return state
 
@@ -162,14 +210,6 @@ def before_launch(what='', readiness=None):
     gap = time.time() - state.get('last_launch', 0.0)
     if gap < MIN_GAP:
         time.sleep(MIN_GAP - gap)  # paced, not refused: the batch runners already wait longer
-
-
-def ps5_console_module():
-    tools = str(ROOT.parent / 'PS5_Vulkan/tools')
-    if tools not in sys.path:
-        sys.path.insert(0, tools)
-    import ps5_console
-    return ps5_console
 
 
 def leftover_helpers():
@@ -517,6 +557,7 @@ def main():
     elif command == 'end-write':
         print('sync:', end_write())
     else:
+        print(f'console {KEY or "not set"} ({STATE.name})')
         print(json.dumps(load(), indent=1))
     return 0
 

@@ -6,6 +6,8 @@
 # .deps/mihawk-browser/app: MihawkBrowser.exe beside the ship list of tools/fetch-cef.py, the folder the runtime
 # carries once, read-only, outside every prefix. Fails when a shipped file is missing. x64 only.
 set -euo pipefail
+# Every Windows link takes /timestamp:0, as the theme DLLs do: the same source links to the same bytes, so a
+# rebuild changes nothing it should not (docs/BUILD_SPEED.md).
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 wine=$root/.deps/wine-runtime
 python3 "$root/tools/fetch-cef.py" > /dev/null
@@ -20,7 +22,7 @@ libs=()
 for dll in kernel32 user32 gdi32 advapi32 shell32 ole32 comctl32 uxtheme dwmapi bcrypt msvcrt; do
     libs+=("$wine/build/dlls/$dll/x86_64-windows/lib$dll.a")
 done
-clang --target=x86_64-windows --no-default-config -fuse-ld=lld -nostdlib -O2 -Wall -Wextra -Werror -Wno-missing-field-initializers -D_MSVCR_VER=0 \
+clang --target=x86_64-windows --no-default-config -fuse-ld=lld -Wl,/timestamp:0 -nostdlib -O2 -Wall -Wextra -Werror -Wno-missing-field-initializers -D_MSVCR_VER=0 \
     -isystem "$wine/source/include" -isystem "$wine/build/include" -isystem "$wine/source/include/msvcrt" -isystem "$cef" \
     -Wl,/entry:mainCRTStartup -Wl,/subsystem:windows \
     "$root/src/pw_browser.c" "$root/src/pw_browser_chrome.c" "$root/src/pw_browser_policy.c" "$out/browser.o" "$cef/Release/libcef.lib" "${libs[@]}" \

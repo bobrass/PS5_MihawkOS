@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mihawk <163614687+mihawk-99@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 03:00:00 -0400
+Subject: [PATCH] server: PS5: the desktop window can be made the foreground.
+
+With the PS5 user driver no explorer owns the desktop window: get_desktop_window asks the server to create it, and
+the server detaches it from every thread, so make_window_foreground refused it and
+SetForegroundWindow(GetDesktopWindow()) failed. Windows allows it, and on the PC explorer's thread owns the desktop
+and the call succeeds. A probe on the Pro (fgprobe-pro-01, 2026-10-28) showed the console's refusal; Wine's d3d9
+tests use the call to take the focus from a fullscreen device (device.c:5234 and 12142, d3d9ex.c:3629), and the
+activation and focus checks that follow it failed on the console too. The thread-less desktop is now made the
+foreground for the caller, as each process already treats it as its own (WND_DESKTOP, patch 0410): no window stays
+active and the caller's windows get WM_ACTIVATEAPP, as on Windows. On the Pro, with patch 2152, the console-only lines
+went from 63 to 51 (x86_64) and 50 (i386) in device and from 42 to 32 in d3d9ex in both builds.
+---
+--- a/server/window.c
++++ b/server/window.c
+@@ -1205,6 +1205,16 @@
+ {
+     struct window *win = get_user_object( window, NTUSER_OBJ_WINDOW );
+ 
++#ifdef __PROSPERO__
++    /* No explorer owns the PS5 desktop (get_desktop_window creates it detached), and each process treats it as its
++     * own (WND_DESKTOP): making it the foreground, as Windows allows, leaves no window active for the caller. */
++    if (win && !win->thread && win->desktop == desktop && win == desktop->top_window)
++    {
++        *is_desktop = 1;
++        *set_foreground = 1;
++        return (struct thread *)grab_object( current );
++    }
++#endif
+     if (!win || !win->thread || win->desktop != desktop) return NULL;
+     if ((win->style & (WS_POPUP | WS_CHILD)) == WS_CHILD) return NULL;
+     *is_desktop = win == win->desktop->top_window;

@@ -101,13 +101,17 @@ const char *pw_steam_step_badge(PwSteamStep step);
 const char *pw_steam_step_action(PwSteamStep step);
 
 /* The WINE_PS5_PROCESS_RULES value for the client's runs (patch 2070), and its rules one by one for a test: `out`
- * gets the whole value ("NAME|ACTION|VALUE;..."), its length is returned, 0 when `cap` is too small. one_browser_process:
- * the browser helper runs as one process (--single-process), for a console whose memory needs it (the Pro's 990 MiB
- * guard); otherwise it keeps its own processes, which Big Picture needs to draw smoothly (src/pw_steam.c). */
-size_t pw_steam_rules(char *out, size_t cap, int one_browser_process);
+ * gets the whole value ("NAME|ACTION|VALUE;..."), its length is returned, 0 when `cap` is too small. The browser helper
+ * runs as one process (--single-process) on every console: its own processes took the system page tables a game needs
+ * (src/pw_steam.c). */
+size_t pw_steam_rules(char *out, size_t cap);
 unsigned pw_steam_rule_count(void);
 /* Rule i's three fields (NULL past the end). */
 int pw_steam_rule(unsigned i, const char **name, const char **action, const char **value);
+/* A stored WINE_PS5_PROCESS_RULES value (a game.json an older build wrote) with each built-in rule whose program and
+ * action it lacks appended, so a stored list cannot drop a rule this build adds (the browser's hold, patch 2104). The
+ * stored rules come first and keep their values (patch 2070 takes the first match). Length, or 0 when `cap` is too small. */
+size_t pw_steam_rules_merge(const char *stored, char *out, size_t cap);
 
 /* A catalog entry (game.json) as text: name, detail, the Windows path of the program, its directory, its command line,
  * whether the Mihawk desktop lists it, an environment of NAME=VALUE words (NULL-terminated, may be NULL), and its prefix
@@ -123,7 +127,7 @@ size_t pw_steam_entry_json(char *out, size_t cap, const char *name, const char *
  * bootstrap_log "Verifying all executable checksums"; an update still replaces them), the rules and the
  * window route in its environment, no watch: the session ends when the user leaves Steam. */
 size_t pw_steam_installer_entry(char *out, size_t cap, const char *prefix);
-size_t pw_steam_client_entry(char *out, size_t cap, int big_picture, const char *prefix, int one_browser_process);
+size_t pw_steam_client_entry(char *out, size_t cap, int big_picture, const char *prefix);
 
 #ifdef __cplusplus
 }

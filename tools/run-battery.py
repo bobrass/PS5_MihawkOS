@@ -63,6 +63,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import console_guard  # noqa: E402
 
 LAUNCHER = ['--env', 'PROTON_LAYOUT=launcher']
+# The player's MihawkOS settings a launch can name itself (native/proton_wine.cpp: "this game's or launch's own"), at
+# their defaults, so a gate does not depend on what the player last chose: the owner's "controller dualsense" hid
+# XInput's controller 0 and failed wow64 (gate-0036-pro-01, 2026-10-27). A case that names one keeps its own; the
+# runners that test a setting (Game Mode, controls, logging, mouse) set theirs. Logging and the controls mapping have
+# no launch override: a gate still reads the player's.
+PLAYER_DEFAULTS = ('WINE_PS5_CONTROLLER=xbox-360', 'WINE_PS5_GAME_MODE=1', 'PROTON_120HZ=1')
+
+
+def player_defaults(case=()):
+    """['--env', NAME=VALUE, ...] for each player default the case does not name itself."""
+    named = {word.split('=', 1)[0] for word in case if isinstance(word, str) and '=' in word}
+    return [word for default in PLAYER_DEFAULTS if default.split('=', 1)[0] not in named for word in ('--env', default)]
 # Explicit initial settings: arbitrary application keys, empty/UTF-8 values,
 # case-folded precedence and PATH must survive registry provisioning.
 INITIAL_ENV = [item for setting in [
@@ -400,8 +412,10 @@ GROUPS = {
                'file-write64', 'relative-dir32', 'relative-dir64', 'system-memory32', 'system-memory64', 'image-protect32', 'image-protect64',
                'suspend-context64', 'kill-convert', 'stack-limit64', 'remote-memory64', 'late-library', 'pe64', 'pe32', 'fixed-base32', 'wow64', 'input32',
                'payload-vm',
-               'vm-truth32', 'vm-truth64', 'descendants', 'payload-eight', 'payload-memory', 'memory-classes', 'sync64',
+               'vm-truth32', 'vm-truth64', 'descendants', 'payload-eight', 'memory-classes', 'sync64',
                'shell-open64'],
+    # payload-memory runs in a launch of its own: its 4 GiB on top of a group's helpers took a fresh Pro's page tables
+    # to 1,526 free of 9,216 and the guard ended the group (gpu2m-pro-gate-2026-10-29-01).
     # The GPU broker's clients one after another, as a launcher's games are.
     'graphics': ['graphics-teardown', 'vk32', 'gl32', 'gl-upload32', 'launcher-render'],
 }
@@ -414,7 +428,7 @@ SESSION_JOBS = 4
 SESSION_SERIAL = {'work-area32', 'work-area64', 'wallpaper32', 'wallpaper64', 'theme-notify32', 'theme-notify64',
                   'cursor-scheme32', 'cursor-scheme64', 'theme-parts32', 'theme-parts64', 'monospace32', 'monospace64',
                   'proton-ui32', 'proton-ui64', 'input32', 'shell-open64', 'system-memory32', 'system-memory64',
-                  'payload-eight', 'payload-memory', 'memory-classes', 'kill-convert'} | set(GROUPS['graphics'])
+                  'payload-eight', 'memory-classes', 'kill-convert'} | set(GROUPS['graphics'])
 OWNER = 'PS5_PROTON_OWNER_BOOTSTRAP'
 EXIT_STALL = 15   # run-console.py --exit-stall's default
 SEQUENCE_RECORD = re.compile(r':debugstr:OutputDebugStringA "PS5_PROTON_GATE_SEQUENCE (begin|end) '
@@ -514,7 +528,8 @@ def session_outcomes(run, members, entries):
     got = {}
     try:
         # the launch's verdict comes from the helpers' OutputDebugString records, which err+all alone turns off
-        wts.session(queued, None, SESSION_JOBS, run, ['WINEDEBUG=err+all,warn+debugstr,+timestamp,+pid'], support['connect'], settings,
+        wts.session(queued, None, SESSION_JOBS, run, ['WINEDEBUG=err+all,warn+debugstr,+timestamp,+pid', *PLAYER_DEFAULTS],
+                    support['connect'], settings,
                     procs=procs, on_result=lambda ident, code, ms, how, text: got.__setitem__(case_of[ident], (code, ms, how, text)),
                     run_name=run)
     except SystemExit as error:
@@ -538,6 +553,20 @@ def session_outcomes(run, members, entries):
     return outcomes
 
 
+def tally(cases):
+    """(passed, skipped, failed) of a battery's cases. A case whose probe passed every check it could judge but skipped
+    one for a reason outside the console (environment_skip: dnsapi's "resolver refused TCP") is neither: it is marked
+    skipped, with its reason, and does not hold the gate; a failure always does."""
+    skipped = []
+    for case in cases:
+        if case.get('passed') and case.get('environment_skip'):
+            case['passed'], case['skipped'] = False, case['environment_skip']
+        if case.get('skipped'):
+            skipped.append(f"{case['case']}: {case['skipped']}")
+    passed = sum(bool(c.get('passed')) for c in cases)
+    return passed, skipped, len(cases) - passed - len(skipped)
+
+
 def session_id(name):
     """A case's name in the session: a 32-bit and a 64-bit case of one probe are twins there (wt-session's group is what
     follows the first '-'), so they never run together; they share fixed paths (file-write32 and file-write64 wrote one
@@ -549,16 +578,23 @@ def session_id(name):
 def session_verdict(marker, code, ms, how, text):
     """One case of the session: its marker's first PASS or FAIL line in its own output, or, for the owner's marker,
     its exit status; it passes when it exited by itself with 0 and PASS."""
-    verdict = None
+    verdict, skip = None, None
     for line in text.splitlines():
         if f'{marker} PASS' in line or f'{marker} FAIL' in line:
             verdict = 'PASS' if f'{marker} PASS' in line else 'FAIL'
+            # A check the probe could not judge for a reason outside the console (dnsapi: the network's resolver did
+            # not answer over TCP) is kept as such, beside the verdict, never folded into it.
+            if (m := re.search(r'skipped=([1-9]\d*)', line)):
+                skip = f'{m.group(1)} check(s) skipped for the environment: ' + line.strip()[:160]
             break
     if marker == OWNER and code is not None:
         verdict = 'PASS' if code == 0 else 'FAIL'
-    return {'status': None if code is None else str(code), 'probe_verdict': verdict, 'how': how,
-            'seconds': None if ms is None else round(ms / 1000, 1),
-            'probe_passed': code == 0 and how == 'exited' and verdict == 'PASS'}
+    outcome = {'status': None if code is None else str(code), 'probe_verdict': verdict, 'how': how,
+               'seconds': None if ms is None else round(ms / 1000, 1),
+               'probe_passed': code == 0 and how == 'exited' and verdict == 'PASS'}
+    if skip:
+        outcome['environment_skip'] = skip
+    return outcome
 
 
 # The console's pipe memory ran out (kern.ipc.maxpipekva): every pipe made after it fails, and with them the helpers'
@@ -607,6 +643,29 @@ def launch_outcome(run, result, started):
     return outcome
 
 
+def runner_of(name):
+    """The tools/ script a case's own launch runs (tools/gate_quick.py maps a changed runner to its cases)."""
+    return ('run-shell.py' if name in ('shell32', 'shell64') else
+            'run-prefix-baseline.py' if name.startswith('prefix-fresh') else
+            'run-appearance.py' if name.startswith('appearance') else
+            'run-launcher.py' if name in ('controls-menu', 'setup-tour', 'steam-guide-pages') else
+            'run-launcher-ended.py' if name == 'launcher-ended' else
+            'run-games-autodetect.py' if name == 'games-autodetect' else
+            'run-detailed-logs.py' if name == 'detailed-logs' else
+            'run-mouse-controls.py' if name == 'mouse-controls' else
+            'run-window-compose.py' if name in ('window-compose32','window-compose64','gpu-window32','gpu-window64','dxvk-window32','dxvk-window64','host-dmem64','host-dmem-fallback64') else
+            'run-window-effects.py' if name in ('window-effects32','window-effects64') else
+            'run-desktop-overlap.py' if name == 'desktop-overlap' else
+            'run-desktop-session.py' if name == 'desktop-session' else
+            'run-desktop-view.py' if name == 'desktop-view' else
+            'run-browser.py' if name == 'mihawk-browser' else
+            'run-game-mode.py' if name.startswith('game-mode') else
+            'run-desktop-input.py' if name == 'launcher-desktop' else
+            'run-tls-fixture.py' if name == 'launcher-tls' else
+            'run-installer-slice.py' if name == 'installers-fast' else
+            'run-wine-slice.py' if name.startswith('wine-') else 'run-console.py')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--name', required=True, help='the battery run: evidence/<name>.json, cases <name>-<case>')
@@ -619,6 +678,9 @@ def main():
                              '--grouped alone runs them in the persistent session')
     parser.add_argument('--session', action='store_true',
                         help="with --grouped: run the groups' cases in one persistent session, 4 at a time (SESSION_SERIAL alone)")
+    parser.add_argument('--alone', nargs='*', default=[],
+                        help='with --grouped: these cases leave their group for a launch of their own (tools/gate_quick.py: '
+                             'a case that holds GiBs of memory never shares a session)')
     args = parser.parse_args()
     # the owner's choice (2026-10-25): grouped cases run in the persistent session unless --grouped-launches asks for a
     # launch per group, as before
@@ -633,7 +695,7 @@ def main():
     if not re.fullmatch(r'[a-zA-Z0-9_-]+', args.name):
         parser.error('use a plain run name')
     known = {name for name, _ in CASES}
-    for name in args.only + args.skip:
+    for name in args.only + args.skip + args.alone:
         if name not in known:
             parser.error(f'unknown case {name}')
     if len(ON_REQUEST.intersection(args.only)) > 1:
@@ -649,6 +711,8 @@ def main():
         if not args.grouped:
             parser.error('--session goes with --grouped')
         group_of = {name: 'session' for name in group_of}   # every group's cases in the one session
+    for name in args.alone:
+        group_of.pop(name, None)
     units = []
     for name, case in selected:
         if name not in group_of:
@@ -674,7 +738,7 @@ def main():
             stop_file.unlink()
             record['stop_reason'] = 'requested at a case boundary'
             break
-        refused = console_guard.refusal(console_guard.load(ROOT / '.deps' / 'console-guard.json'))
+        refused = console_guard.refusal(console_guard.load(console_guard.state_path(ROOT)))
         if refused:
             record['stop_reason'] = refused
             print(f'== Stopped before {name}: {refused}', flush=True)
@@ -703,10 +767,10 @@ def main():
             sequence = ROOT / '.deps' / (run + '-sequence.txt')
             sequence.write_text(''.join(f'{n}\t{entries[n][2]}\t{entries[n][0]}\n' for n, _ in members))
             print(f'== Tests {index + 1}-{index + len(members)}/{len(selected)}: {unit}, one launch ({run})', flush=True)
-            # The sequence's own budgets end a probe that hangs; this watchdog is the backstop. The controller is the
-            # default, whatever the console's setting: wow64's XInput check needs controller 0 (src/pw_controller.h).
+            # The sequence's own budgets end a probe that hangs; this watchdog is the backstop. The player's settings
+            # at their defaults (PLAYER_DEFAULTS): wow64's XInput check needs controller 0 (src/pw_controller.h).
             result = subprocess.run([sys.executable, str(ROOT / 'tools/run-console.py'), '--name', run,
-                                     '--env', 'WINE_PS5_CONTROLLER=xbox-360',
+                                     *player_defaults(),
                                      '--exe', 'gate-sequence.exe', '--sequence', str(sequence), '--watchdog',
                                      str(120 + sum(entries[n][2] for n, _ in members))], cwd=ROOT)
             launch = launch_outcome(run, result, started)
@@ -726,26 +790,9 @@ def main():
             continue
         index += 1
         print(f'== Test {index}/{len(selected)}: {name} ({run})', flush=True)
-        runner = ('run-shell.py' if name in ('shell32', 'shell64') else
-                  'run-prefix-baseline.py' if name.startswith('prefix-fresh') else
-                  'run-appearance.py' if name.startswith('appearance') else
-                  'run-launcher.py' if name in ('controls-menu', 'setup-tour', 'steam-guide-pages') else
-                  'run-launcher-ended.py' if name == 'launcher-ended' else
-                  'run-games-autodetect.py' if name == 'games-autodetect' else
-                  'run-detailed-logs.py' if name == 'detailed-logs' else
-                  'run-mouse-controls.py' if name == 'mouse-controls' else
-                  'run-window-compose.py' if name in ('window-compose32','window-compose64','gpu-window32','gpu-window64','dxvk-window32','dxvk-window64','host-dmem64','host-dmem-fallback64') else
-                  'run-window-effects.py' if name in ('window-effects32','window-effects64') else
-                  'run-desktop-overlap.py' if name == 'desktop-overlap' else
-                  'run-desktop-session.py' if name == 'desktop-session' else
-                  'run-desktop-view.py' if name == 'desktop-view' else
-                  'run-browser.py' if name == 'mihawk-browser' else
-                  'run-game-mode.py' if name.startswith('game-mode') else
-                  'run-desktop-input.py' if name == 'launcher-desktop' else
-                  'run-tls-fixture.py' if name == 'launcher-tls' else
-                  'run-installer-slice.py' if name == 'installers-fast' else
-                  'run-wine-slice.py' if name.startswith('wine-') else 'run-console.py')
-        result = subprocess.run([sys.executable, str(ROOT / 'tools' / runner), '--name', run] + case, cwd=ROOT)
+        runner = runner_of(name)
+        pinned = player_defaults(case) if runner == 'run-console.py' else []
+        result = subprocess.run([sys.executable, str(ROOT / 'tools' / runner), '--name', run] + case + pinned, cwd=ROOT)
         outcome = {'case': name, 'run': run, **launch_outcome(run, result, started)}
         record['cases'].append(outcome)
         evidence.write_text(json.dumps(record, indent=2) + '\n')
@@ -757,16 +804,19 @@ def main():
             break
     record['complete'] = [c['case'] for c in record['cases']] == expected
     record['seconds'] = round(time.monotonic() - batch_started, 1)
-    record['passed'] = record['complete'] and bool(record['cases']) and all(c['passed'] for c in record['cases'])
+    passed_count, skipped, failed_count = tally(record['cases'])
+    record['passed'] = record['complete'] and bool(record['cases']) and failed_count == 0
+    if skipped:
+        record['skipped'] = skipped
     evidence.write_text(json.dumps(record, indent=2) + '\n')
-    passed_count = sum(c['passed'] for c in record['cases'])
-    print(f'== Battery: {len(record["cases"])}/{len(selected)} completed, '
-          f'{passed_count} passed, {len(record["cases"]) - passed_count} failed '
-          f'({record["seconds"]} s)', flush=True)
+    print(f'== Battery: {len(record["cases"])}/{len(selected)} completed, {passed_count} passed, '
+          + (f'{len(skipped)} skipped for the environment ({"; ".join(skipped)}), ' if skipped else '')
+          + f'{failed_count} failed ({record["seconds"]} s)', flush=True)
     if any(c.get('pipe_memory_exhausted') for c in record['cases']):
         print(f'== The console\'s pipe memory ran out ({PIPES_GONE}): restart it before the next run', flush=True)
     print(json.dumps({'battery': args.name, 'passed': record['passed'],
-                      'cases': {c['case']: c['passed'] for c in record['cases']}}, indent=2))
+                      'cases': {c['case']: 'skipped' if c.get('skipped') else c['passed'] for c in record['cases']}},
+                     indent=2))
     return 0 if record['passed'] else 1
 
 

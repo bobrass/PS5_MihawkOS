@@ -1,5 +1,38 @@
 # Console validation queue
 
+## Helper start stamps: where an installer's process start goes (2026-10-27, branch start-path, the Pro)
+
+Staged as P0 of the installer-speed plan (docs/PLAN.md, section of 2026-10-27): the title's `wine-ps5: spawn native=`
+line (request, startup lock, payload read, elfldr's answer, rendezvous connect and attempts, endpoint held, bootstrap
+sent, READY), each helper's `wine-child: start at=<step> ms=` stamps (main, control, entry, bootstrap, payload-entry,
+ntdll-loading, ntdll-loaded, wine-main) and its `wine-child: life summary` at its end (server, file and section time).
+`tools/start_stages.py` puts them and Wine's first and last module lines on one clock; `tools/run-console.py` writes
+the result into each run's record as `start_stages`. No behaviour change. Host tests pass. Build, deploy title and
+runtime together (the payload loader and ntdll's process unit changed), usual gate setup, then:
+
+1. **The gate:** `python3 tools/gate.py run --name start-stamps-gate-2026-10-27-01`; pass = every case.
+2. **The measurement (queue item 5 below, now with stamps):** `python3 tools/run-wine-session.py msi --arch x86_64
+   --files install --force --sentinels 0 --name start-msi-2026-10-27-01`, then `python3 tools/start_stages.py run klog
+   <its run name>` (or read `start_stages` in its evidence record). Answers: how much of the ~0.9 s between one custom
+   action's end and the next carrier's EXEC is the title and elfldr (`answered`, `connected`), how much is the
+   carrier's start (`main`, `control`), and which step after the bootstrap dominates. Also run the gate case
+   `prefix-fresh64` once more if the msi run is short of starts.
+3. Commit P0 after 1 passes, its body with step 2's medians.
+
+Then **P2** (the rendezvous's 1-8 ms pauses) and **P1** (the warm helper, the narrower startup lock), staged on top in
+that order (patches and trees in the coordinator's notes, `installer-speed-*`). Each is its own commit and gate:
+
+4. **P2:** build, deploy, `gate.py run --name rendezvous-gate-2026-10-27-01`; repeat step 2's msi run
+   (`--name start-msi-p2-2026-10-27-01`) and compare: `python3 tools/start_stages.py compare evidence/<P0 run>.json
+   evidence/<P2 run>.json`; `connected` should fall and `attempts` rise.
+5. **P1:** build, deploy, `gate.py run --name warm-gate-2026-10-27-01`; the msi run again
+   (`--name start-msi-p1-2026-10-27-01`; most starts `warm=1`, the parked time not on their path), and once with
+   `--env WINE_PS5_WARM_HELPER=0` as the same build's cold baseline. Then a Steam end-to-end check: `run-console.py
+   --profile steam --seconds 120 --name warm-steam-2026-10-27-01`, Big Picture shown, no helper crash, the memory
+   guard's peak against the Pro's 870 MiB (a parked helper is one more process for up to 30 s), and no
+   `warm helper ... gone while parked` lines. A parked helper outliving the title would show as a leftover
+   SceSpZeroConf in the next launch's readiness census: look for one.
+
 ## Loader everywhere: helpers load Wine's modules themselves on every firmware (2026-10-27, branch loader-everywhere, the Pro)
 
 Staged, not committed (the hook needs a gate on exactly this tree): `pw_prx_elf_wanted` makes the user-space module

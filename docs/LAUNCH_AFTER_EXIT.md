@@ -14,8 +14,16 @@ Direct PS-menu closure did not reproduce that failure in the first tests.
 The cause the evidence points to: ShellCore's launch-hook pages are paged out and reloaded with their original
 instructions. Keeping those pages resident before installing the hooks made the longer sequence complete on tested
 10.01 (Samples then rendered 120 frames and exited with status 0); pageout and reload were not instrumented directly.
-MihawkOS does not ship or carry a patched ShadowMountPlus: it waits for an upstream fix, and until then the user
-restarts the console when another homebrew refuses to start.
+MihawkOS does not ship or carry a patched ShadowMountPlus.
+
+**Fixed upstream (2026-10-20).** PR 139 proposed that change; upstream closed it and committed its own version of the
+same retention the same day (`35fff9fc`, "Retain ShellCore hook pages before physical writes"; it also rounds each
+range to whole 16 KiB pages). It is in 1.7beta6 and every later release. MihawkOS now requires 1.7beta10 or later
+through its payload check (`src/pw_payload_check.h`), so it carries no mlock of its own: it could not, without
+ShadowMountPlus's per-firmware hook addresses, and two lockers of the same pages would add nothing. On the owner's
+base PS5 (13.60), 1.7beta10's log said `[SHELLCORE] hook pages retained: cave=1 sites=3` before installing its hooks
+(`evidence/payloads-base-2026-10-29-01.json`). The full game, launcher, close and next-homebrew sequence has not been
+repeated on 1.7beta10; it was proven on 10.01 with the PR's build (below).
 
 The original reproduction, hashes, baseline host-test failure and earlier
 user-authorized upstream publication record remain in

@@ -34,4 +34,12 @@ if [[ ! -f $build/build.ninja ]]; then
         || { cat "$build.configure.log" >&2; exit 1; }
 fi
 "$ninja" -C "$build" title
+# The title's link depends on the SDK's platform layer and RADV's archive (link-title.sh's depfile): a Ninja that does
+# not know them keeps an old title after an SDK patch, which only deleting build/ps5/eboot.elf undid.
+# (the listing is read whole before it is searched: piped into grep -q under pipefail, a SIGPIPE would fail it)
+deps=$("$ninja" -C "$build" -t deps eboot.elf)
+for library in libps5platform.a libvulkan_radeon.ps5.a; do
+    grep -q "/$library\$" <<<"$deps" ||
+        { echo "build.sh: Ninja does not know that eboot.elf depends on $library" >&2; exit 1; }
+done
 python3 "$ps5/tools/build-assets.py" --install "$root/dist/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titleId"])' "$ps5/sce_sys/param.json")"

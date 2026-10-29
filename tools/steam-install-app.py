@@ -77,7 +77,7 @@ def main():
         print(f'appmanifest_{args.appid}.acf is there already', flush=True)
 
     run = subprocess.Popen([sys.executable, str(ROOT / 'tools/run-console.py'), '--profile', '250900', '--program', STEAM,
-                            '--args=-silent -noverifyfiles -no-browser', '--seconds', str(args.minutes * 60),
+                            '--args=-silent -noverifyfiles', '--seconds', str(args.minutes * 60),
                             '--watchdog', str(args.minutes * 60 + 300), '--name', args.run],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     lines = []

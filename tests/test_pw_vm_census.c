@@ -95,6 +95,31 @@ int main(void)
     assert(census.class_mappings[PW_VM_CLASS_FLEXIBLE] + census.class_mappings[PW_VM_CLASS_DIRECT] +
            census.class_mappings[PW_VM_CLASS_RESERVED] == census.mappings && census.class_mappings[PW_VM_CLASS_FLEXIBLE] >= 3);
     assert(census.mappings == 6 && !census.truncated && !census.failed && census.count == 5);
+    assert(census.regions_2m > 0);
+    {
+        /* The page-table estimate: two mappings in one 2 MiB region count once, 12 MiB from 4 MiB six, a reservation
+         * none, one page far away one more: 8. */
+        static const Fake regions[] = {
+            {0x200000, 0x201000, 3, 1, "a", 0}, {0x201000, 0x400000, 3, 1, "b", 0}, {0x400000, 0x1000000, 3, 1, "c", 0},
+            {0x1000000, 0x80000000ull, 0, 0, "reserved", 0}, {0x80000000ull, 0x80001000ull, 3, 1, "far", 0},
+        };
+        Space space = {regions, 5, -1, 0};
+        PwVmCensus counted;
+        pw_vm_census_walk(&counted, query, NULL, &space);
+        assert(counted.mappings == 5 && counted.regions_2m == 8);
+        char text[256];
+        pw_vm_census_format_regions(&counted, 8, text, sizeof(text));
+        assert(!strcmp(text, "c:01=6/1 a:01=1/1 far:01=1/1"));
+        /* A direct mapping aligned to 2 MiB at both ends is counted apart (no page-table page); one that is not, as usual. */
+        static const Fake direct[] = {
+            {0x40000000ull, 0x40800000ull, 3, 2, "dmem", 0}, {0x40900000ull, 0x40a00000ull, 3, 2, "dmem-small", 0},
+        };
+        Space space2 = {direct, 2, -1, 0};
+        pw_vm_census_walk(&counted, query, NULL, &space2);
+        assert(counted.regions_2m_direct == 4 && counted.regions_2m == 1);
+        pw_vm_census_format_regions(&counted, 8, text, sizeof(text));
+        assert(!strcmp(text, "dmem-small:02=1/1 dmem:02=0+2m-direct 4/1"));   /* by page-table cost first */
+    }
     assert(census.flexible == (64 + 512 + 64 + 1) * (uint64_t)MIB && census.direct == 600ull * MIB);
     assert(census.other == 10000ull * MIB);
     assert(census.resident == (40 + 380 + 20 + 1) * (uint64_t)MIB);

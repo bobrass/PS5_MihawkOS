@@ -94,8 +94,10 @@ def main():
             f"system = 'windows'\ncpu_family = '{cpu}'\ncpu = '{arch}'\nendian = 'little'\n")
         build = WORK / ('build-' + arch)
         command = ['meson', 'setup'] + (['--reconfigure'] if (build / 'build.ninja').exists() else [])
+        # No link time in the DLLs (--no-insert-timestamp), as Mesa's: the same source links to the same bytes.
         subprocess.run([*command, str(build), str(source), '--cross-file', str(cross),
-            '--wrap-mode=nodownload', '--buildtype=release'], env=env, check=True)
+            '--wrap-mode=nodownload', '--buildtype=release', '-Dc_link_args=-Wl,--no-insert-timestamp',
+            '-Dcpp_link_args=-Wl,--no-insert-timestamp'], env=env, check=True)
         subprocess.run(['ninja', '-C', str(build), '-j', str(args.jobs)], env=env, check=True)
         destination = WORK / ('i386' if arch == 'i686' else 'x86_64')
         destination.mkdir(exist_ok=True)

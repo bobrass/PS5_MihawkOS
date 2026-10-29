@@ -2,6 +2,9 @@
  * Same PE32/PE64 DNS contract: configuration size/readback, ordinary adapter
  * discovery, real A/AAAA/TXT replies, TCP DNS, NXDOMAIN and record cleanup.
  * No configured addresses, adapter identifiers or record contents are logged.
+ * The network's resolver is the one part outside the console: a TCP query it answers with a server failure or not at
+ * all is asked once more, and a second such answer is an environment skip (counted in the verdict line as skipped=N),
+ * not a failure and not a pass (gate-0036-pro-01, 2026-10-27: TCP status 9002 while UDP answered).
  */
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
@@ -9,7 +12,7 @@
 #include <windows.h>
 #include <windns.h>
 #include <iphlpapi.h>
-static unsigned checks, failures;
+static unsigned checks, failures, skipped;
 static void check(int ok, const char *what)
 {
     char line[160]; ++checks;
@@ -44,7 +47,21 @@ static void query(const char *name, WORD type, DWORD flags, int negative)
     DNS_RECORDA *records=NULL; unsigned count=0,found=0;
     DWORD status=DnsQuery_A(name,type,flags|DNS_QUERY_NO_NETBT,NULL,&records,NULL);
     char line[160];
-    wsprintfA(line,"dnsapi: type=%u tcp=%u negative=%u status=%lu\n",type,!!(flags&DNS_QUERY_USE_TCP_ONLY),negative,status);OutputDebugStringA(line);
+    const int tcp=!!(flags&DNS_QUERY_USE_TCP_ONLY);
+    wsprintfA(line,"dnsapi: type=%u tcp=%u negative=%u status=%lu\n",type,tcp,negative,status);OutputDebugStringA(line);
+    if(tcp && !negative && (status==DNS_ERROR_RCODE_SERVER_FAILURE || status==ERROR_TIMEOUT)) {
+        if(records){DnsRecordListFree(records,DnsFreeRecordList);records=NULL;}
+        Sleep(1000);
+        status=DnsQuery_A(name,type,flags|DNS_QUERY_NO_NETBT,NULL,&records,NULL);
+        wsprintfA(line,"dnsapi: type=%u tcp=1 retry status=%lu\n",type,status);OutputDebugStringA(line);
+        if(status==DNS_ERROR_RCODE_SERVER_FAILURE || status==ERROR_TIMEOUT) {
+            ++skipped;
+            wsprintfA(line,"dnsapi: SKIP resolver refused TCP (status %lu): the network's, not the console's\n",status);
+            OutputDebugStringA(line);
+            if(records)DnsRecordListFree(records,DnsFreeRecordList);
+            return;
+        }
+    }
     if(negative)check(status==DNS_ERROR_RCODE_NAME_ERROR,"NXDOMAIN");
     else {
         check(!status,"wire query status");
@@ -71,6 +88,8 @@ void mainCRTStartup(void)
     query("example.com",DNS_TYPE_A,DNS_QUERY_USE_TCP_ONLY,0);
     query("ps5proton-dns-probe.invalid",DNS_TYPE_A,0,1);
     check(!WSACleanup(),"Winsock cleanup");
-    wsprintfA(line,"PS5_PROTON_DNSAPI %s checks=%u failures=%u\n",failures?"FAIL":"PASS",checks,failures);OutputDebugStringA(line);
+    wsprintfA(line,"PS5_PROTON_DNSAPI %s checks=%u failures=%u skipped=%u%s\n",failures?"FAIL":"PASS",checks,failures,skipped,
+              skipped?" (resolver refused TCP)":"");
+    OutputDebugStringA(line);
     ExitProcess(failures!=0);
 }

@@ -1,0 +1,52 @@
+DXVK 601930949d111edbbcf9dd463948426d9f8f6ddd
+
+A shared D3D11 resource with a keyed mutex (D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX)
+creates a shared timeline semaphore. On a driver without
+VK_KHR_external_semaphore_win32 (the PS5's RADV has no external memory or
+semaphores) the semaphore cannot be exported: DxvkFence logs "Exporting
+semaphores ... not supported by device" and creates an ordinary one, but was
+still told the requested handle type, so it called initKmtHandles, which calls
+vkGetSemaphoreWin32HandleKHR, a function pointer that is null when the
+extension is not enabled: a call through null. Wine's d3d11 test crashed so in
+test_create_texture1d, 2d and 3d on the PS5 Pro (2026-10-28, "a queued test
+function crashed with 0xc0000005", at address 0), and passes on the PC. Patch
+0003 fixed the same for shared images. Ask for a handle, and import one, only
+when the extension is enabled and the semaphore can be exported or imported;
+the fence is then a private one, as the log already says.
+
+--- a/src/dxvk/dxvk_fence.cpp
++++ b/src/dxvk/dxvk_fence.cpp
+@@ -28,10 +28,13 @@
+ 
+       externalFeatures = externalProperties.externalSemaphoreFeatures;
+ 
+-      if (externalFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT)
++      if ((externalFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT) && device->features().khrExternalSemaphoreWin32)
+         typeInfo.pNext = &exportInfo;
+-      else
++      else {
+         Logger::warn(str::format("Exporting semaphores of type ", info.sharedType, " not supported by device"));
++        // no handle to ask for: vkGetSemaphoreWin32HandleKHR is null without the extension
++        m_info.sharedType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_FLAG_BITS_MAX_ENUM;
++      }
+     }
+ 
+     VkSemaphoreCreateInfo semaphoreInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &typeInfo };
+@@ -43,7 +46,7 @@
+       throw DxvkError("Failed to create timeline semaphore");
+ 
+     if (info.sharedHandle != INVALID_HANDLE_VALUE) {
+-      if (externalFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT) {
++      if ((externalFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT) && device->features().khrExternalSemaphoreWin32) {
+         VkImportSemaphoreWin32HandleInfoKHR importInfo = { VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR };
+         importInfo.semaphore = m_semaphore;
+         importInfo.handleType = info.sharedType;
+@@ -57,7 +60,7 @@
+       }
+     }
+ 
+-    if (info.sharedType != VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_FLAG_BITS_MAX_ENUM)
++    if (m_info.sharedType != VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_FLAG_BITS_MAX_ENUM)
+       initKmtHandles();
+   }
+ 

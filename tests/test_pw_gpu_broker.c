@@ -34,6 +34,32 @@ int main(void)
  m.argument[0]=640ull|(360ull<<32);m.argument[2]=0;assert(!pw_gpu_window_image(&m));
  m.argument[2]=1;m.argument[1]=2560;assert(!pw_gpu_window_image(&m));
  m.argument[1]=2560ull|(2ull<<32);m.argument[3]=2;assert(!pw_gpu_window_image(&m));
+ /* A window larger than the screen (Steam's restored 1922x1081, rows padded to 256 bytes), up to 2176x1408. */
+ m.argument[3]=1;m.argument[0]=1922ull|(1081ull<<32);m.argument[1]=7936ull|(2ull<<32);m.bytes=7936ull*1081;
+ assert(pw_gpu_window_image(&m));
+ m.argument[0]=2176ull|(1408ull<<32);m.argument[1]=8704ull|(2ull<<32);m.bytes=8704ull*1408;assert(pw_gpu_window_image(&m));
+ m.argument[0]=2177ull|(1408ull<<32);m.argument[1]=8708ull|(2ull<<32);m.bytes=8708ull*1408;assert(!pw_gpu_window_image(&m));
+ m.argument[0]=2176ull|(1409ull<<32);m.argument[1]=8704ull|(2ull<<32);m.bytes=8704ull*1409;assert(!pw_gpu_window_image(&m));
+ m.argument[0]=1922ull|(1081ull<<32);m.argument[1]=8708ull|(2ull<<32);m.bytes=8708ull*1081;assert(!pw_gpu_window_image(&m));
+
+ /* A display swapchain larger than the screen (graphics patch 0039): The Binding of Isaac's borderless fullscreen
+  * window, 1921x1080, was refused (VK_ERROR_INITIALIZATION_FAILED) and Zink then wrote to NULL. It is shown clipped. */
+ PwGpuMessage d={.operation=PW_GPU_SWAPCHAIN,.address=0x240000000ull,.bytes=7684ull*1080,.argument={1921,1080,7684,1}};
+ unsigned shown_w=0,shown_h=0;
+ assert(pw_gpu_display_image(&d));pw_gpu_display_shown(&d,&shown_w,&shown_h);assert(shown_w==1920 && shown_h==1080);
+ d.argument[0]=960;d.argument[1]=540;d.argument[2]=3840;d.bytes=3840ull*540;   /* smaller: whole, the display scales it */
+ assert(pw_gpu_display_image(&d));pw_gpu_display_shown(&d,&shown_w,&shown_h);assert(shown_w==960 && shown_h==540);
+ d.argument[0]=2176;d.argument[1]=1408;d.argument[2]=8704;d.bytes=8704ull*1408;assert(pw_gpu_display_image(&d));
+ pw_gpu_display_shown(&d,&shown_w,&shown_h);assert(shown_w==1920 && shown_h==1080);
+ d.argument[0]=2177;d.argument[2]=8708;d.bytes=8708ull*1408;assert(!pw_gpu_display_image(&d));
+ d.argument[0]=2176;d.argument[1]=1409;d.argument[2]=8704;d.bytes=8704ull*1409;assert(!pw_gpu_display_image(&d));
+ d.argument[1]=1080;d.bytes=8704ull*1080;assert(pw_gpu_display_image(&d));
+ d.argument[2]=8700;d.bytes=8700ull*1080;assert(!pw_gpu_display_image(&d));   /* a row shorter than the image */
+ d.argument[2]=8706;d.bytes=8706ull*1080;assert(!pw_gpu_display_image(&d));   /* a row not of whole pixels */
+ d.argument[2]=8704;d.bytes=8704ull*1080+1;assert(!pw_gpu_display_image(&d));d.bytes--;
+ d.argument[3]=2;assert(!pw_gpu_display_image(&d));d.argument[3]=0;
+ d.address=0;assert(!pw_gpu_display_image(&d));d.address=0x240000002ull;assert(!pw_gpu_display_image(&d));
+ d.address=0x240000000ull;d.argument[0]=0;assert(!pw_gpu_display_image(&d));
 
     puts("GPU broker bounds and owner PID/window packet contracts passed");
 }

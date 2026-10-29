@@ -477,9 +477,11 @@ def main():
         shutil.copy2(DEPS / 'probes' / name, prefix / 'drive_c' / name)
     for test in sorted((DEPS / 'wine-tests/exe').glob('*.exe')):  # tools/build-wine-tests.sh and tools/fetch-vkd3d-tests.sh
         shutil.copy2(test, prefix / 'drive_c' / test.name)
-    for path in out.rglob('*'):
-        if path.is_file() and path.suffix.lower() in ('.dll', '.exe', '.drv', '.ocx', '.sys') and pe_image(path):
-            subprocess.run(['llvm-strip', '--strip-debug', str(path)], check=True, capture_output=True)
+    images = [str(path) for path in out.rglob('*')
+              if path.is_file() and path.suffix.lower() in ('.dll', '.exe', '.drv', '.ocx', '.sys') and pe_image(path)]
+    # Many files to one llvm-strip, which strips each on its own: one process per file was 26 of staging's 41 s.
+    for first in range(0, len(images), 500):
+        subprocess.run(['llvm-strip', '--strip-debug', *images[first:first + 500]], check=True, capture_output=True)
     cares_license = DEPS / 'wine-ps5/prx/licenses/cares/LICENSE.md'
     if not cares_license.is_file():
         raise SystemExit('Pinned c-ares license is missing')

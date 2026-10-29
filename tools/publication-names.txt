@@ -2,6 +2,8 @@
 #   [steam]    a line there may name Steam, the store client the launcher installs (the owner kept the word on
 #              2026-10-26); any other game or launcher named on a line is still refused.
 #   [records]  evidence kept as measured: every name in it stays, and its run name may be cited anywhere.
+#   [games]    code whose comments cite a measurement by the game the owner ran it with: every name in it stays;
+#              rewording them would change the built runtime.
 # Not here: the trademark notices and upstream identifiers (NAMED_LINES), the Steam option's first files (ALLOWED).
 
 [steam] the guided Steam setup the owner asked for on 2026-10-26 (docs/STEAM.md, "The guide")
@@ -40,7 +42,6 @@ native/proton_wine.cpp
 native/proton_loading.cpp
 native/proton_loading.h
 ps5/src/proton_launch.h
-src/pw_memory_guard.h
 wine/ps5/pw_wine_dmem_ps5.c
 wine/ps5/pw_wine_process.c
 wine/ps5/pw_wine_cwd.h
@@ -401,3 +402,23 @@ evidence/steam-signin-raise-2026-10-24-01.json
 evidence/surfaces-window-2026-10-24-01.json
 evidence/tune-isaac-start16-2026-10-27-01.json
 evidence/tune-re3-default-2026-10-27-01.json
+
+[steam] Alpha 5's fixes for the store client (2026-10-27..29): its window larger than the screen, its services in a new prefix, its browser held while a library game runs, and the guide's gate cases
+docs/CONSOLE_TESTING.md
+platform/graphics/patches/0036-the-broker-shows-a-window-larger-than-the-screen-clipped.patch
+src/pw_window_scene.c
+tests/gpu-window-probe.c
+tests/test_pw_window_gpu_scene.c
+tests/test_wineboot_install_sentinel.py
+wine/patches/2103-wineboot-ps5-a-prefix-without-defaultinstall-s-last-service-is-updated-again.patch
+wine/patches/2104-kernelbase-ps5-hold-a-client-s-helper-suspended-while-a-program-it-started-from-the-library-runs.patch
+tools/gate_quick.py
+tests/test_gate_quick.py
+
+[games] Alpha 5's measurements (2026-10-28..29): the memory guard's page-table rule and helper census, from the owner's 3D demo run with the store client, and the broker's display swapchain larger than the screen, from a 2D game's borderless window
+src/pw_memory_guard.h
+src/pw_memory_helper.c
+src/pw_memory_helper.h
+tests/test_pw_memory_guard.c
+platform/graphics/patches/0039-the-broker-shows-a-display-swapchain-larger-than-the-screen-clipped.patch
+tests/test_pw_gpu_broker.c

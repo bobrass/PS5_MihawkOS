@@ -26,6 +26,6 @@ title_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titl
 mask() { sed -uE 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/<console>/g'; }
 python3 "$root/tools/console_guard.py" begin-write title 2>&1 | mask
 python3 "$vulkan/tools/deploy-title-folder.py" --always eboot.bin --always runtime-stamp --always runtime-pack.txt \
-    --always forwarder/launch.elf --always forwarder/worker.elf "$root/dist/$title_id" "$@" 2>&1 | mask
+    --always forwarder/launch.elf --always forwarder/worker.elf --always proton-payload-child.elf "$root/dist/$title_id" "$@" 2>&1 | mask
 python3 "$root/tools/console_guard.py" end-write 2>&1 | mask
 python3 "$root/tools/verify-title.py" "$root/dist/$title_id" 2>&1 | mask

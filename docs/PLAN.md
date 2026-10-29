@@ -1,5 +1,217 @@
 # Plan
 
+## A title never runs another build's runtime or helper (2026-10-29; host-tested, built, not yet on the console)
+
+**Why.** A tester on firmware 11.00 "reinstalled Alpha 4" and still hit errno 92. The klog showed the kernel loader's
+fself decrypt failure at ntdll.prx. Their helper printed no `module loader=` line, so it was not Alpha 4's: it spoke
+Alpha 4's protocol 0x50573512 like the c4a3458 prototype. Their runtime's cache-version (96555103…) matches no
+published build. Reinstalling the title touches neither `/data/ps5proton/runtime` nor `run/`, and three gaps let the
+mix run:
+- the runtime stamp was checked only in the launcher's library, and their starts came from home-screen tiles
+  (`launch: mode=game profile=... cycle=0`);
+- the guided setup counted any ntdll.prx as an installed runtime;
+- `runtime-stamp` covers only `runtime/`, so the helper in `run/` was never compared.
+Write-up: errno92-stale-runtime-alpha4.md in the coordinator's notes.
+
+**What changed.**
+1. **The check, in one place.** `src/pw_runtime_check.h` (host test `test_pw_runtime_check`, which includes the
+   tester's case): this build's runtime, missing, or another build's. Another build's covers a stamp that is missing,
+   for example an install cut short.
+2. **Every Wine start checks it.** `proton_run_wine` (native/proton_wine.cpp) refuses another build's runtime before
+   any helper starts, whatever the start: a tile, a shortcut, `profile=`, or a restart. It returns to the launcher with
+   the plain reason.
+3. **The setup tour judges by the stamp.** `facts.runtime` (examples/ps5proton/setup_tour.hpp) is "this build's
+   runtime", so the tour opens on its install step for another build's runtime, as it does for a missing one.
+4. **The title carries its own helper.** tools/build-production.sh copies `proton-payload-child.elf` into the title
+   folder, ps5/tools/deploy.sh always sends it, and the title points `WINE_PS5_PAYLOAD_IMAGE` at it. A title therefore
+   always starts the helper it was built with. The runtime's `run/` copy stays for older titles and test tools. A
+   helper whose ntdll is another build's is refused by the existing protocol check.
+   Why the title folder rather than adding `run/` to the stamp: the stamp would then flag the helper, but the title
+   would still start whatever `run/` holds whenever the check is skipped. A title folder is replaced whole by every
+   install and update, so the helper can no longer drift.
+5. **Every session log names its build.**
+   - The title logs `Build: title <contentVersion>, runtime stamp pinned <16> installed <16> (this build's | missing |
+     another build's)`, at the top of every session: the launcher's and each game's.
+   - Each game session also logs `Build: helper <path> sha256 <16>`.
+   - Each helper's log starts with `wine-child: build <id>`, a digest of the sources and headers it was compiled from
+     (tools/build-payload-loader.sh).
+
+## Memory plan: every fix, and how each is proven (2026-10-28; the owner's plan, in progress)
+
+Goal: no freeze or crash on any console; games get as much memory as each console can safely give; the player sees a
+clear message instead of a crash. Approved by the owner on 2026-10-28 ("I want the entire plan executed end-to-end and
+proven"). Data: docs/TESTER_MEMORY_RESULTS.md (tester-probe-3step), the ceiling test's runs, the base's kernel logs.
+
+**Part 1, a limit per console** (src/pw_memory_guard.h, `pw_memory_marks_for`; host-tested, not yet on a console).
+The guard keys on the console's generation, from the application's direct pool (12,928 MiB on a Pro, 11,712 on a
+standard PS5 or Slim; a size not known takes the Pro's marks), and the INSTALLED firmware, never the reported one.
+- WARN, an on-screen notice, on the resident census, where the console starts to swap.
+- STOP, a clean close back to the launcher, on the same resident census. A first try keyed STOP on "committed" memory
+  (the others' resident plus our helpers' mapped), but a helper's mapped figure is its address space: the gate
+  memplan-gate-2026-10-28-01 read 48 GiB and the guard ended every game (4/104). No figure on the console counts what
+  has been swapped (no swap sysctl on 13.x), and a standard PS5's resident memory flattens at the swap point (1,800-1,846
+  MiB while the ceiling test filled 4 GiB), so there STOP comes from behavior, the triggers below, until the owner's run
+  settles it.
+- A second STOP trigger: at WARN or past it, a helper start more than 3 times slower than the session's first and
+  150 ms or more (`pw_memory_start_slowed`; the ceiling test's starts went from 51 ms to 187-249 ms).
+
+STOP fires on whichever comes first, on every console: the resident mark (below); a helper start 3 times slower than
+the session's first, at WARN or past it; resident memory held within 32 MiB of its plateau for 60 s with a frame gap
+over 1 s in that time (`pw_plateau_sample`; our Pro plateaued at about 869 MiB, under its 950 mark); the page-table net.
+
+| Console | Firmware | WARN (resident) | STOP's resident mark |
+| --- | --- | ---: | ---: |
+| standard PS5 or Slim | 12.00 and later | 1,750 | none (resident flattens at 1,800-1,846) |
+| standard PS5 or Slim | before 12.00 (5.50-11.60 measured; 6.xx-9.xx untested, given these), or not known | 1,650 | none |
+| Pro | every firmware | 850 | 950 |
+
+Every warn and stop logs the resident census and the helpers' address space, so the owner's runs can set the final STOP.
+
+**Part 2, crash protection.**
+- Done: the page-table guard (close at 768 free, end at 256); Steam's browser in one process; a page-table reading
+  with more free than total (the Pro's 9,436 of 9,216) is unknown, logged once and never acted on.
+- Explained, no safe fix in our layer: the kernel's "DMEM leak is detected" at a close from the home screen. Each
+  helper's direct memory is charged to the application's container, which the system deletes 100-170 ms after it kills
+  the title, while some helper is still tearing down. A helper that gave its ranges back itself, before exiting, hung in
+  the kernel and outlived SIGKILL (gate dmem-giveback-gate-2026-10-28-04, shell64; most likely wired module data), so
+  the give-back was removed. The kernel takes those ranges back itself at the container's deletion; the plan's
+  after-close check (memory back within 16 MiB) measures that on both consoles.
+- Open, Alpha 6: the page-table drift. The kernel's used count falls 20-35 for each MihawkOS session and never comes back
+  (drift-base-2026-10-28: the ceiling test, which runs no Wine, +13; MihawkOS's launcher -18; a Wine program in helpers
+  -35, the same with Wine's sections out of direct memory; the 2D game closed from the home screen -29). About -1,700 over a
+  gate; after enough sessions it wraps, as the Pro's did. Not the memory the memory helper makes and the title maps: the
+  title mapping 256 MiB more of it (shared or granted direct memory, PROTON_PT_PROBE) changed nothing, -34 to -38 for
+  every run (ptprobe-base-2026-10-28). It follows the title's processes: about -17 for each MihawkOS title process (two
+  per launched session). The bisection (PROTON_PT_EXIT=start|granted|platform, the title ending at that stage) places it
+  against the title's root grant from the Lapy daemon and its platform layer. Its first try did not bisect: the flag
+  matched the raw launch word, which never matched, so all seven runs were whole sessions (-32 to -37 each again,
+  bisect-base-2026-10-28); Alpha 6 reads it from the parsed launch (proton_launch().env).
+
+**Part 3, MihawkOS uses less.** Alpha 6 (the owner, 2026-10-28: "release Alpha 5 with: the new warning and stop limits;
+the crash protections; the payload tip; the conformance and installer fixes. Then the drift fix and "MihawkOS uses less"
+would go in Alpha 6"). To do then: measure MihawkOS idle and with Steam on both consoles, fewer always-on helpers (about
+140 page tables each), trim the biggest parts; before and after numbers here.
+
+**Fresh-boot page tables are the baseline** (2026-10-29). Every gate of ours before that night ran on counters the drift
+had lowered (about 35 used per title session, so a gate takes about 1,700 off): the Pro's ~2,040 used before MihawkOS
+and its gates 02/03 were read that way. On a freshly restarted Pro a title session starts at about 5,900 used of 9,216
+(gpu2m-pro-gate-2026-10-29-01: 3,276 free at the first case, rising about 35 a case). That is what a player has, and
+every page-table target from here on is measured from a fresh boot. In that gate the grouped session's 4 GiB
+payload-memory probe took the pool to 1,526 free and the guard's fixed-fall rule (300 within 2 s) ended the group: so
+payload-memory runs in a launch of its own again, and the fall rule became a projection (ended once the last 2 s of fall,
+repeated, would reach 512 free; the 3D demo's start is still ended at 807 free).
+
+**Steam's browser while a game runs** (fresh Pro, 2026-10-29, build 896448177e155ec6; `klog/wh-pro-2026-10-29-*`). System
+page tables of 9,216: rest 5,810; Steam idle with its browser about 7,486; with `steamwebhelper` ended every ~5 s for
+90 s 6,525-6,580; back to about 7,500 10 s after the kills stopped; peak while Steam and the game start 8,148-8,282 (934
+free, the guard did not act). So the browser is about 950 of Steam's ~1,676 (57%). Steam relaunched it after every kill
+(5 launches over 20 kills, 10-41 s apart; never "webhelper crashing too often, stopping restart"), steam.exe and
+steamservice stayed up, and the browser was back after the kills and after the game. This client (1788652215) has no
+`-no-browser` switch at all (taken out of tools/steam-install-app.py; the console's 250900 entry still passes it,
+harmlessly). The 2D game crashed at its intro in both runs (libgallium_wgl.dll writing to NULL, a 1921-wide window; the last
+good run drew 960x540), so no game ran during the kills: the game's own survival, achievements and cloud sync are
+still to be shown.
+
+Built and measured on the Pro (patch 2104 and the client entry's rule `steamwebhelper.exe|hold|\steamapps\common\`; results below).
+What Steam does, read from its client library (steamclient64.dll, CChromeIPCClient::RunFrame, client 1788652215):
+- A browser that dies is relaunched at least 10 s after its last start. A 5th death within 10 s of the first logs "webhelper
+  crashing too often, stopping restart" and adds 30 s to the window; the count then starts again, so Steam never gives up
+  for good.
+- A start that fails (an invalid process handle) is asserted ("m_hCEFHandle != INVALID_PROCESS_HANDLE") and retried from
+  the next frame, outside that count. Refusing the start (a `fail` rule) would make it retry every frame.
+- A browser that starts but never connects is ended after 60 s ("Failed connecting to webhelper process, started ... ago")
+  and relaunched.
+So the browser is not refused but held. In the process holding the rule (steam.exe):
+1. When it starts a program whose path holds `\steamapps\common\` (a library game, no list), it ends the browser running
+   then, once.
+2. While that game runs, every relaunch starts suspended: a live, idle process (a nearly empty helper's floor), which
+   Steam relaunches about once a minute, each one held again.
+3. When the game ends, the held browser is resumed.
+Each step is a fixme line. `WINE_PS5_PROCESS_HOLD=0` turns it off. To measure on the Pro once a game runs there:
+the system page tables with the browser held, the game's licence, achievements and cloud sync, and Big Picture back
+after the game.
+Measured on the Pro (2026-10-29, build 6e09348ce15e549e, Big Picture, a 2D game started from Steam's library, not a fresh
+boot; `klog/hold-pro-2026-10-29-03*`): Big Picture idle about 5,500 page tables used; the game's start ended the
+browser (4,711); with the browser held the game ran at 4,911-4,921, against about 6,100 in the same run without the hold
+(`-02`): about 1,190 saved. All four lines in order (game, ending, held relaunch 0.5 s later, resumed at the game's end).
+The game presented 61 frames a second in front the whole time (Big Picture's surround black behind it, as nothing draws
+it); Steam stayed logged on; the client wrote the game's cloud cache at its end; Big Picture came back on screen (the
+resumed browser in front at about 106 frames a second). Not seen: an achievement (none earned in the menu).
+A game.json an older build wrote keeps its own rule list, which wins over the launch's, so the title merges the built-in
+rules a stored list lacks when it reads the catalog (`pw_steam_rules_merge`): the console's hand-written 250900 entry,
+with no hold rule, held the browser the same way (`klog/merge-pro-2026-10-29-01*`, build 7577e424431259ad).
+
+**Alpha 5's proof: a 3D game's demo with Steam open on the base PS5** (2026-10-29, build 7577e424431259ad = bee7ea8c, base
+13.60, restarted 08:19 and drifted by the payload checklist's runs since; the base hold run of 2026-10-29 in `klog/` of
+PS5_Proton-int1028). Big Picture, the demo started from Steam's library, 5 minutes, a normal close, Big Picture
+again. System page tables of 8,192: 2,738 at rest; Big Picture idle about 4,600; the demo with the browser held
+about 4,970, peak 5,205 at the game's start (2,987 free, the minimum: the close mark is 768); Big Picture back after
+the game about 4,500-4,670; 2,704 after the session. All four hold lines (the game, the browser ended, its relaunch
+held, resumed at the end). The guard never acted (no close, end or page-table line); the census's resident peak
+1,126 MiB (the base's WARN is 1,750). The game ran without a fault; the owner: it ran great on the base with no crashes
+(some hitches here and there). The day before, the same demo with Steam open took the base's pool from 7,016 to 8,188
+used and out (the base run with Steam of 2026-10-28). The PS5 Pro, same test (the Pro hold run of 2026-10-29, `-01`): 4,909 free at
+least, census peak 474 MiB, no guard action.
+
+**Part 4, player help** (Alpha 5; host-tested). At the session's first census the title says what the user's payloads
+hold ("Wine: payloads use N MiB in M processes at the start"), and from 64 MiB on shows "Payloads are using N MiB;
+closing them frees room." A payload is a process started by the loader the helpers come from or adopted by init, not
+named "Sce..." (`pw_memory_is_payload`). At WARN the notice "The PS5's memory is getting full: games may slow down as it
+starts to swap." shows once a session.
+
+**Payload checklist** (2026-10-29, the owner: "no other additional payload should be accepted due to RAM usage").
+Every start takes `src/pw_payload_check.h`: Kstuff Lite (its process; a title cannot make the kekcall that would tell
+1.11, it ended the title), ShadowMountPlus 1.7beta10+ (its
+`/api/v1/version`), elfldr, websrv, NanoDNS required; klog, ftpsrv, pldmgr allowed; anything else refuses entry. The
+launcher shows the list with CROSS to check again; a game start that fails returns to it. Measured on the base (13.60)
+with the official set: 88 MiB in 8 payloads (`evidence/payloads-base-2026-10-29-01.json`). ShadowMountPlus's
+launch-after-exit fix (the owner's PR 139) is upstream since 1.7beta6, so MihawkOS carries none (`docs/LAUNCH_AFTER_EXIT.md`).
+
+**Testing ladder.** PC: host tests (marks for every model and firmware, spoofed firmware, unknown model, broken
+page-table readings). Base 13.60: full gate on the exact build; the owner's 3D demo with Steam past WARN to set STOP;
+a fill test with MihawkOS running; 5 open/close cycles for drift. Pro 10.01: the same gate; the 2D game with Steam and a fill
+test (warn ~850, clean stop ~950); 5 cycles. No volunteer step: every proof comes from the owner's two consoles
+(the owner, 2026-10-28: "I will not send testers any more test").
+
+**Approval:** both consoles' gates pass (104, the two dnsapi named skips); no freeze or panic in any run; the warning
+within 16 MiB of its number and every stop in the launcher; after a close, memory back within 16 MiB of the start and
+page tables within 10; MihawkOS's own use measurably lower, numbers here; the owner's own check. Then one local commit.
+
+## Installers: where a helper start goes, and making it cheaper (2026-10-27; host-tested, not yet on the console)
+
+**Measured from existing records** (the Pro's `prefix-fresh64` gate case, where Wine Mono's msi runs three exe custom
+actions in a row; kernel `EXEC` lines lined up with the title's monotonic stamps): a sequential child process costs
+1.3-2.1 s (typically 1.7) against well under 0.1 s on a PC. From one action's end to the next carrier's `EXEC`
+0.75-1.1 s, unstamped (msiexec noticing the end, CreateProcess, the title's spawn, the upload to websrv/elfldr,
+elfldr's spawn); from `EXEC` to the first Windows module 150-250 ms (user-space loader; 230-280 ms kernel loader); then
+10-50 ms for each builtin DLL, 0.3-0.6 s for a small tool. msi's tests start ~100 helpers, which is most of their
+171-227 s against the PC's 4-6 s. The starts are what Windows does too (a custom-action server per architecture per
+install); each start is the cost. Analysis and plan: the coordinator's notes, `installer-speed.md`.
+
+**P0, stamps (staged).** `wine-ps5: spawn native=` (title, every step after the request), `wine-child: start at=`
+(helper, main to wine-main) and `wine-child: life summary` (server, file and section time of a helper's whole life,
+which the 10 s census never reaches for a short helper); `tools/start_stages.py` (host test `test_start_stages`) lines
+them up with Wine's module lines and `tools/run-console.py` records `start_stages`. The console run that splits the
+0.9 s is queued (docs/CONSOLE_QUEUE.md).
+
+**P2, the rendezvous without 100 ms sleeps (staged after P0).** The title connects to a new helper's socket as soon
+as it listens: the pause between refused connects starts at 1 ms and stops at 8 (`wine/ps5/pw_payload_spawn.h`), not
+a fixed 100 ms; same 20 s limit and protocol. Reversing the rendezvous (the title listens, the helper connects) was
+not done: a title cannot bind a unix socket under /data (errno 45, 2026-10-08) and nothing shows it can in
+/system_tmp. Expected: 0-100 ms off each cold start, about 50 on average.
+
+**P1, a warm helper and a narrower startup lock (staged after P2).** After each start the title makes the next
+helper in the background (`warm_keeper`, `src/pw_warm_helper.h`, host test `test_pw_warm_helper`): carrier spawned,
+rendezvous done, its loader waiting for a bootstrap (now up to 60 s, `PW_WARM_BOOTSTRAP_MS`). The next start takes it
+and sends the bootstrap at once; one parked at most, closed 30 s after the last start, none once the title ends its
+game, `WINE_PS5_WARM_HELPER=0` turns it off. A parked helper that hung up is closed and the start goes cold.
+Everything a process decides still happens after the bootstrap. `startup_lock` now covers only the GPU broker's open:
+it held a whole start for the elevation service's one request path, and helpers no longer elevate, so starts overlap;
+the upload to websrv/elfldr alone stays one at a time (`payload_upload_lock`), as elfldr has only ever seen it.
+The spawn line says `warm=1`, and `tools/start_stages.py` keeps warm and cold medians apart. Expected: the spawn's
+share of the 0.75-1.1 s gap and of the 150-250 ms after EXEC leaves a start's path (P0's run says how much). Needs its
+own gate and a Steam end-to-end check before it ships: it changes every helper start.
+
 ## Helpers load Wine's modules themselves on every firmware (2026-10-27; host-tested, not yet on the console)
 
 **What changed.** A payload helper no longer picks its module loader by firmware. It maps the staged

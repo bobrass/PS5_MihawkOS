@@ -1,0 +1,181 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: PS5_Proton
+Subject: [PATCH] kernelbase: PS5: hold a client's helper suspended while a
+ program it started from the library runs.
+
+A game store client's browser helper costs the console's system page tables
+(measured on the PS5 Pro, 2026-10-29: about 950 of the client's 1,676 with the
+browser in one process; the pool is 9,216 and a fresh boot starts a session at
+about 5,900), and the client is idle behind a running game. Ending the helper
+alone is undone: the client relaunches it 10 to 40 seconds later. Refusing the
+relaunch is worse: the client's monitor retries a failed start every frame and
+asserts on the invalid handle.
+
+A rule "NAME|hold|PART" in WINE_PS5_PROCESS_RULES (patch 2070) changes that,
+in the process that holds the rules:
+- When it starts a program whose path holds PART (a library game: "\steamapps\common\"),
+  it records that process, ends the NAME program running beside it once, and
+  watches the game's end.
+- While that game runs, NAME starts suspended: the client holds a live, idle
+  process. The client's own connect timeout ends and relaunches it about once
+  a minute, and each relaunch is held again.
+- When the game ends, the held NAME program is resumed, and the client's
+  browser comes back.
+Every hold, end and resume is logged as a fixme line. WINE_PS5_PROCESS_HOLD=0
+turns every hold rule off. No program is named here; the rule is the client
+entry's setting.
+
+The path test and the rule lookup are compiled by tests/test_process_rules.c
+straight out of this patch (PW_PROCESS_HOLD_BEGIN/END).
+
+diff --git a/dlls/kernelbase/process.c b/dlls/kernelbase/process.c
+--- a/dlls/kernelbase/process.c
++++ b/dlls/kernelbase/process.c
+@@ -676,6 +676,118 @@
+ }
+ /* PW_PROCESS_RULES_END */
+ 
++/* PW_PROCESS_HOLD_BEGIN */
++/* A rule "NAME|hold|PART": while a program this process started from a path holding PART runs (a library game, its
++ * path under "\steamapps\common\"), NAME starts suspended, and the one running when such a program starts is ended.
++ * A client that relaunches a helper that died (Steam's browser, 10-40 s later) then holds a live, idle process: no
++ * failed start for it to retry or count. WINE_PS5_PROCESS_HOLD=0 turns every hold rule off. */
++static int ps5_path_has( const WCHAR *path, const WCHAR *part )
++{
++    size_t len = part ? wcslen( part ) : 0;
++    if (!len) return 0;
++    for (; path && *path; path++) if (!wcsnicmp( path, part, len )) return 1;
++    return 0;
++}
++
++static int ps5_hold_is_game( const WCHAR *image )
++{
++    unsigned int i;
++
++    ps5_rules_read();
++    for (i = 0; i < ps5_rule_count; i++)
++        if (!wcsicmp( ps5_rules[i].action, L"hold" ) && ps5_path_has( image, ps5_rules[i].value )) return 1;
++    return 0;
++}
++
++static int ps5_hold_off(void)
++{
++    WCHAR value[4];
++    DWORD len = GetEnvironmentVariableW( L"WINE_PS5_PROCESS_HOLD", value, ARRAY_SIZE(value) );
++    return len == 1 && value[0] == '0';
++}
++/* PW_PROCESS_HOLD_END */
++
++static RTL_SRWLOCK ps5_hold_lock = RTL_SRWLOCK_INIT;
++static HANDLE ps5_hold_game;      /* the running game's process (its watcher owns the handle), or 0 */
++static HANDLE ps5_hold_helper;    /* the last held-by-rule program started, its process */
++static HANDLE ps5_hold_thread;    /* its first thread while it waits suspended for the game's end */
++
++static BOOL ps5_hold_game_running(void)
++{
++    BOOL running;
++
++    RtlAcquireSRWLockExclusive( &ps5_hold_lock );
++    running = ps5_hold_game && WaitForSingleObject( ps5_hold_game, 0 ) == WAIT_TIMEOUT;
++    RtlReleaseSRWLockExclusive( &ps5_hold_lock );
++    return running;
++}
++
++static DWORD WINAPI ps5_hold_watch( void *game )
++{
++    HANDLE resume = 0;
++
++    WaitForSingleObject( game, INFINITE );
++    RtlAcquireSRWLockExclusive( &ps5_hold_lock );
++    if (ps5_hold_game == game)
++    {
++        ps5_hold_game = 0;
++        resume = ps5_hold_thread;
++        ps5_hold_thread = 0;
++    }
++    RtlReleaseSRWLockExclusive( &ps5_hold_lock );
++    CloseHandle( game );
++    if (resume)
++    {
++        FIXME( "HACK: the game ended; resuming the held program (WINE_PS5_PROCESS_RULES).\n" );
++        NtResumeThread( resume, NULL );
++        CloseHandle( resume );
++    }
++    return 0;
++}
++
++/* After a start: a held program's process (and its thread, if held); a game's process, its watcher, and the end of
++ * the held program running before it. */
++static void ps5_hold_started( const WCHAR *app_name, const PROCESS_INFORMATION *info, BOOL held )
++{
++    HANDLE self = GetCurrentProcess(), process = 0, thread = 0, end = 0, watcher;
++
++    if (ps5_process_rule( app_name, L"hold" ))
++    {
++        DuplicateHandle( self, info->hProcess, self, &process, 0, FALSE, DUPLICATE_SAME_ACCESS );
++        if (held) DuplicateHandle( self, info->hThread, self, &thread, 0, FALSE, DUPLICATE_SAME_ACCESS );
++        RtlAcquireSRWLockExclusive( &ps5_hold_lock );
++        if (ps5_hold_helper) CloseHandle( ps5_hold_helper );
++        if (ps5_hold_thread) CloseHandle( ps5_hold_thread );
++        ps5_hold_helper = process;
++        ps5_hold_thread = thread;
++        RtlReleaseSRWLockExclusive( &ps5_hold_lock );
++        return;
++    }
++    if (!ps5_hold_is_game( app_name ) || ps5_hold_off()) return;
++    if (!DuplicateHandle( self, info->hProcess, self, &process, SYNCHRONIZE, FALSE, 0 )) return;
++    RtlAcquireSRWLockExclusive( &ps5_hold_lock );
++    ps5_hold_game = process;
++    if (ps5_hold_helper && !ps5_hold_thread && WaitForSingleObject( ps5_hold_helper, 0 ) == WAIT_TIMEOUT)
++        DuplicateHandle( self, ps5_hold_helper, self, &end, PROCESS_TERMINATE, FALSE, 0 );
++    RtlReleaseSRWLockExclusive( &ps5_hold_lock );
++    FIXME( "HACK: %s is a game; held programs start suspended until it ends (WINE_PS5_PROCESS_RULES).\n",
++           debugstr_w(app_name) );
++    if (end)
++    {
++        FIXME( "HACK: ending the held program running beside the game (WINE_PS5_PROCESS_RULES).\n" );
++        TerminateProcess( end, 1 );
++        CloseHandle( end );
++    }
++    if ((watcher = CreateThread( NULL, 0, ps5_hold_watch, process, 0, NULL ))) CloseHandle( watcher );
++    else
++    {
++        RtlAcquireSRWLockExclusive( &ps5_hold_lock );
++        if (ps5_hold_game == process) ps5_hold_game = 0;
++        RtlReleaseSRWLockExclusive( &ps5_hold_lock );
++        CloseHandle( process );
++    }
++}
++
+ static const WCHAR *hack_append_command_line( const WCHAR *cmd )
+ {
+     static const struct
+@@ -789,6 +901,7 @@
+     HANDLE parent = 0, debug = 0;
+     char *product_name = NULL;
+     const WCHAR *append, *run_in_place;
++    BOOL held = FALSE;
+     ULONG nt_flags = 0;
+     USHORT machine = 0;
+     NTSTATUS status;
+@@ -859,6 +972,12 @@
+         status = STATUS_OBJECT_NAME_NOT_FOUND;
+         goto done;
+     }
++    if (!(flags & CREATE_SUSPENDED) && ps5_process_rule( app_name, L"hold" ) && !ps5_hold_off() && ps5_hold_game_running())
++    {
++        FIXME( "HACK: starting %s suspended while a game runs (WINE_PS5_PROCESS_RULES).\n", debugstr_w(app_name) );
++        flags |= CREATE_SUSPENDED;
++        held = TRUE;
++    }
+ 
+     /* Warn if unsupported features are used */
+ 
+@@ -1054,6 +1173,7 @@
+         info->dwThreadId  = HandleToUlong( rtl_info.ClientId.UniqueThread );
+         if (!(flags & CREATE_SUSPENDED)) NtResumeThread( rtl_info.Thread, NULL );
+         TRACE( "started process pid %04lx tid %04lx\n", info->dwProcessId, info->dwThreadId );
++        ps5_hold_started( app_name, info, held );
+     }
+ 
+  done:

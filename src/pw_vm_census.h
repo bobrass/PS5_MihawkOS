@@ -41,6 +41,8 @@ typedef struct PwVmGroup {
     uint32_t mappings;
     uint64_t bytes;
     uint64_t resident;           /* resident bytes, when the walk had a resident callback */
+    uint64_t regions_2m;         /* the 2 MiB regions its accessible mappings brought first (PwVmCensus.regions_2m) */
+    uint64_t regions_2m_direct;  /* and its 2 MiB-aligned direct ones (PwVmCensus.regions_2m_direct) */
 } PwVmGroup;
 
 /* One of the largest mappings, whole: the kernel's own map (tools/console-memory.py map=PID) lists the same ranges by
@@ -77,6 +79,12 @@ typedef struct PwVmCensus {
     uint64_t reserved_resident;  /* resident bytes of the inaccessible mappings (protection 0), asked from 2026-10-11 */
     uint64_t direct_resident;    /* resident bytes of the accessible direct mappings (asked from 2026-10-11) */
     uint64_t unkept;             /* bytes in groups that did not fit */
+    uint64_t regions_2m_direct;  /* 2 MiB regions of direct mappings aligned to 2 MiB at both ends: the kernel can map them with
+                                  * 2 MiB pages, which need no page-table page (docs/HYPERVISOR.md), so they are kept out of
+                                  * regions_2m */
+    uint64_t regions_2m;         /* distinct 2 MiB regions that accessible mappings touch: each holds a page-table page once a
+                                  * page in it is used (the ceiling test: 8 page tables per 16 MiB filled), so about what the
+                                  * process takes of the system's pool (docs/PLAN.md "Memory plan", Part 3) */
     int truncated;               /* the walk stopped at PW_VM_WALK_LIMIT */
     int failed;                  /* the walk stopped at a query that failed */
 } PwVmCensus;
@@ -108,6 +116,8 @@ size_t pw_vm_census_format_flexbig(const PwVmCensus *census, char *out, size_t s
 /* "prot.size=mappings/mapped MiB/resident MiB ..." for the flexible mappings by protection (r rw rx o) and size
  * (s <64 KiB, m <1 MiB, l <8 MiB, x more), the classes that hold any, MiB to a tenth, into out. */
 size_t pw_vm_census_format_flexible(const PwVmCensus *census, char *out, size_t size);
+/* "name:flags=regions/mappings ..." for the n groups that brought the most 2 MiB regions, most first, into out. */
+size_t pw_vm_census_format_regions(const PwVmCensus *census, unsigned n, char *out, size_t size);
 /* "name:flags/protection=resident/mapped MiB/mappings ..." for the n first groups with flags & mask (0: every group),
  * into out. */
 size_t pw_vm_census_format(const PwVmCensus *census, unsigned n, uint8_t mask, char *out, size_t size);

@@ -537,9 +537,12 @@ phase), Big Picture alone, 120 Hz, the owner's prefix. Frames over 20 / 34 ms, a
   Pro). Its whole code, about 300 MiB re-converted in Big Picture's first minute, was one helper's, held to the listed
   clients' 64 MiB, and every thread's code faults waited on that process's one lock.
 - 120 Hz is not it (c is worse at 60 Hz), nor the broker's composition (an arm with the composed route off matched a).
-- The fix: from firmware 12.00 the browser keeps its own processes (each under 64 MiB, 0 re-conversion); before 12.00
-  (the Pro's 990 MiB guard; there it peaked at 905 MB alone) it stays one process, and the listed clients may be raised
-  on real thrash: there the raise to 96 then 128 MiB cut the first minute's re-conversion from 299 to 53 MiB.
+- The fix: the listed clients may be raised on real thrash: in one process the raise to 96 then 128 MiB cut the first
+  minute's re-conversion from 299 to 53 MiB (`bp-fix-prolayout`). From firmware 12.00 the browser first kept its own
+  processes too (each under 64 MiB, 0 re-conversion; `bp-fix-base`), until 2026-10-28: each helper is a system process
+  and takes the console's system page tables, and on the base its 10 to 12 processes took about 2,300 of the pool's
+  8,192 pages, Steam alone left 486, and a game's start exhausted the pool ("system page table exhausted", errno 5 for
+  the next helper). Since then it is one process on every console, at the owner's word.
 - With a game: Big Picture with the 2D game (`bp-fix-game-2026-10-27-01`) peaked at a census of 1,123 MiB from 687 at the
   start (helpers 455 MiB in 17), the game at 60.0 fps median; on the highest baseline seen (1,223 MiB) that is about
   1,660 MiB, under the 1,800 MiB guard.

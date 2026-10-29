@@ -63,6 +63,7 @@ void proton_gpu_broker_health(ProtonGpuHealth *health)
     ps5_gpu_broker_health(&now);
     *health={now.lock_busy,now.display_busy,now.fences_issued,now.fences_completed,now.phase,now.phase_ms,now.holder_tid};
 }
+void proton_gpu_broker_set_away(bool away) { ps5_gpu_broker_set_away(away); }
 void proton_gpu_broker_set_shared_memory(int (*alloc)(size_t),int (*touch)(int,size_t,size_t)) { ps5_gpu_broker_set_shared_memory(alloc,touch); }
 void proton_gpu_broker_set_dmem_memory(int (*alloc)(size_t,int,int64_t *),int (*release)(int64_t,size_t)) { ps5_gpu_broker_set_dmem_memory(alloc,release); }
 

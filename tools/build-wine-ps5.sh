@@ -218,6 +218,12 @@ fi
 
 sdk=${sdk:-$foundation/.deps/native/ps5-payload-sdk}
 [ -x "$sdk/bin/prospero-clang" ] || fail "no PS5 payload SDK at $sdk"
+# ccache, when the host has it, in front of every compile: the shims below and Wine's own (wmake). It keys on the
+# compiler's --version, since prospero-clang is a script that drives the host clang, which can change under it.
+# PROSPERO_NO_CCACHE=1 compiles without it. The objects are the compiler's either way.
+ccache=
+[ -n "${PROSPERO_NO_CCACHE:-}" ] || ccache=$(command -v ccache || true)
+export CCACHE_COMPILERCHECK='%compiler% --version'
 [ -x "$host_tools/tools/winebuild/winebuild" ] ||
     fail "no host Wine tools at $host_tools (run tools/build_wine_runtime.sh)"
 git -C "$source_dir" merge-base --is-ancestor "$WINE_COMMIT" HEAD ||
@@ -277,7 +283,7 @@ FT_USE_MODULE( FT_Renderer_Class, ft_smooth_renderer_class )
 FT_USE_MODULE( FT_Renderer_Class, ft_raster1_renderer_class )
 EOF
     for unit in $FREETYPE_UNITS; do
-        "$sdk/bin/prospero-clang" -std=c99 -O2 -fPIC -DFT2_BUILD_LIBRARY \
+        $ccache "$sdk/bin/prospero-clang" -std=c99 -O2 -fPIC -DFT2_BUILD_LIBRARY \
             '-DFT_CONFIG_MODULES_H=<ftmodule_ps5.h>' -I"$ft/config" -I"$ft/src/include" \
             -c "$ft/src/src/$unit.c" -o "$ft/obj/$(basename "$unit").o" ||
             fail "cannot compile FreeType $unit.c"
@@ -331,6 +337,10 @@ if [ ! -d "$tree/.git" ]; then
     git clone -q --shared --no-checkout "$source_dir" "$tree"
 fi
 source_stamp=$( { printf '%s\n' "$WINE_COMMIT"; cat "$root/tools/generate-wine.sh"; for patch in $ordered; do cat "$patches/$patch"; done; } | sha256sum | cut -c1-64)
+# The Makefiles are written from the patched tree and from the files this script copies into it: a copy line dropped
+# from here leaves its file out of a fresh configure, so this script's own bytes are in what makedep is rerun for.
+makefile_stamp=$(cat "$0" | sha256sum | cut -c1-64)
+makefile_stamp=$(printf '%s\n' "$source_stamp" "$makefile_stamp" | sha256sum | cut -c1-64)
 if [ "$(cat "$work/source-stamp" 2>/dev/null)" != "$source_stamp" ]; then
     # The patched source as a git tree, built in a private index: every patch
     # is applied in order from the pin, exactly as before, but nothing is
@@ -378,6 +388,11 @@ if [ "$(cat "$work/source-stamp" 2>/dev/null)" != "$source_stamp" ]; then
     echo "$source_stamp" > "$work/source-stamp"
 fi
 
+# The theme generators write shared folders (.deps/windows11-theme, windows11-cursors, mihawk-icons) every run, and the
+# copies below read them: one build at a time runs the two (tools/build-production.sh runs the title's and the
+# broker's builds side by side), or one could copy a file the other is rewriting.
+exec 9> "$root/.deps/theme.lock"
+flock 9
 # Approved object icons keep Wine's shell resource IDs. These generated build
 # inputs come from repository-owned SVGs with verified hashes, never a hand edit
 # of the dependency checkout. Unchanged icon bytes retain their timestamps.
@@ -390,6 +405,10 @@ python3 "$root/tools/build-explorer-sprites.py"
 python3 "$root/tools/build-menu-sprites.py"
 python3 "$root/tools/build-desktop-sprites.py"
 python3 "$root/tools/build-tooltip-glyphs.py"
+# Every pw_* file copied into the tree below is (re)written by this run: one an earlier run left would hide a copy
+# line that is gone, and a fresh configure would then fail where this tree builds (patch 2065, 788b0ec). The mark is
+# a second old, so a copy made in the same second still counts as this run's.
+touch -d "@$(($(date +%s) - 1))" "$work/copies-start"
 # Explorer consumes the same generated palette/geometry and licensed icons as
 # the appearance application. These are build inputs, not vendor-tree edits.
 cp -p "$root/.deps/windows11-theme/appearance.h" "$tree/programs/explorer/appearance.h"
@@ -448,6 +467,16 @@ cp -p "$root/src/pw_umip.h" "$tree/dlls/ntdll/unix/pw_umip.h"   # patch 2102's U
 cp -p "$root/src/pw_window_snapshot.h" "$tree/server/pw_window_snapshot.h"
 cp -p "$root/wine/ps5/pw_wine_cursor.h" "$tree/server/pw_wine_cursor.h"
 cp -p "$root/wine/ps5/pw_wine_xattr.h" "$tree/server/pw_wine_xattr.h"   # a reparse point's data (patch 2092)
+# cp -p keeps the source's time but sets the copy's change time, so what this run did not copy is older than the mark:
+# removed, an include of it stops make ("No rule to make target") as a fresh configure would stop.
+copies=$(cd "$tree" && git ls-files --others -- '*pw_*') || fail "cannot list the copies in $tree"
+for copy in $copies; do
+    if [ -z "$(find "$tree/$copy" -cnewer "$work/copies-start")" ]; then
+        rm -f "$tree/$copy"
+        echo "removed a copy this run did not make: $copy"
+    fi
+done
+flock -u 9
 opengl_cflags=${CFLAGS:--g -O2}
 if [ -n "$ps5opengl_sdk" ]; then opengl_cflags="$opengl_cflags -DWINE_PS5_OPENGL"; fi
 
@@ -477,7 +506,7 @@ run_configure() {
         --with-wine-tools="$host_tools" > "$work/configure.log" 2>&1) ||
         fail "configure failed; see $work/configure.log"
     sha256sum "$tree/configure" | cut -c1-64 > "$build/.configure-digest"
-    echo "$source_stamp" > "$build/.makefile-source"
+    echo "$makefile_stamp" > "$build/.makefile-source"
 }
 # PROSPERO_WINE_CLEAN=1 forces a from-nothing source tree and build.
 if [ ! -f "$build/Makefile" ] || [ "$(cat "$build/.prospero-stamp" 2>/dev/null)" != "$stamp" ] ||
@@ -489,13 +518,48 @@ if [ ! -f "$build/Makefile" ] || [ "$(cat "$build/.prospero-stamp" 2>/dev/null)"
 elif [ "$(sha256sum "$tree/configure" | cut -c1-64)" != "$(cat "$build/.configure-digest" 2>/dev/null)" ]; then
     # A patch changed configure.ac: configure again in place, keeping objects.
     run_configure
-elif [ "$(cat "$build/.makefile-source" 2>/dev/null)" != "$source_stamp" ]; then
+elif [ "$(cat "$build/.makefile-source" 2>/dev/null)" != "$makefile_stamp" ]; then
     # A patch added an #include or a file without touching configure: makedep reads every source's includes only when
     # config.status writes the Makefiles, so they are written again from any patched tree they were not written from.
     # Without it 788b0ec built only on a tree configured before its patch 2065, and a fresh configure failed.
     (cd "$build" && env -u LDFLAGS -u MAKEFLAGS -u MFLAGS ./config.status > "$work/makedep.log" 2>&1) ||
         fail "makedep failed; see $work/makedep.log"
-    echo "$source_stamp" > "$build/.makefile-source"
+    echo "$makefile_stamp" > "$build/.makefile-source"
+fi
+
+# make with ccache in front of Wine's three compilers, and the PE modules linked without a link time (lld-link's
+# /timestamp:0, as the theme DLLs): the values configure wrote, read once from the Makefile, so adding either needs
+# no reconfigure; the commands are otherwise the same. Without the time stamp a module relinked from the same objects
+# is the same bytes, so a clean build gives the incremental one's (docs/BUILD_SPEED.md).
+make_cc=$(sed -n 's/^CC = //p' "$build/Makefile")
+make_x86_64_cc=$(sed -n 's/^x86_64_CC = //p' "$build/Makefile")
+make_i386_cc=$(sed -n 's/^i386_CC = //p' "$build/Makefile")
+make_x86_64_ldflags=$(sed -n 's/^x86_64_LDFLAGS = //p' "$build/Makefile")
+make_i386_ldflags=$(sed -n 's/^i386_LDFLAGS = //p' "$build/Makefile")
+pe_link=-Wl,/timestamp:0
+wmake() {
+    if [ -n "$ccache" ]; then
+        set -- CC="$ccache $make_cc" x86_64_CC="$ccache $make_x86_64_cc" i386_CC="$ccache $make_i386_cc" "$@"
+    fi
+    make x86_64_LDFLAGS="$make_x86_64_ldflags $pe_link" i386_LDFLAGS="$make_i386_ldflags $pe_link" "$@"
+}
+# A module linked before the link options were these keeps its old bytes (make does not see options): every linked PE
+# image in the build is removed once, so each is linked again with them when it is next built.
+if [ "$(cat "$build/.pe-link" 2>/dev/null)" != "$pe_link" ]; then
+    python3 - "$build" <<'PY_RELINK'
+import sys
+from pathlib import Path
+for path in Path(sys.argv[1]).glob('*/*/*-windows/*'):
+    if not path.is_file() or path.is_symlink():
+        continue
+    with open(path, 'rb') as file:
+        head = file.read(64)
+        if len(head) == 64 and head[:2] == b'MZ':
+            file.seek(int.from_bytes(head[60:64], 'little'))
+            if file.read(4) == b'PE\0\0':
+                path.unlink()
+PY_RELINK
+    echo "$pe_link" > "$build/.pe-link"
 fi
 
 # The SDK's libc carries the math functions, but win32u links -lm by name;
@@ -511,7 +575,7 @@ done
 mkdir -p "$work/heap"
 heap=""
 for unit in pw_wine_heap pw_wine_heap_libc; do
-    "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/$unit.c" -o "$work/heap/$unit.o" || fail "cannot compile $unit.c"
     heap="$heap $work/heap/$unit.o"
 done
@@ -520,7 +584,7 @@ done
 # (pw_wine_code_budget).
 dmem=""
 for unit in pw_wine_dmem pw_wine_dmem_ps5 pw_wine_section pw_wine_section_ps5 pw_wine_alias pw_wine_codeshare pw_wine_code_budget; do
-    "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/$unit.c" -o "$work/heap/$unit.o" || fail "cannot compile $unit.c"
     dmem="$dmem $work/heap/$unit.o"
 done
@@ -529,7 +593,7 @@ done
 # and call nothing but its own routines (pw_wine_mmu4k_slot.S) and the decoder, which it reaches through
 # pw_wine_mmu4k_call. Either check failing fails the build.
 mmu4k_objdump=$(command -v llvm-objdump-18 || command -v llvm-objdump || echo "$sdk/bin/llvm-objdump")
-"$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -mgeneral-regs-only -ffreestanding -fno-builtin \
+$ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -mgeneral-regs-only -ffreestanding -fno-builtin \
     -fno-stack-protector -c "$root/wine/ps5/pw_wine_mmu4k.c" -o "$work/heap/pw_wine_mmu4k.o" ||
     fail "cannot compile pw_wine_mmu4k.c"
 mmu4k_listing=$("$mmu4k_objdump" -d --no-show-raw-insn "$work/heap/pw_wine_mmu4k.o") ||
@@ -541,32 +605,32 @@ mmu4k_outside=$("$sdk/bin/llvm-nm" --undefined-only "$work/heap/pw_wine_mmu4k.o"
     grep -vxE 'pw_wine_mmu4k_(start|exit_trap|exec|recover|read|write|copy|call|guarded_begin|guarded_end|guarded_fail)|pw_ia32_decode_mode|pw_ia32_access|_GLOBAL_OFFSET_TABLE_' ||
     true)
 [ -z "$mmu4k_outside" ] || fail "pw_wine_mmu4k.o calls outside its allow-list: $mmu4k_outside"
-"$sdk/bin/prospero-clang" -c "$root/wine/ps5/pw_wine_mmu4k_slot.S" -o "$work/heap/pw_wine_mmu4k_slot.o" ||
+$ccache "$sdk/bin/prospero-clang" -c "$root/wine/ps5/pw_wine_mmu4k_slot.S" -o "$work/heap/pw_wine_mmu4k_slot.o" ||
     fail "cannot assemble pw_wine_mmu4k_slot.S"
 dmem="$dmem $work/heap/pw_wine_mmu4k.o $work/heap/pw_wine_mmu4k_slot.o"
 # src/pw_umip.c: what an instruction the CPU refuses under UMIP would have stored (patch 2102); it uses the decoder.
 for source in wine/ps5/pw_wine_mmu4k_ps5.c src/pw_ia32_isa.c src/pw_ia32_decode.c src/pw_umip.c; do
     unit=$(basename "$source" .c)
-    "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/$source" -o "$work/heap/$unit.o" || fail "cannot compile $source"
     dmem="$dmem $work/heap/$unit.o"
 done
 process_shims=""
 # pw_wine_xattr: the extended attributes the console's file system has not (patch 2090)
 for unit in pw_wine_process pw_wine_process_io pw_wine_threads pw_wine_prefix pw_wine_vm pw_wine_xattr; do
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/$unit.c" -o "$work/heap/$unit.o" || fail "cannot compile $unit.c"
     process_shims="$process_shims $work/heap/$unit.o"
 done
-"$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+$ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
     -c "$root/src/pw_wine_launch.c" -o "$work/heap/pw_wine_launch.o" || fail "cannot compile pw_wine_launch.c"
-"$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+$ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
     -c "$root/src/pw_environment.c" -o "$work/heap/pw_environment.o" || fail "cannot compile pw_environment.c"
 # The helper spawn's upload (wine/ps5/pw_payload_spawn.h) through the title's one encoder.
-"$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+$ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
     -c "$root/src/pw_elfldr.c" -o "$work/heap/pw_elfldr.o" || fail "cannot compile pw_elfldr.c"
 process_shims="$process_shims $work/heap/pw_wine_launch.o $work/heap/pw_environment.o $work/heap/pw_elfldr.o"
-"$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+$ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
     -c "$root/wine/ps5/pw_wine_wallpaper.c" -o "$work/heap/pw_wine_wallpaper.o" || fail "cannot compile wallpaper"
 base="-L$work/ps5lib -lunwind -Wl,--warn-unresolved-symbols"
 status=0
@@ -578,7 +642,7 @@ for step in "dlls/ntdll/ntdll.so|$heap $dmem $process_shims" "dlls/win32u/win32u
         "dlls/crypt32/crypt32.so|" "dlls/winebus.sys/winebus.so|" "dlls/bcrypt/bcrypt.so|" "dlls/secur32/secur32.so|" \
         "dlls/dwrite/dwrite.so|" "dlls/nsiproxy.sys/nsiproxy.so|" "dlls/dnsapi/dnsapi.so|" "dlls/mountmgr.sys/mountmgr.so|"; do
     target=${step%%|*}; objects=${step#*|}
-    make -C "$build" -k -j"$jobs" LDFLAGS="$objects $base" "$target" \
+    wmake -C "$build" -k -j"$jobs" LDFLAGS="$objects $base" "$target" \
         >> "$work/make.log" 2>&1 || status=$?
 done
 # The patched PE modules, built by the PE cross compilers into <work>/pe.
@@ -616,7 +680,7 @@ for module in sys.argv[4:]:
 PY_TARGETS
     ) || fail "cannot select $arch PE targets"
     if [ -n "$targets" ]; then
-        make -C "$build" -j"$jobs" $targets >> "$work/make.log" 2>&1 ||
+        wmake -C "$build" -j"$jobs" $targets >> "$work/make.log" 2>&1 ||
             fail "cannot build $arch PE modules; see $work/make.log"
         for target in $targets; do cp "$build/$target" "$work/pe/$arch-windows/"; done
     fi
@@ -624,7 +688,7 @@ PY_TARGETS
 done
 # wine.inf from the patched tree: it says which modules wineboot registers in a prefix (patch 2006 registers winedmo's
 # classes in place of winegstreamer's), and the host build's is made from the unpatched one.
-make -C "$build" loader/wine.inf >> "$work/make.log" 2>&1 || fail "cannot make wine.inf; see $work/make.log"
+wmake -C "$build" loader/wine.inf >> "$work/make.log" 2>&1 || fail "cannot make wine.inf; see $work/make.log"
 cp "$build/loader/wine.inf" "$work/pe/wine.inf"
 
 # The PRX link. Each module takes the objects of its ELF link (read back
@@ -719,32 +783,32 @@ if [ "$prx_status" = 0 ]; then
             pw_wine_threads pw_wine_threads_libc pw_wine_sink pw_wine_window pw_wine_pages pw_wine_pages_ps5 pw_wine_blocks pw_wine_dsection pw_wine_dmap pw_wine_perf pw_wine_cwd pw_wine_cwd_libc \
             pw_wine_fdv pw_wine_fdv_libc pw_dmem_trace pw_wine_process pw_wine_process_io pw_wine_prefix pw_wine_vm pw_wine_wallpaper \
             pw_wine_xattr; do
-        "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+        $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
             -c "$root/wine/ps5/$unit.c" -o "$prx/obj/$unit.o" || fail "cannot compile $unit.c"
     done
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_wine_launch.c" -o "$prx/obj/pw_wine_launch.o" || fail "cannot compile pw_wine_launch.c"
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_environment.c" -o "$prx/obj/pw_environment.o" || fail "cannot compile pw_environment.c"
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_elfldr.c" -o "$prx/obj/pw_elfldr.o" || fail "cannot compile pw_elfldr.c"
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_window_page.c" -o "$prx/obj/pw_window_page.o" || fail "cannot compile pw_window_page.c"
     # The in-process synchronization device (src/pw_ntsync.c) and its table
     # for Wine's ntsync code, built against the patched tree's
     # wine/ps5_ntsync.h (patch 0890), which it must match.
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_ntsync.c" -o "$prx/obj/pw_ntsync.o" || fail "cannot compile pw_ntsync.c"
     # The ring a helper plays its sound through, which the sink writes in a helper and mixes in the title.
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_audio_ring.c" -o "$prx/obj/pw_audio_ring.o" || fail "cannot compile pw_audio_ring.c"
     # The title's side of the memory helper, which makes the memory the title shares with helpers.
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_memory_helper.c" -o "$prx/obj/pw_memory_helper.o" || fail "cannot compile pw_memory_helper.c"
     # The title's side of a helper's memory service, which copies another process's memory for the server.
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/src/pw_memory_service.c" -o "$prx/obj/pw_memory_service.o" || fail "cannot compile pw_memory_service.c"
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC -I"$tree/include" \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC -I"$tree/include" \
         -c "$root/wine/ps5/pw_wine_ntsync.c" -o "$prx/obj/pw_wine_ntsync.o" ||
         fail "cannot compile pw_wine_ntsync.c"
     # ntdll: the loader, compat, the title's present and input sink, the
@@ -767,7 +831,7 @@ if [ "$prx_status" = 0 ]; then
         pw_wine_heap_stats pw_wine_heap_malloc pw_wine_heap_free \
         pw_wine_set_present_sink pw_wine_set_frame_allocator pw_wine_post_input pw_wine_sink_stats pw_wine_present_origin pw_ps5_set_frame_sink pw_ps5_set_window_sink pw_wine_window_present pw_wine_window_present_surface pw_wine_window_drop pw_ps5_set_resolver pw_wine_resolve pw_ps5_set_dns_config pw_wine_dns_config \
         pw_wine_present pw_wine_next_input pw_wine_input_fd \
-        pw_wine_set_dualsense pw_wine_dualsense pw_wine_input_note pw_wine_input_stats pw_wine_set_pad pw_wine_rumble pw_wine_pad pw_wine_set_rumble \
+        pw_wine_set_dualsense pw_wine_dualsense pw_wine_input_note pw_wine_input_stats pw_wine_set_pad pw_wine_rumble pw_wine_pad pw_wine_set_rumble pw_wine_set_suspend \
         pw_wine_set_audio_sink pw_wine_audio_available pw_wine_audio_output \
         __wine_virtual_stats __wine_file_write_stats __wine_file_call_stats __wine_ps5_section_stats __wine_ps5_mmu4k_stats __wine_virtual_image_stats __wine_virtual_fault_top __wine_ps5_set_output_sink __wine_ps5_memory_stats __wine_ps5_image_read_stats __wine_ps5_dmem_holder __wine_ps5_exec_stats __wine_ps5_code_share_stats __wine_ps5_code_share_mapped_kib __wine_ps5_code_cache_stats __wine_ps5_foreign_stats __wine_ps5_exec_convert __wine_ps5_exec_convert_image __wine_ps5_host_allows __wine_ps5_exec_refused __wine_ps5_set_payload_memory __wine_ps5_set_payload_low_image __wine_ps5_set_payload_direct_memory __wine_ps5_set_payload_module __wine_ps5_set_payload_sigaction __wine_ps5_set_payload_thread_start pw_cwd_set \
         pw_wine_set_display_release pw_wine_release_display \
@@ -775,7 +839,7 @@ if [ "$prx_status" = 0 ]; then
         pw_wine_threads_sample pw_wine_describe_thread pw_wine_perf_ticks pw_wine_perf_frame pw_wine_perf_media pw_wine_server_flush pw_wine_server_terminate ps5_thread_is_terminating \
         pw_wine_add_exit_hook pw_wine_stop_audio pw_wine_fdv_stats pw_wine_add_thread_exit_hook \
         pw_wine_server_snapshot pw_ntsync_dump pw_ntsync_counters pw_ntsync_region_bytes pw_ntsync_process_gone pw_wine_ntsync_start pw_ps5_child_start pw_ps5_child_exit pw_ps5_child_doomed pw_ps5_child_doom \
-        pw_ps5_set_initial_environment pw_ps5_initial_environment pw_ps5_start_root pw_ps5_start_memory_helper pw_ps5_memory_lock_busy pw_ps5_helpers pw_ps5_shared_alloc pw_ps5_transport_alloc pw_ps5_shared_touch pw_ps5_dmem_alloc pw_ps5_dmem_free pw_ps5_dmem_grant pw_ps5_dsection_register pw_ps5_dsection_release pw_ps5_dsection_collect_now pw_ps5_end_spawns pw_ps5_dsection_page pw_ps5_memory_census pw_ps5_code_share_duplicate_bytes pw_ps5_child_memory pw_ps5_child_protocol pw_ps5_root_result pw_ps5_root_present pw_ps5_unload_root pw_ps5_wait_children pw_ps5_remote_signal pw_ps5_remote_close pw_ps5_set_graphics_start pw_ps5_set_title_client_start pw_ps5_set_application_lookup pw_ps5_set_fixed_base_lookup pw_ps5_set_child_notice pw_ps5_set_gpu_broker
+        pw_ps5_set_initial_environment pw_ps5_initial_environment pw_ps5_start_root pw_ps5_start_memory_helper pw_ps5_memory_lock_busy pw_ps5_helpers pw_ps5_shared_alloc pw_ps5_transport_alloc pw_ps5_shared_touch pw_ps5_dmem_alloc pw_ps5_dmem_free pw_ps5_dmem_grant pw_ps5_dsection_register pw_ps5_dsection_release pw_ps5_dsection_collect_now pw_ps5_end_spawns pw_ps5_dsection_page pw_ps5_memory_census pw_ps5_start_times pw_ps5_code_share_duplicate_bytes pw_ps5_child_memory pw_ps5_child_protocol pw_ps5_root_result pw_ps5_root_present pw_ps5_unload_root pw_ps5_wait_children pw_ps5_remote_signal pw_ps5_remote_close pw_ps5_set_graphics_start pw_ps5_set_title_client_start pw_ps5_set_application_lookup pw_ps5_set_fixed_base_lookup pw_ps5_set_child_notice pw_ps5_set_gpu_broker
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/win32u_desc.c" __wine_unix_call_funcs
     python3 "$root/tools/gen_prx_descriptor.py" "$prx/obj/wineserver_desc.c" \
         pw_wineserver_connect pw_wine_thread_register pw_wine_thread_unregister pw_wineserver_set_ntsync pw_wineserver_set_ntsync_region pw_wineserver_flush pw_wineserver_terminate \
@@ -817,7 +881,7 @@ if [ "$prx_status" = 0 ]; then
     for unit in ntdll_desc win32u_desc wineserver_desc wineps5_desc \
             libfreetype_desc xinput_desc winevulkan_desc opengl32_desc ws2_32_desc crypt32_desc winebus_desc \
             libvulkan_desc bcrypt_desc secur32_desc dwrite_desc nsiproxy_desc mountmgr_desc dnsapi_desc libgnutls_desc winedmo_desc; do
-        "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -I"$root/wine/ps5" \
+        $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -I"$root/wine/ps5" \
             -c "$prx/obj/$unit.c" -o "$prx/obj/$unit.o" || fail "cannot compile $unit.c"
     done
     # The open-file budget is the platform layer's (src/fdv.c); only that object is pulled from its archive.
@@ -826,7 +890,7 @@ if [ "$prx_status" = 0 ]; then
         # Mesa's embedded diagnostics name these libc APIs, but a title has no
         # process launcher or syslog daemon. Keep those paths inert and supply
         # only the SDK's TLS helper; do not pull its syscall-bearing libc.a.
-        "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+        $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
             -c "$root/wine/ps5/pw_opengl_libc.c" -o "$prx/obj/pw_opengl_libc.o" ||
             fail "cannot compile OpenGL libc shims"
         (cd "$prx/obj" && "$sdk/bin/llvm-ar" x "$sdk/target/lib/libc.a" emutls.o) ||
@@ -850,7 +914,7 @@ if [ "$prx_status" = 0 ]; then
     link_prx libfreetype - "$ft/obj/*.o $prx/obj/libfreetype_desc.o"
     # Upstream libresolv is unavailable on Sony. Keep its PE parser and Unix
     # contract, supplied by our small adapter over pinned c-ares.
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -fPIC -D__WINESRC__ -DWINE_UNIX_LIB -D_REENTRANT \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -fPIC -D__WINESRC__ -DWINE_UNIX_LIB -D_REENTRANT \
         -I"$build/include" -I"$tree/include" -I"$tree/dlls/dnsapi" -I"$root/wine/ps5" \
         -I"$cares/c-ares-1.34.8/include" -I"$cares/build" \
         -c "$root/wine/ps5/pw_dns_unix.c" -o "$prx/obj/pw_dns_unix.o" || fail "cannot compile DNSAPI adapter"
@@ -865,13 +929,13 @@ if [ "$prx_status" = 0 ]; then
     for unit in $(sed -n '/^SOURCES/,/^$/p' "$tree/dlls/winedmo/Makefile.in" | grep -o '[A-Za-z0-9_/-]*\.c'); do
         grep -q 'pragma makedep unix' "$tree/dlls/winedmo/$unit" || continue
         object=$prx/obj/winedmo_$(echo "$unit" | tr / _ | sed 's/\.c$//').o
-        "$sdk/bin/prospero-clang" -std=gnu11 -O2 -fPIC -ffunction-sections -fdata-sections -D__WINESRC__ \
+        $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -fPIC -ffunction-sections -fdata-sections -D__WINESRC__ \
             -DWINE_UNIX_LIB -D_REENTRANT -D_WINEDMO -DHAVE_FFMPEG=1 -DHAVE_LIBAVCODEC_BSF_H=1 -I"$tree/dlls/winedmo" \
             -I"$build/dlls/winedmo" -I"$build/include" -I"$tree/include" -I"$ff/install/include" -I"$root/wine/ps5" \
             -c "$tree/dlls/winedmo/$unit" -o "$object" || fail "cannot compile winedmo's $unit"
         winedmo="$winedmo $object"
     done
-    "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/pw_winedmo_libc.c" -o "$prx/obj/pw_winedmo_libc.o" || fail "cannot compile pw_winedmo_libc.c"
     link_prx winedmo - "$winedmo $prx/obj/winedmo_desc.o $prx/obj/pw_winedmo_libc.o $ff/install/lib/libavformat.a \
         $ff/install/lib/libavcodec.a $ff/install/lib/libswscale.a $ff/install/lib/libswresample.a \
@@ -890,14 +954,14 @@ if [ "$prx_status" = 0 ]; then
     # mixes into the title's audio sink, which ntdll exports.
     # mmdevapi's interfaces are IDL; the ELF link built only what ntdll,
     # win32u and the server include.
-    make -C "$build" include/audioclient.h include/mmdeviceapi.h include/devicetopology.h \
+    wmake -C "$build" include/audioclient.h include/mmdeviceapi.h include/devicetopology.h \
         include/propsys.h include/propidl.h include/objidl.h include/objidlbase.h \
         include/unknwn.h include/wtypes.h include/oaidl.h >> "$work/make.log" 2>&1 ||
         fail "cannot generate mmdevapi's headers; see $work/make.log"
     audio=""
     for unit in wine/wineps5/unix.c src/pw_audio_mix.c; do
         object=$prx/obj/wineps5_$(basename "$unit" .c).o
-        "$sdk/bin/prospero-clang" -std=gnu11 -O2 -fPIC -D__WINESRC__ -DWINE_UNIX_LIB -D_REENTRANT \
+        $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -fPIC -D__WINESRC__ -DWINE_UNIX_LIB -D_REENTRANT \
             -I"$build/include" -I"$tree/include" -I"$tree/dlls/mmdevapi" -I"$root/wine/ps5" \
             -I"$root/src" -I"$root/include" -c "$root/$unit" -o "$object" || fail "cannot compile $unit"
         audio="$audio $object"
@@ -905,7 +969,7 @@ if [ "$prx_status" = 0 ]; then
     link_prx wineps5 - "$audio $prx/obj/wineps5_desc.o" "$prx/ntdll.shared.elf"
     # xinput's Unix library (patch 0470), which every xinput loads by name:
     # it reads the title's controller through ntdll's dlsym.
-    "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Werror -fPIC -D__WINESRC__ -DWINE_UNIX_LIB \
+    $ccache "$sdk/bin/prospero-clang" -std=gnu11 -O2 -Wall -Werror -fPIC -D__WINESRC__ -DWINE_UNIX_LIB \
         -D_REENTRANT -I"$tree/dlls/xinput1_3" -I"$build/include" -I"$tree/include" \
         -c "$tree/dlls/xinput1_3/unixlib.c" -o "$prx/obj/xinput_unixlib.o" ||
         fail "cannot compile xinput's unixlib.c"
@@ -923,7 +987,7 @@ if [ "$prx_status" = 0 ]; then
 
     # Winsock's Unix side: games import ws2_32 even when they never go online
     # (Warcraft III's does), and it does not initialise without it.
-    "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/pw_ws2_32_libc.c" -o "$prx/obj/pw_ws2_32_libc.o" ||
         fail "cannot compile pw_ws2_32_libc.c"
     link_prx ws2_32 dlls/ws2_32/ws2_32.so \
@@ -937,7 +1001,7 @@ if [ "$prx_status" = 0 ]; then
     # library and the cryptography under it as one module, beside ntdll.prx.
     link_prx bcrypt dlls/bcrypt/bcrypt.so "$prx/obj/bcrypt_desc.o" "$prx/ntdll.shared.elf"
     link_prx secur32 dlls/secur32/secur32.so "$prx/obj/secur32_desc.o" "$prx/ntdll.shared.elf"
-    "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+    $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
         -c "$root/wine/ps5/pw_gnutls_libc.c" -o "$prx/obj/pw_gnutls_libc.o" || fail "cannot compile pw_gnutls_libc.c"
     link_prx libgnutls - "$prx/obj/libgnutls_desc.o $prx/obj/pw_gnutls_libc.o $tls/install/lib/libgnutls.a \
         $tls/install/lib/libhogweed.a $tls/install/lib/libnettle.a $prx/obj/emutls.o"
@@ -947,7 +1011,7 @@ if [ "$prx_status" = 0 ]; then
     if [ -n "$ps5vk_sdk" ] && [ -f "$ps5vk_sdk/lib/libps5vk.a" ]; then
         mkdir -p "$prx/vkstubs"
         cp "$sdk"/target/lib/*.so "$ps5vk_sdk"/lib/libSceAgc*.so "$prx/vkstubs/"
-        "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
+        $ccache "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra -Werror -fPIC \
             -c "$root/wine/ps5/pw_vulkan_libc.c" -o "$prx/obj/pw_vulkan_libc.o" ||
             fail "cannot compile pw_vulkan_libc.c"
         link_prx libvulkan - "-S -u vkGetInstanceProcAddr -u vkGetDeviceProcAddr \

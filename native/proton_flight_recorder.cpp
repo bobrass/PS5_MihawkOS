@@ -10,6 +10,7 @@ extern "C" {
 #include "../src/pw_hang_breaker.h"
 #include "../src/pw_log_sessions.h"
 #include "../src/pw_memory_helper.h"
+#include "../src/pw_suspend.h"
 int scePthreadSetprio(pthread_t thread, int priority);
 }
 #include <algorithm>
@@ -40,6 +41,8 @@ int log_file = -1;
 std::atomic<int> verdict{-1};   // -1 before the title's loop published one, else 1 for stalled
 std::atomic<uint64_t> present_ms{0}, census_ms{0};
 std::atomic<bool> census_known{false};
+pthread_mutex_t note_lock = PTHREAD_MUTEX_INITIALIZER;
+char note[192];   // proton_flight_note's line, written with the next row
 
 uint64_t monotonic_ms()
 {
@@ -108,6 +111,7 @@ void *recorder_main(void *)
     uint64_t written = 0;
     unsigned memory_streak = 0, broker_streak = 0, display_streak = 0;
     uint64_t broker_since = 0;   // when the broker's streak's first busy sample was taken
+    uint64_t last_sampled = 0;   // the previous row's, for a suspend's gap
     bool rows_on = probe_started, rows_proven = false, wedge_seen = false;
     struct { int pid; uint64_t runtime_us; } seen[PW_FLIGHT_PIDS] = {};
 #ifdef PS5_GPU_BROKER
@@ -119,6 +123,17 @@ void *recorder_main(void *)
         Block block;
         const int decided = verdict.load(std::memory_order_relaxed);
         const uint64_t sampled = monotonic_ms();
+        // A suspend (src/pw_suspend.h): the system froze this thread with the app and the clock ran on. The rows the
+        // freeze skipped are not taken back to back, and no streak spans it: the broker's from before is not a wedge.
+        if (last_sampled && sampled - last_sampled >= 1000 + PW_SUSPEND_GAP_MS) {
+            char gap[160];
+            snprintf(gap, sizeof(gap), "suspend gap_ms=%llu: the app was frozen; streaks start again\n",
+                     (unsigned long long)(sampled - last_sampled));
+            if (write(log_file, gap, strlen(gap)) > 0) written += strlen(gap);
+            memory_streak = broker_streak = display_streak = 0;
+            second = (sampled - start) / 1000;
+        }
+        last_sampled = sampled;
         block.add("fr t=%.1f verdict=%s", (sampled - start) / 1000.0,
                   decided < 0 ? "-" : decided ? "stalled" : "fine");
         if (decided >= 0) {
@@ -149,7 +164,17 @@ void *recorder_main(void *)
 #else
         (void)broker_streak;(void)display_streak;(void)broker_since;
 #endif
+        // Nothing is ended while the app is away or just back: its helpers' GPU work resumes with it.
+        const bool held = sources.suspend_hold && sources.suspend_hold(sampled);
+        if (held) block.add(" suspend=held");
         block.add("\n");
+        pthread_mutex_lock(&note_lock);
+        if (note[0]) { block.add("%s\n", note); note[0] = 0; }
+        pthread_mutex_unlock(&note_lock);
+        if (wedge && held) {
+            block.add("wedge broker_busy_s=%u: not acted on, the app is away or just back\n", broker_streak);
+            wedge = false;
+        }
         if (wedge)
             block.add("wedge broker_busy_s=%u: %s\n", broker_streak,
                       sources.end_helpers ? "ending the game's helpers" : "reporting only");
@@ -227,6 +252,13 @@ void *recorder_main(void *)
     }
 }
 } // namespace
+
+void proton_flight_note(const char *line)
+{
+    pthread_mutex_lock(&note_lock);
+    snprintf(note, sizeof(note), "%s", line);
+    pthread_mutex_unlock(&note_lock);
+}
 
 void proton_flight_publish(uint64_t present_age_ms, uint64_t census_age_ms, bool known, bool stalled)
 {

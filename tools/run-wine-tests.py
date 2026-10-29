@@ -80,7 +80,9 @@ DXVK_OVERRIDES = 'd3d11,dxgi,d3d10core,d3d9,d3d12,d3d12core=n'
 # PW_STUB_CONSOLE=1: tools/stub-console.py stands in for the console (a dry run of this runner)
 LAUNCHER = str(ROOT / ('tools/stub-console.py' if os.environ.get('PW_STUB_CONSOLE') else 'tools/run-console.py'))
 COUNTS = ROOT / 'tests/d3d-guarded-counts.json'   # how many guarded calls each Direct3D test file makes (`count`)
-D3D_ENV = {'WINETEST_NO_MT_D3D': '1', 'DXVK_LOG_LEVEL': 'none'}
+# wined3d's Vulkan renderer, which every console program gets (native/proton_wine.cpp): Wine's d3dcompiler_47 loads
+# wined3d, and d3d11's tests read a Vulkan renderer as "damavand", which decides 228 of their todo checks
+D3D_ENV = {'WINETEST_NO_MT_D3D': '1', 'DXVK_LOG_LEVEL': 'none', 'WINE_D3D_CONFIG': 'renderer=vulkan'}
 
 
 def test_exe(dll):

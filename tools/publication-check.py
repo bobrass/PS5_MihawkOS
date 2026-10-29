@@ -239,9 +239,9 @@ STEAM_WORD = re.compile(rb'(?i)\bsteam(?!user|ing| from nose)')
 
 
 def load_names(path):
-    """tools/publication-names.txt: {'steam': {path: why}, 'records': {path: why}, 'stems': a pattern of the records' run
-    names, or None}. Each path is exact; a missing file lists nothing."""
-    names = {'steam': {}, 'records': {}, 'stems': None}
+    """tools/publication-names.txt: {'steam': {path: why}, 'records': {path: why}, 'games': {path: why}, 'stems': a
+    pattern of the records' run names, or None}. Each path is exact; a missing file lists nothing."""
+    names = {'steam': {}, 'records': {}, 'games': {}, 'stems': None}
     try:
         lines = path.read_text().splitlines()
     except OSError:
@@ -251,7 +251,7 @@ def load_names(path):
         line = line.strip()
         if not line or line.startswith('#'):
             continue
-        head = re.fullmatch(r'\[(steam|records)\] (.+)', line)
+        head = re.fullmatch(r'\[(steam|records|games)\] (.+)', line)
         if head:
             kind, why = head.groups()
         elif kind:
@@ -262,15 +262,15 @@ def load_names(path):
 
 
 def name_lines(findings, path, data, names):
-    """Each line of a text file that names a game or launcher (NAMES): allowed when the file is a kept record, when the
-    names left once kept records' run names are taken out are only Steam's in a [steam] file, or by NAMED_LINES; else a
-    finding."""
+    """Each line of a text file that names a game or launcher (NAMES): allowed when the file is a kept record or a [games]
+    file, when the names left once kept records' run names are taken out are only Steam's in a [steam] file, or by
+    NAMED_LINES; else a finding."""
     for line in data.splitlines():
         if not NAMES.search(line):
             continue
         rest = names['stems'].sub(b'', line) if names['stems'] else line
         found = [m.group(0) for m in NAMES.finditer(rest)]
-        why = (names['records'].get(path) or
+        why = (names['records'].get(path) or names['games'].get(path) or
                ('a kept record cited by its run name' if not found else None) or
                (names['steam'].get(path) if all(STEAM_WORD.fullmatch(name) for name in found) else None) or
                next((why for named, rx, why in NAMED_LINES if path.startswith(named) and rx.search(line)), None))
@@ -339,6 +339,11 @@ def is_bubble_earth(path):
     return float(np.abs(np.asarray(want, dtype=np.int16) - np.asarray(have, dtype=np.int16)).mean()) <= 8
 
 
+# ShadowMountPlus's own banner and data folder, in every build of it (1.7beta4..10: 56 and 19 times); the title names
+# it only by its plain name, in the payload checklist the owner asked for, and must not be flagged for that.
+SMP_BINARY = re.compile(rb'ShadowMount\+ v|/data/shadowmount/')
+
+
 def never_ship(root, label, findings):
     for path in sorted(root.rglob('*')):
         if not path.is_file():
@@ -349,7 +354,7 @@ def never_ship(root, label, findings):
                 findings.add('file that must never ship in a build', f'{relative} (a wallpaper that is not Bubble Earth)',
                              relative)
         elif 'shadowmount' in path.name.lower() or (path.suffix.lower() in ('.elf', '.bin', '') and path.stat().st_size
-                                                    < 64 << 20 and b'ShadowMountPlus' in path.read_bytes()):
+                                                    < 64 << 20 and SMP_BINARY.search(path.read_bytes())):
             # each user runs their own upstream ShadowMountPlus; MihawkOS never ships one, patched or not (2026-10-18)
             findings.add('file that must never ship in a build', f'{relative} (ShadowMountPlus)', relative)
         elif TEST_PROGRAM.search(path.name) or '/prefixes/probe/' in f'/{relative}/':

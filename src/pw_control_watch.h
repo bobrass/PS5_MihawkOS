@@ -19,6 +19,29 @@ static inline int pw_control_watch(int fd,int milliseconds,short *events)
     return result;
 }
 
+/* The title's pid from the bootstrap's NAME=VALUE block (WINE_PS5_TITLE_PID, which the title sets for itself and its
+ * helpers inherit, wine/ps5/pw_wine_inherit.h), for the loader's watch on the title's own exit: 0 when absent or not a
+ * plain decimal number. The block's entries each end in a zero; the list ends with an empty one or at size. */
+static inline int pw_control_title_pid(const char *block,size_t size)
+{
+    static const char name[]="WINE_PS5_TITLE_PID=";
+    const char *end=block+size;
+    for(const char *entry=block;entry<end && *entry;) {
+        size_t length=0;
+        while(entry+length<end && entry[length])++length;
+        if(length>sizeof(name)-1 && !strncmp(entry,name,sizeof(name)-1)) {
+            long value=0;
+            for(size_t i=sizeof(name)-1;i<length;++i) {
+                if(entry[i]<'0' || entry[i]>'9' || value>99999999L)return 0;
+                value=value*10+(entry[i]-'0');
+            }
+            return (int)value;
+        }
+        entry+=length+1;
+    }
+    return 0;
+}
+
 /* The helper's backstop (native/proton_wine_child.c's control loop): how long after ntdll stamps a doom reason
  * (wine/ps5/pw_wine_process.h) the loader ends the process without Wine, by reason - 1. GPU, ENGINE, TEST, STALL: 5 s.
  * In one 2026-10-15 run the helper was gone 1-2 s after the broker client's 15 s give-up by the flight clock (6.6 s or

@@ -21,6 +21,9 @@ class VulkanExample : public ps5ui::KitExample
 	std::string problem;
 	std::string sessionNote;   // why the last session failed, or that it never came back
 	std::string noticesNote;   // what the last session said on screen
+	std::string payloadsNote;  // the startup tip: what the user's payloads held at the last session's start
+	bool payloadShown{ false };     // the payload checklist's page: failing, all there is until it passes; at a fresh start always
+	int payloadPicture{ -1 };       // frames until the checklist's picture is taken (the payload-check-show flag); -1: none
 	hui::ui::ListView library, themes, settingsList, controlsList, buttonList;
 	pw_controls controls{};
 	std::string controlsNotice;
@@ -1164,6 +1167,10 @@ class VulkanExample : public ps5ui::KitExample
 					y += 30;
 					paragraph(paint, *note, 1240, y, 22, look.danger);
 				}
+				if (!payloadsNote.empty()) {
+					y += 30;
+					paragraph(paint, payloadsNote, 1240, y, 22, look.text_muted);
+				}
 			}
 			scene.pop_clip();
 			drawWebuiBlock(paint, look);
@@ -1208,6 +1215,15 @@ public:
 		settings.overlay = false;
 		ps5.ownOverlay = true;
 		dataAvailable = proton_data_grant(); // Cached startup result; never retries after threads start.
+		// The checklist shows whenever it fails; prepare() adds a passing one at a start from the home screen
+		payloadShown = !proton_payloads_check().pass;
+		// A one-shot test hook, like aurelia-open: with /data/ps5proton/payload-check-show present the checklist shows even
+		// when it passes, and its third frame is saved as payload-check.ppm beside the flag, for a picture of the screen.
+		if (dataAvailable && remove(PROTON_DATA_ROOT "/payload-check-show") == 0) {
+			payloadShown = true;
+			payloadPicture = 3;
+			proton_say("launcher: the payload-check-show flag shows the checklist");
+		}
 		loadGames();
 		// A failed session's reason (ended=), or a session that never came back to say one (its marker is still there).
 		const std::string marker = proton_title_path(PROTON_SESSION_MARKER);
@@ -1223,6 +1239,14 @@ public:
 		}
 		if (!proton_launch().ended.empty()) sessionNote = "Last session ended: " + proton_launch().ended;
 		if (!sessionNote.empty()) proton_say("launcher: %s", sessionNote.c_str());
+		// The memory plan's startup tip (docs/PLAN.md, Part 4): on the launcher's own screen, never over a game.
+		if (FILE *file = fopen(PROTON_PAYLOADS_FILE, "r")) {
+			unsigned long long mib = 0;
+			if (fscanf(file, "%llu", &mib) == 1 && mib >= 64)
+				payloadsNote = "Payloads are using about " + std::to_string(mib) + " MiB; closing them frees room for games.";
+			fclose(file);
+			if (!payloadsNote.empty()) proton_say("launcher: %s", payloadsNote.c_str());
+		}
 		const std::string notices = proton_title_path(PROTON_SESSION_NOTICES);
 		if (FILE *file = fopen(notices.c_str(), "rb")) {
 			char line[512];
@@ -1376,7 +1400,12 @@ public:
 		}
 		syncThemes();
 		proton_say("launcher UI: %zu themes, active=%s", themes.items().size(), theme().id);
-		if (setupStep != PW_SETUP_NONE) startSetup(setupStep);
+		// A passing checklist shows at every start from the home screen (cycle 0); a return from a game and a test run's
+		// launcher skip it. The frame budget is known here, not in the constructor: a scripted launcher case (controls-menu,
+		// setup-tour, steam-guide-pages) met a passing page there and failed (alpha5-base-2026-10-29-02).
+		if (proton_launch().cycle == 0 && !ps5.frameBudget) payloadShown = true;
+		if (payloadShown) startPayloadCheck();
+		else if (setupStep != PW_SETUP_NONE) startSetup(setupStep);
 		else if (getenv("PROTON_STEAM_GUIDE_TEST")) steamGuideTest(getenv("PROTON_STEAM_GUIDE_TEST"));
 		else if (ps5.frameBudget && startShowcase()) {}
 		else if (dataAvailable && !ps5.frameBudget) resumeSteamGuide();
@@ -1401,6 +1430,36 @@ public:
 		tour->sky.release();
 		tour.reset();
 		page = Page::library;
+	}
+
+	// ---- The payload checklist (src/pw_payload_check.h): a page in the tour's look ----
+	void startPayloadCheck()
+	{
+		if (proton_payloads().pass) proton_say("launcher: the payload checklist shows a pass");
+		else proton_say("launcher: the payload checklist refuses entry: %s", proton_payloads_problem().c_str());
+		makeTour();
+		tour->beginPayloads(kit, getAssetPath(), proton_payloads(), proton_payload_facts(), proton_payloads_problem());
+	}
+
+	// Check again shows the new report (a pass then counts down visibly); Continue, or a pass's countdown, closes the page
+	// into the guided setup when it is due, else the launcher
+	void payloadCheckOutcome()
+	{
+		if (tour->outcome == SetupTour::Outcome::payload_recheck) {
+			proton_payloads_check();
+			tour->payloads(proton_payloads(), proton_payload_facts(), proton_payloads_problem(), true);
+			return;
+		}
+		if (tour->outcome == SetupTour::Outcome::payload_close) {
+			proton_say("launcher: closed from the payload checklist");
+			quit = true;
+			return;
+		}
+		if (tour->outcome != SetupTour::Outcome::payload_continue) return;
+		proton_say("launcher: the payload checklist passes");
+		payloadShown = false;
+		closeTour();
+		if (setupStep != PW_SETUP_NONE) startSetup(setupStep);
 	}
 
 	// ---- The Steam guide (src/pw_steam_guide.h): its launcher pages are the tour's Steam mode ----
@@ -1617,7 +1676,12 @@ public:
 		// Start's frame shows the first session's cover: kept for the title to show while the prefix is made (src/pw_setup.h).
 		if (tour->outcome == SetupTour::Outcome::prepare && (!ps5.frameBudget || setupUnattended))
 			ps5.capturePath = PROTON_DATA_ROOT "/" PW_SETUP_COVER_NAME;
+		if (payloadPicture >= 0 && payloadPicture-- == 0) ps5.capturePath = PROTON_DATA_ROOT "/payload-check.ppm";
 		submitFrame();
+		if (tour->payloadMode()) {
+			payloadCheckOutcome();
+			return;
+		}
 		if (tour->steamMode()) {
 			steamGuideOutcome();
 			return;

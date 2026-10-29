@@ -30,7 +30,10 @@ struct ProtonFlightSources {
     int (*foreground)();                                                  /* the server's foreground process, or null */
     int (*census)(struct pw_memory_census *);                             /* the memory helper's census, or null */
     bool (*end_helpers)(const char *why);   /* the title's SIGKILL ending (native/proton_wine.cpp), or null: report only */
+    int (*suspend_hold)(uint64_t now_ms);   /* 1 while the app is away or just back (src/pw_suspend.h), or null */
 };
+/* A line for the next row (the title's suspend and resume, src/pw_suspend.h); a second one before that row replaces it. */
+void proton_flight_note(const char *line);
 /* The hang breaker's last sample and verdict (src/pw_hang_breaker.h), from the title's loop. */
 void proton_flight_publish(uint64_t present_age_ms, uint64_t census_age_ms, bool census_known, bool stalled);
 /* Opens the log and starts the thread: false (and said) when either fails. Once per process. */

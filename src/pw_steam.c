@@ -2,6 +2,7 @@
 #include "pw_steam.h"
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 /* ---- the installer file ---- */
 
@@ -168,11 +169,12 @@ const char *pw_steam_step_action(PwSteamStep step)
 /* Each is measured (docs/PLAN.md, "Steam's client and Isaac on the Pro, inside the memory limit"). `fail` refuses to
  * start the program (the client's own start-up probes, its updater, the overlay's window); `run` starts the named
  * image in its place; `add` appends to its command line. The browser helper cannot be refused (the client's core
- * does not run without it) but can run as one process: 13 helpers and 555 MiB became 2 and about 210. That is kept
- * only where memory needs it (one_browser_process): in one process the browser's code, about 300 MiB of it while Big
- * Picture loads, is one helper's, held to the listed clients' 64 MiB, and every thread's code faults wait on one lock.
- * On the base PS5 (13.60, 2026-10-27, bp-a/bp-d) Big Picture's first minute had 79 frames over 20 ms in one process
- * and 9 in its own processes, scrolling 163 and 15, for 180 MiB more of helpers (501 against 320 MiB). */
+ * does not run without it) but runs as one process on every console: 13 helpers and 555 MiB became 2 and about 210.
+ * Its own processes drew Big Picture more smoothly (base PS5, 13.60, 2026-10-27: scrolling 7 frames over 20 ms against
+ * 66 in one process with the code budget's raise), but each helper is a system process and takes the console's system
+ * page tables: on the base the browser's 10 to 12 processes took about 2,300 of the pool's 8,192 pages, Steam alone left
+ * 486, and a game's start exhausted it ("system page table exhausted", 2026-10-28, owner-test-base). One process stays,
+ * at the owner's word that day; its stutter is what the listed clients' code-budget raise is for. */
 static const struct { const char *name, *action, *value; } kRules[] = {
     { "steamsysinfo.exe", "fail", "" },
     { "gldriverquery.exe", "fail", "" },
@@ -184,6 +186,9 @@ static const struct { const char *name, *action, *value; } kRules[] = {
     { "steamwebhelper.exe", "add", " --single-process" },
     { "gameoverlayui.exe", "fail", "" },
     { "gameoverlayui64.exe", "fail", "" },
+    /* While a library game runs, the browser waits suspended (patch 2104): about 950 of the client's ~1,676 system page
+     * tables on a fresh Pro (2026-10-29), and the client relaunches it 10-40 s after it ends, so it is held, not ended. */
+    { "steamwebhelper.exe", "hold", "\\steamapps\\common\\" },
 };
 
 unsigned pw_steam_rule_count(void) { return (unsigned)(sizeof(kRules) / sizeof(kRules[0])); }
@@ -197,14 +202,38 @@ int pw_steam_rule(unsigned i, const char **name, const char **action, const char
     return 1;
 }
 
-size_t pw_steam_rules(char *out, size_t cap, int one_browser_process)
+size_t pw_steam_rules(char *out, size_t cap)
 {
     size_t used = 0;
     for (unsigned i = 0; i < pw_steam_rule_count(); i++) {
-        if (!one_browser_process && !strcmp(kRules[i].name, "steamwebhelper.exe")) continue;
         const int wrote = snprintf(out + used, cap > used ? cap - used : 0, "%s%s|%s|%s", used ? ";" : "", kRules[i].name,
                                    kRules[i].action, kRules[i].value);
         if (wrote < 0 || (size_t)wrote >= (cap > used ? cap - used : 0)) { if (cap) out[0] = 0; return 0; }
+        used += (size_t)wrote;
+    }
+    return used;
+}
+
+/* Whether the stored list has a rule for this program and action (the text up to the second '|', any case). */
+static int has_rule(const char *stored, const char *name, const char *action)
+{
+    const size_t name_len = strlen(name), action_len = strlen(action);
+    for (const char *rule = stored; rule && *rule; rule = strchr(rule, ';') ? strchr(rule, ';') + 1 : NULL)
+        if (!strncasecmp(rule, name, name_len) && rule[name_len] == '|' &&
+            !strncasecmp(rule + name_len + 1, action, action_len) && rule[name_len + 1 + action_len] == '|')
+            return 1;
+    return 0;
+}
+
+size_t pw_steam_rules_merge(const char *stored, char *out, size_t cap)
+{
+    size_t used = (size_t)snprintf(out, cap, "%s", stored ? stored : "");
+    if (used >= cap) { if (cap) out[0] = 0; return 0; }
+    for (unsigned i = 0; i < pw_steam_rule_count(); i++) {
+        if (has_rule(stored, kRules[i].name, kRules[i].action)) continue;
+        const int wrote = snprintf(out + used, cap - used, "%s%s|%s|%s", used ? ";" : "", kRules[i].name, kRules[i].action,
+                                   kRules[i].value);
+        if (wrote < 0 || (size_t)wrote >= cap - used) { out[0] = 0; return 0; }
         used += (size_t)wrote;
     }
     return used;
@@ -284,10 +313,10 @@ size_t pw_steam_installer_entry(char *out, size_t cap, const char *prefix)
                                PW_STEAM_INSTALLER_WINDOWS_PATH, "Z:\\data\\ps5proton\\downloads", "/S", 0, environment, prefix);
 }
 
-size_t pw_steam_client_entry(char *out, size_t cap, int big_picture, const char *prefix, int one_browser_process)
+size_t pw_steam_client_entry(char *out, size_t cap, int big_picture, const char *prefix)
 {
     char rules[1024], rules_word[1100];
-    if (!pw_steam_rules(rules, sizeof(rules), one_browser_process)) return 0;
+    if (!pw_steam_rules(rules, sizeof(rules))) return 0;
     snprintf(rules_word, sizeof(rules_word), "WINE_PS5_PROCESS_RULES=%s", rules);
     /* WINE_PS5_WINDOW_SURFACES=1: the client's windows go through the composed window route, as the shell's and the browser's do. On the direct
      * route its several swapchains each flipped the whole screen and the window flickered (2026-10-24, surfaces-window-2026-10-24-01). */

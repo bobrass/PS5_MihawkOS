@@ -88,6 +88,7 @@ int pw_vm_budget_parse(const char *text, long long ms[PW_VM_CLASSES])
 void pw_vm_census_walk(PwVmCensus *census, PwVmQuery query, PwVmResident resident, void *context)
 {
     uintptr_t address = 0;
+    uint64_t last_region = 0;
     memset(census, 0, sizeof(*census));
     for (;;) {
         uint8_t raw[PW_VM_RECORD];
@@ -108,6 +109,18 @@ void pw_vm_census_walk(PwVmCensus *census, PwVmQuery query, PwVmResident residen
             : (record.flags & PW_VM_DIRECT && !(record.flags & PW_VM_FLEXIBLE)) ? PW_VM_CLASS_DIRECT : PW_VM_CLASS_FLEXIBLE;
         census->class_mappings[klass]++;
         census->class_bytes[klass] += bytes;
+        uint64_t regions = 0, aligned_direct = 0;
+        const int direct_mapping = record.flags & PW_VM_DIRECT && !(record.flags & PW_VM_FLEXIBLE);
+        if (record.protection && direct_mapping && !(record.start & 0x1fffff) && !(record.end & 0x1fffff)) {
+            aligned_direct = bytes >> 21;
+            census->regions_2m_direct += aligned_direct;
+        } else if (record.protection) {
+            /* in address order, so a region shared with the previous accessible mapping is counted once */
+            const uint64_t first = record.start >> 21, last = (record.end - 1) >> 21;
+            regions = last - first + 1 - (census->regions_2m && first == last_region ? 1 : 0);
+            census->regions_2m += regions;
+            last_region = last;
+        }
         const uint64_t in = resident ? resident(context, record.start, record.end, klass) : 0;
         if (!record.protection) census->reserved_resident += in;
         else if (record.flags & PW_VM_DIRECT && !(record.flags & PW_VM_FLEXIBLE)) census->direct_resident += in;
@@ -126,7 +139,10 @@ void pw_vm_census_walk(PwVmCensus *census, PwVmQuery query, PwVmResident residen
             }
         }
         PwVmGroup *group = group_of(census, &record);
-        if (group) { group->mappings++; group->bytes += bytes; group->resident += in; }
+        if (group) {
+            group->mappings++; group->bytes += bytes; group->resident += in;
+            group->regions_2m += regions; group->regions_2m_direct += aligned_direct;
+        }
         else census->unkept += bytes;
         address = record.end;
     }
@@ -208,5 +224,31 @@ size_t pw_vm_census_format_flexible(const PwVmCensus *census, char *out, size_t 
             used += (size_t)wrote;
             shown++;
         }
+    return used;
+}
+
+size_t pw_vm_census_format_regions(const PwVmCensus *census, unsigned n, char *out, size_t size)
+{
+    size_t used = 0;
+    if (!size) return 0;
+    out[0] = 0;
+    uint8_t shown[PW_VM_GROUPS] = {0};
+    for (unsigned k = 0; k < n; ++k) {
+        int best = -1;
+        for (unsigned i = 0; i < census->count; ++i)
+            if (!shown[i] && (census->groups[i].regions_2m || census->groups[i].regions_2m_direct) &&
+                (best < 0 || census->groups[i].regions_2m > census->groups[best].regions_2m))
+                best = (int)i;
+        if (best < 0) break;
+        shown[best] = 1;
+        const PwVmGroup *g = &census->groups[best];
+        const int wrote = g->regions_2m_direct
+            ? snprintf(out + used, size - used, "%s%s:%02x=%llu+2m-direct %llu/%u", k ? " " : "", g->name[0] ? g->name : "-",
+                       g->flags, (unsigned long long)g->regions_2m, (unsigned long long)g->regions_2m_direct, g->mappings)
+            : snprintf(out + used, size - used, "%s%s:%02x=%llu/%u", k ? " " : "", g->name[0] ? g->name : "-",
+                       g->flags, (unsigned long long)g->regions_2m, g->mappings);
+        if (wrote < 0 || (size_t)wrote >= size - used) { out[used] = 0; break; }
+        used += (size_t)wrote;
+    }
     return used;
 }

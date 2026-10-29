@@ -6,6 +6,7 @@
 #include "proton_limits_probe.h"
 extern "C" {
 #include "pw_dmem_share.h"
+#include <sys/mman.h>
 }
 
 #include "proton_gpu_identity.h"
@@ -16,6 +17,8 @@ extern "C" {
 #include "../src/proton_touchpad.h"
 #include "../src/pw_controls.h"
 #include "../src/pw_setup.h"
+#include "../src/pw_runtime_check.h"
+#include "../src/pw_sha256.h"
 #include "../src/proton_dualsense.h"
 #include "../ps5/src/proton_launch.h"
 #include "../ps5/src/platform.h"
@@ -51,6 +54,7 @@ extern "C" {
 #include "../src/pw_ntsync.h"
 #include "../src/pw_speed_defaults.h"
 #include "../src/pw_display_rate.h"
+#include "../src/pw_suspend.h"
 #include "../wine/ps5/pw_wine_sink.h"
 #include "../wine/ps5/pw_wine_perf.h"
 #include "../wine/ps5/pw_wine_fdv.h"
@@ -142,6 +146,9 @@ void (*device_counters)(PwNtsyncCounters *) = nullptr;
 int (*device_gone)(int, int, uint32_t) = nullptr;   // pw_ntsync_process_gone
 // The census of the console's system memory the memory helper takes (src/pw_memory_helper.h).
 int (*memory_census)(pw_memory_census *) = nullptr;
+extern "C" int sceKernelMapDirectMemory(void **, size_t, int, int, int64_t, size_t);
+// The first and the latest cold helper start (wine/ps5/pw_wine_process.h), for STOP's slowdown trigger.
+void (*start_times)(uint64_t *, uint64_t *) = nullptr;
 // The helpers' mappings of shared code copies beyond the first of each (wine/ps5/pw_wine_codeshare.h), which the census
 // counts per mapping and the kernel of firmware 13 once.
 uint64_t (*code_share_duplicates)() = nullptr;
@@ -169,7 +176,7 @@ void (*owner_wait)() = nullptr;
 // for the launcher, which shows it after the session (PROTON_SESSION_NOTICES), in case it was missed. Each kind is said
 // once a session, from the title's loop or on the way back to the launcher; any other thread only fills its slot.
 enum NoticeKind { NOTICE_MEMORY_CLOSE, NOTICE_MEMORY_END, NOTICE_SPAWN, NOTICE_GPU, NOTICE_FOLDER,
-                  NOTICE_MEMORY_SWAP, NOTICE_TEST, NOTICE_KINDS };
+                  NOTICE_MEMORY_SWAP, NOTICE_TEST, NOTICE_PAYLOADS, NOTICE_KINDS };
 // 0 empty, 1 being written, 2 ready, 3 kept for the launcher and posted
 struct Notice { std::atomic<int> state{0}; char text[512]; };
 Notice notices[NOTICE_KINDS];
@@ -234,13 +241,20 @@ void notices_post()
     }
     if (gpu_lost_pid.load(std::memory_order_relaxed))
         notice_set(NOTICE_GPU, "A program stopped: the GPU did not answer it.");
-    // Kept, then posted, each once (2 to 3), whichever thread gets there.
-    for (auto &notice : notices) {
+    // Kept, then posted, each once (2 to 3), whichever thread gets there. The payload tip is only kept, for the
+    // launcher: a system notification draws over the game's top right (the gate's window captures on the Pro,
+    // memplan-pro-gate-2026-10-28-01: host-dmem64's pixel at 1801,102 read the notification's blue).
+    for (int kind = 0; kind < NOTICE_KINDS; ++kind) {
+        Notice &notice = notices[kind];
         int ready = 2;
         if (!notice.state.compare_exchange_strong(ready, 3, std::memory_order_acquire)) continue;
         if (FILE *file = fopen(proton_title_path(PROTON_SESSION_NOTICES).c_str(), "a")) {
             fprintf(file, "%s\n", notice.text);
             fclose(file);
+        }
+        if (kind == NOTICE_PAYLOADS) {
+            say("notice: %s (kept for the launcher)", notice.text);
+            continue;
         }
         struct { char reserved[45]; char message[3075]; } request{};   // the payload SDK's samples/hello_world
         snprintf(request.message, sizeof(request.message), "%s: %s", PS5_TITLE_NAME, notice.text);
@@ -1177,6 +1191,39 @@ __attribute__((format(printf, 1, 2))) void fail(const char *format, ...)
     return_to_launcher(reason);
 }
 
+// Suspend and resume (src/pw_suspend.h): this loop ticks the clock; the flight recorder's thread reads the hold.
+static PwSuspendClock title_suspend;
+static std::atomic<uint64_t> suspend_resumed_ms{0};
+static std::atomic<uint32_t> suspend_away{0};
+static int suspend_hold(uint64_t now_ms)
+{
+    PwSuspendClock seen{};
+    seen.away = suspend_away.load(std::memory_order_relaxed);
+    seen.resumed_ms = suspend_resumed_ms.load(std::memory_order_relaxed);
+    return pw_suspend_hold(&seen, now_ms);
+}
+// The system's word on the app (sceSystemServiceGetStatus, its first fields; the rest, reserved, is kept room for):
+// 1 while it runs in the background, 0 in the foreground, -1 when it cannot be read. The system's overlay over a running
+// app is only reported (overlaid): notifications raise it too, and a game is not paused for one. The system's events
+// are taken and named, so a resume event shows in the log next to the clock's own evidence.
+struct SystemServiceStatus { int32_t events; uint8_t overlaid, background, cpu7, streaming, vr_out, reserved[251]; };
+extern "C" int sceSystemServiceGetStatus(SystemServiceStatus *status);
+extern "C" int sceSystemServiceReceiveEvent(void *event);
+static int system_away(bool *overlaid)
+{
+    SystemServiceStatus status{};
+    if (sceSystemServiceGetStatus(&status)) return -1;
+    *overlaid = status.overlaid != 0;
+    static uint8_t event[16384];   // an event's type, then up to 8 KiB of its data
+    for (int i = 0; i < status.events && i < 8; ++i) {
+        if (sceSystemServiceReceiveEvent(event)) break;
+        int32_t type = 0;
+        memcpy(&type, event, sizeof(type));
+        say("system: event %#x", type);
+    }
+    return status.background ? 1 : 0;
+}
+
 // SIGKILL to every helper that runs a Windows program, straight from the title (src/pw_hang_breaker.h): nothing in a
 // helper or in the server has to answer, and the memory helper is not among them. Once per session, from any thread:
 // what it calls takes only child_lock (pw_ps5_end_spawns, pw_ps5_helpers), never held across a wait.
@@ -1842,6 +1889,34 @@ void proton_run_wine()
     // The contract with tools/run-console.py, which fails a run whose status is not 0.
     say("Wine: session logs status=%d removed=%u title=%d wine=%d broker-results=%d", session_status, session_removed,
         kept_title, kept_wine, broker_results);
+    // Which build this session is, at the top of its log: the title, the runtime it pins and the one installed. A runtime
+    // that is not this build's starts no helper: every start comes here (a tile, a shortcut, profile=, a restart), and
+    // the launcher it returns to opens the setup's install (src/pw_runtime_check.h, a tester's errno 92 of 2026-10-29).
+    say("Build: %s", proton_build_identity().c_str());
+    if (proton_runtime_state() != PW_RUNTIME_THIS_BUILD) fail("%s", proton_runtime_problem().c_str());
+    // The payload checklist, on every start too: the launcher it returns to shows what to load or close (pw_payload_check.h).
+    if (!proton_payloads_check().pass) fail("%s", proton_payloads_problem().c_str());
+    {
+        // The helper this title was built with, from its own folder (tools/build-production.sh): an older install's copy
+        // in /data/ps5proton/run can never be started by a newer title. A test may still name another image.
+        const std::string own = proton_title_path("/app0/proton-payload-child.elf");
+        if (!getenv("WINE_PS5_PAYLOAD_IMAGE") && access(own.c_str(), R_OK) == 0)
+            setenv("WINE_PS5_PAYLOAD_IMAGE", own.c_str(), 1);
+        const char *image = getenv("WINE_PS5_PAYLOAD_IMAGE");
+        const std::string path = image ? image : PROTON_DATA_ROOT "/run/proton-payload-child.elf";
+        char hex[65] = "-";
+        if (FILE *file = fopen(path.c_str(), "rb")) {
+            PwSha256 hash;
+            uint8_t buffer[65536], digest[32];
+            size_t got;
+            pw_sha256_init(&hash);
+            while ((got = fread(buffer, 1, sizeof(buffer), file)) > 0) pw_sha256_update(&hash, buffer, got);
+            fclose(file);
+            pw_sha256_final(&hash, digest);
+            pw_sha256_hex(digest, hex);
+        }
+        say("Build: helper %s sha256 %.16s%s", path.c_str(), hex, image ? "" : " (the runtime's copy: this title has none)");
+    }
     int detailed = 0;
     const int detailed_setting = pw_detailed_logs_load(&detailed, proton_logging_path().c_str());
     if (detailed) detailed_logs_begin();
@@ -1901,6 +1976,9 @@ void proton_run_wine()
         // floor of reservable address space is one (src/pw_firmware.h: the system's own word is spoofed by enablers).
         char text[8];
         if (pw_firmware_text(pw_firmware_installed(nullptr), text, sizeof(text))) setenv("WINE_PS5_FIRMWARE", text, 1);
+        // Every helper watches the title's own exit by this pid (native/proton_wine_child.c's title_watch).
+        snprintf(text, sizeof(text), "%d", (int)getpid());
+        setenv("WINE_PS5_TITLE_PID", text, 1);
     }
     const std::string prefix = proton_game_prefix(game);
     if (prefix.empty()) {
@@ -2490,10 +2568,36 @@ void proton_run_wine()
                     say("Wine: GPU host-visible memory from direct memory: %s", dmem_alloc && dmem_release ? "on" : "missing in this runtime");
                 }
 #endif
+                // PROTON_PT_PROBE (a probe, never a default; docs/PLAN.md "Memory plan", Part 2): memory the memory helper
+                // makes, mapped and touched by the title and held until it ends, to measure whether the system's page-table
+                // count drifts with it at the container's deletion. "none" maps nothing (the baseline), "shm:N" N MiB of the
+                // helper's shared memory, "dmem:N" N MiB of its direct memory granted to the title.
+                if(const char *probe=getenv("PROTON_PT_PROBE"); probe && *probe) {
+                    const bool dmem=!strncmp(probe,"dmem:",5), shm=!strncmp(probe,"shm:",4);
+                    const size_t mib=(dmem||shm) ? (size_t)strtoul(strchr(probe,':')+1,nullptr,10) : 0;
+                    const size_t bytes=(mib>0 && mib<=1024 ? mib : 0)<<20;
+                    void *at=nullptr;
+                    int status=0;
+                    if(bytes && shm) {
+                        const int object=shared_alloc(bytes);
+                        status=object<0 || shared_touch(object,0,bytes) ? -1 : 0;
+                        if(!status) at=mmap(nullptr,bytes,PROT_READ|PROT_WRITE,MAP_SHARED,object,0);
+                        if(at==MAP_FAILED) { at=nullptr;status=-1; }
+                    } else if(bytes && dmem) {
+                        auto probe_dmem=symbol<int (*)(size_t,int,int64_t *)>("pw_ps5_dmem_alloc");
+                        int64_t offset=-1;
+                        status=probe_dmem && !probe_dmem(bytes,0,&offset) ? sceKernelMapDirectMemory(&at,bytes,3,0,offset,16384) : -1;
+                        if(status) at=nullptr;
+                    }
+                    if(at) for(size_t page=0;page<bytes;page+=16384) static_cast<volatile char *>(at)[page]=1;
+                    say("Wine: page-table probe %s: %zu MiB %s (status %d errno %d); held until the title ends",probe,bytes>>20,
+                        at ? "mapped and touched" : "not mapped",status,status ? errno : 0);
+                }
             }
             say("Wine: memory helper %s", memory ? "started: the server's and the broker's shared memory is made there" :
                 "missing: the title makes its shared memory");
             if (memory) memory_census = symbol<int (*)(pw_memory_census *)>("pw_ps5_memory_census");
+            start_times = symbol<void (*)(uint64_t *, uint64_t *)>("pw_ps5_start_times");
             code_share_duplicates = symbol<uint64_t (*)()>("pw_ps5_code_share_duplicate_bytes");
         }
         // Another process's memory: each helper serves its own (src/pw_memory_service.h), and the server copies
@@ -2738,35 +2842,45 @@ void proton_run_wine()
     // The console's system memory, which helpers draw on and the title does not (src/pw_memory_guard.h).
     // PROTON_SYSTEM_MEMORY_LIMIT, in MiB, lowers the limit (0 turns the guard off), and PROTON_SYSTEM_MEMORY_END the
     // mark past which a game is ended at once.
-    // The defaults are the Pro's (firmware 10.01); 12.00 and later has its own (src/pw_memory_guard.h), and a limit the run
-    // sets itself is held to that firmware's, as the Pro's was. The INSTALLED firmware decides, not the word an enabler
-    // reports: the Pro reported 12.09 and ran with the 12.00-and-later limit through alpha-2 (src/pw_firmware.h).
+    // The marks of the memory plan (src/pw_memory_guard.h): the console's generation from its direct pool and the
+    // INSTALLED firmware, not the word an enabler reports (the Pro reported 12.09; volunteers read 99.99 and 11.59).
+    // WARN is a notice on the resident census and STOP, the limit, closes on it too; a limit the run sets itself is held to
+    // it. A helper's mapped figure is its address space, not memory asked of the kernel (memplan-gate-2026-10-28-01 read
+    // 48 GiB), so it is only logged.
     unsigned firmware_reported = 0;
     const unsigned firmware_installed = pw_firmware_installed(&firmware_reported);
-    const unsigned default_limit = pw_memory_guard_default_limit_mib(firmware_installed);
-    const unsigned swap_notice = pw_memory_guard_swap_notice_mib(firmware_installed);
+    const uint64_t direct_pool = (uint64_t)sceKernelGetDirectMemorySize();
+    const pw_console_kind console_kind = pw_console_kind_of(direct_pool);
+    const pw_memory_marks marks = pw_memory_marks_for(console_kind, firmware_installed);
+    const unsigned default_limit = marks.stop_mib;
+    const unsigned swap_notice = marks.warn_mib;
     {
         char installed_text[8] = "?", reported_text[8] = "?";
         pw_firmware_text(firmware_installed, installed_text, sizeof(installed_text));
         pw_firmware_text(firmware_reported, reported_text, sizeof(reported_text));
-        say("Wine: firmware %s installed (the system reports %s); the memory guard's limit is %u MiB, its swap notice "
-            "%u MiB", installed_text, reported_text, default_limit, swap_notice);
+        say("Wine: firmware %s installed (the system reports %s), a %s (direct pool %llu MiB); the memory guard warns at "
+            "%u MiB resident and stops at %u MiB resident (0: no mark), a slow helper start, or a plateau with frame gaps",
+            installed_text, reported_text, console_kind == PW_CONSOLE_PRO ? "Pro" : "standard PS5 or Slim",
+            (unsigned long long)(direct_pool >> 20), swap_notice, default_limit);
     }
     const char *memory_limit_setting = getenv("PROTON_SYSTEM_MEMORY_LIMIT");
     const char *memory_end_setting = getenv("PROTON_SYSTEM_MEMORY_END");
     const unsigned memory_limit_asked = memory_limit_setting ? (unsigned)strtoul(memory_limit_setting, nullptr, 10)
                                                              : default_limit;
+    // PROTON_SYSTEM_MEMORY_LIMIT=0 turns every rule off; a console with no resident mark (default 0) keeps the others.
+    const bool guard_on = !(memory_limit_setting && memory_limit_asked == 0);
     // Helpers' code is JIT memory, charged to their resident flexible memory with no cap but this guard, and a limit
     // past the console's ~989 MiB (the earlier emulator experiment's runs asked 1250) is never reached before it swaps: a guard that never acts.
-    unsigned memory_limit = std::min(memory_limit_asked, default_limit);
+    unsigned memory_limit = default_limit ? std::min(memory_limit_asked, default_limit) : memory_limit_asked;
     if (memory_limit != memory_limit_asked)
         say("Wine: PROTON_SYSTEM_MEMORY_LIMIT=%u MiB is past the guard's %u MiB; using %u MiB", memory_limit_asked,
             default_limit, memory_limit);
     const unsigned memory_end_asked = memory_end_setting ? (unsigned)strtoul(memory_end_setting, nullptr, 10)
-                                                         : pw_memory_guard_default_end_mib(memory_limit);
+                                                         : memory_limit ? pw_memory_guard_default_end_mib(memory_limit) : 0;
     // An end mark past the guard's own is past the console's ~989 MiB before it is reached, and turns the steep-climb
     // rule off. Not the lowered limit plus the margin: the gate's memory-guard case keeps its end out of reach.
-    unsigned memory_end = std::min(memory_end_asked, pw_memory_guard_default_end_mib(default_limit));
+    unsigned memory_end = default_limit ? std::min(memory_end_asked, pw_memory_guard_default_end_mib(default_limit))
+                                        : memory_end_asked;
     if (memory_end != memory_end_asked)
         say("Wine: PROTON_SYSTEM_MEMORY_END=%u MiB is past the guard's %u MiB; using %u MiB", memory_end_asked,
             pw_memory_guard_default_end_mib(default_limit), memory_end);
@@ -2782,7 +2896,9 @@ void proton_run_wine()
     uint64_t census_shared = 0, census_raw_peak = 0;   // what the last census left out; the peak before leaving it out
     // PROTON_MEMORY_OBSERVE=1 (a test's env, never a default): the census runs and logs but no verdict can fire (limit 4000 MiB). The
     // owner asked for a run with no guard at all (2026-10-24); the harness's own brake on the kernel's figures is the only one.
+    bool memory_observe = false;   // and the triggers below act on nothing either
     if (const char *observe = getenv("PROTON_MEMORY_OBSERVE"); observe && !strcmp(observe, "1")) {
+        memory_observe = true;
         say("Wine: PROTON_MEMORY_OBSERVE=1: the memory guard only observes (it was %u/%u MiB)", memory_limit, memory_end);
         memory_limit = 4000;
         memory_end = 4070;
@@ -2810,7 +2926,11 @@ void proton_run_wine()
     }
     pw_memory_guard memory_guard{};
     pw_memory_guard_init(&memory_guard, memory_limit, memory_end);
+    pw_page_table_guard page_table_guard{};   // the system's page tables, a pool apart (src/pw_memory_guard.h)
     pw_memory_census census{}, census_peak{};
+    uint64_t census_address_space = 0;   // the helpers' mapped bytes, their address space: logged, never acted on
+    bool start_slowed_said = false, plateau_said = false;
+    pw_plateau memory_plateau{};   // STOP's plateau trigger (src/pw_memory_guard.h)
     bool census_seen = false, census_missing_said = false, census_stale_said = false, swap_notice_said = false;
     // The hang breaker (src/pw_hang_breaker.h): once a second while the GPU broker shows a game whose processes are all
     // helpers. Its census time is that of the newest census read whole. PROTON_HANG_BREAKER=0 makes it only report.
@@ -2841,6 +2961,7 @@ void proton_run_wine()
         flight.census = memory_census;
         // A wedged broker ends the game from the recorder's thread, which kept running when this loop did not.
         if (programs_in_helpers && breaker_acts) flight.end_helpers = end_helpers;
+        flight.suspend_hold = suspend_hold;
         proton_flight_recorder_start(flight);
     }
     // Marked test only: a real PE reads the server-authored snapshot through
@@ -2852,7 +2973,44 @@ void proton_run_wine()
     const std::string windows_temp = windows_reply + ".tmp";
     uint32_t windows_nonce = 0;
     if (windows_probe) { unlink(windows_request.c_str());unlink(windows_reply.c_str());unlink(windows_temp.c_str()); }
+    auto set_suspend = symbol<void (*)(uint32_t, uint32_t)>("pw_wine_set_suspend");
+    bool system_overlaid = false;
     for (unsigned tick = 0;; ++tick) {
+        // Suspend and resume (src/pw_suspend.h): the system's word, every fourth tick, and the clock's gap between two
+        // ticks for a suspend nobody announced. The helpers read away and the beat from their input pages, the broker
+        // holds new GPU work while away, and nothing is ended while away or for the grace after.
+        {
+            bool overlaid = system_overlaid;
+            const int away = tick % 4 == 0 ? system_away(&overlaid) : -1;
+            if (overlaid != system_overlaid) {
+                system_overlaid = overlaid;
+                say("system: the system's overlay is %s", overlaid ? "up" : "down");
+            }
+            const uint64_t at = monotonic_ms(), before = title_suspend.last_ms;
+            const bool was_away = title_suspend.away;
+            const int change = pw_suspend_tick(&title_suspend, at, away);
+            if (change != PW_SUSPEND_NONE) {
+                char line[192];
+                if (change == PW_SUSPEND_LEFT)
+                    snprintf(line, sizeof(line), "suspend left: the app is in the background; GPU work is held and drained, "
+                             "nothing is ended until %u ms after it returns", (unsigned)PW_SUSPEND_GRACE_MS);
+                else if (change == PW_SUSPEND_BACK)
+                    snprintf(line, sizeof(line), "suspend back: the app is in the foreground after %llu ms",
+                             (unsigned long long)(at - title_suspend.left_ms));
+                else
+                    snprintf(line, sizeof(line), "suspend %s: the clock jumped %llu ms between two ticks",
+                             was_away ? "announced" : "unannounced", (unsigned long long)(at - before));
+                say("%s (suspends %u, unannounced %u)", line, title_suspend.suspends, title_suspend.unannounced);
+                proton_flight_note(line);
+                if (title_log_fd >= 0) fsync(title_log_fd);
+            }
+            suspend_away.store(title_suspend.away, std::memory_order_relaxed);
+            suspend_resumed_ms.store(title_suspend.resumed_ms, std::memory_order_relaxed);
+            if (set_suspend) set_suspend(title_suspend.away, tick + 1);
+#ifdef PS5_GPU_BROKER
+            proton_gpu_broker_set_away(title_suspend.away);
+#endif
+        }
         // The client has been started (start_root above): the phase it was launched for is now real, not "Starting Wine".
         static bool aurelia_phase_set;
         if (aurelia_session() && !aurelia_phase_set) {
@@ -3255,10 +3413,11 @@ void proton_run_wine()
                 say("Wine: registry %s in %llu ms (every 30 s)", status ? "NOT saved" : "saved",
                     (unsigned long long)took_ms);
         }
-        // The census is read every half second, guard or not: the hang breaker goes by its age. A read that fails (the
+        // The census is read every 100 ms, guard or not (its page tables change that often; its processes every half
+        // second): the hang breaker goes by its age. A read that fails (the
         // helper was writing it) keeps the last whole one; the copy it was given may be torn (src/pw_memory_helper.c).
         bool census_read = false;
-        if (tick % 60 == 0) {
+        if (tick % 12 == 0) {
             pw_memory_census fresh{};
             census_read = memory_census && !memory_census(&fresh);
             if (census_read) {
@@ -3268,12 +3427,14 @@ void proton_run_wine()
                 census_shared = census_shared_once ? std::min<uint64_t>(code_share_duplicates(), census.helpers) : 0;
                 census.system -= census_shared;
                 census.helpers -= census_shared;
+                census.helpers_mapped -= std::min<uint64_t>(census_shared, census.helpers_mapped);
+                census_address_space = census.helpers_mapped;
                 if (!breaker_freeze_ms || monotonic_ms() - breaker_armed_ms < breaker_freeze_ms) breaker_census_ms = census.taken_ms;
             }
         }
         // A game whose helpers hold the console's system memory past the limit swaps the console until it stops
         // answering, so it is asked to close as a user would, and ended at once if it climbs on (src/pw_memory_guard.h).
-        if (tick % 60 == 0 && memory_limit) {
+        if (tick % 12 == 0 && guard_on) {
             if (!census_read) {
                 if (!census_missing_said && tick >= 1200 && !census_seen) {
                     census_missing_said = true;
@@ -3284,26 +3445,92 @@ void proton_run_wine()
                 const uint64_t age = monotonic_ms() - census.taken_ms;
                 if (!census_seen) {
                     say("Wine: system memory %llu MiB in %u processes at the start; a game is asked to close when its "
-                        "helpers hold it at %u MiB for %u of %u s, and ended when they hold it past %u MiB for %u s",
+                        "helpers hold it at %u MiB for %u of %u s, and ended when they hold it past %u MiB for %u s; "
+                        "page tables %u free of %u: asked to close at %u free, ended at %u",
                         (unsigned long long)(census.system >> 20), census.processes, memory_limit,
                         PW_MEMORY_GUARD_CLOSE_MS / 1000, PW_MEMORY_GUARD_WINDOW_MS / 1000, memory_end,
-                        PW_MEMORY_GUARD_END_MS / 1000);
+                        PW_MEMORY_GUARD_END_MS / 1000, census.page_tables_free, census.page_tables,
+                        PW_PAGE_TABLE_CLOSE_FREE, PW_PAGE_TABLE_END_FREE);
+                }
+                // Part 4 of the memory plan: the user's payloads take the same memory as a game's helpers (the volunteers' 63-267
+                // MiB, one console's single payload.elf 158 MiB), so the session starts by saying what closing them would free.
+                if (!census_seen) {
+                    say("Wine: payloads use %llu MiB in %u processes at the start", (unsigned long long)(census.payloads >> 20),
+                        census.payload_count);
+                    if (FILE *file = fopen(PROTON_PAYLOADS_FILE, "w")) {
+                        fprintf(file, "%llu\n", (unsigned long long)(census.payloads >> 20));
+                        fclose(file);
+                    }
+                    if ((census.payloads >> 20) >= 64)
+                        notice_set(NOTICE_PAYLOADS, "Payloads are using %llu MiB; closing them frees room.",
+                                   (unsigned long long)(census.payloads >> 20));
                 }
                 census_seen = true;
                 if (!swap_notice_said && (census.system >> 20) >= swap_notice) {
                     swap_notice_said = true;
                     notice_set(NOTICE_MEMORY_SWAP, "The PS5's memory is getting full: games may slow down as it starts to swap.");
-                    say("Wine: the console's system memory reached %u MiB (now %llu MiB; helpers %llu MiB in %u): it starts to swap "
-                        "from here; only a notice, nothing is closed below %u MiB", swap_notice,
+                    say("Wine: the console's system memory reached %u MiB (now %llu MiB; helpers %llu MiB in %u; their address "
+                        "space %llu MiB): it starts to swap from here; only a notice, nothing is closed below %u MiB", swap_notice,
                         (unsigned long long)(census.system >> 20), (unsigned long long)(census.helpers >> 20),
-                        census.helper_count, memory_limit);
+                        census.helper_count, (unsigned long long)(census_address_space >> 20), memory_limit);
                 }
                 if (census.system > census_peak.system) census_peak = census;
                 if (age > 5000 && !census_stale_said)
                     say("Wine: the system memory census is %llu ms old (status %d)", (unsigned long long)age,
                         census.status);
                 census_stale_said = age > 5000;
-                const pw_memory_verdict verdict = pw_memory_guard_sample(&memory_guard, census.system, census.taken_ms);
+                // A suspend is not time at the limit (src/pw_suspend.h): the guard's windows start again at each return,
+                // and it decides nothing while the app is away or just back.
+                static uint64_t guard_rearmed_for;
+                if (title_suspend.resumed_ms != guard_rearmed_for) {
+                    guard_rearmed_for = title_suspend.resumed_ms;
+                    pw_memory_guard_rearm(&memory_guard);
+                }
+                const bool held = pw_suspend_hold(&title_suspend, monotonic_ms());
+                pw_memory_verdict verdict = held ? PW_MEMORY_FINE : pw_memory_guard_sample(&memory_guard, pw_memory_census_guarded(&census), census.taken_ms);
+                // STOP's second trigger: at WARN or past it, a helper start 3 times slower than the session's first.
+                uint64_t start_first = 0, start_last = 0;
+                if (start_times) start_times(&start_first, &start_last);
+                bool by_start = false, by_plateau = false;
+                // STOP's third trigger: resident held at its plateau, past WARN, for 60 s with a frame gap over 1 s in it.
+                const uint64_t frame_gap = shown_last_ms ? monotonic_ms() - shown_last_ms : 0;
+                if (!held && !memory_observe && pw_plateau_sample(&memory_plateau, census.system >> 20, census.taken_ms, frame_gap, swap_notice) &&
+                    verdict == PW_MEMORY_FINE && !plateau_said) {
+                    plateau_said = by_plateau = true;
+                    verdict = PW_MEMORY_CLOSE;
+                    say("Wine: resident memory held at %llu MiB (within %u of its plateau, past %u MiB) for %u s with frame gaps "
+                        "over %u ms: stopping as at the memory mark", (unsigned long long)(census.system >> 20),
+                        PW_PLATEAU_BAND_MIB, swap_notice, PW_PLATEAU_HOLD_MS / 1000, PW_PLATEAU_GAP_MS);
+                }
+                if (!held && !memory_observe && verdict == PW_MEMORY_FINE && !start_slowed_said && (census.system >> 20) >= swap_notice &&
+                    pw_memory_start_slowed(start_first, start_last)) {
+                    start_slowed_said = by_start = true;
+                    verdict = PW_MEMORY_CLOSE;
+                    say("Wine: a helper start took %llu ms against the session's first %llu ms at %llu MiB resident: the "
+                        "console is swapping hard; stopping as at the memory mark", (unsigned long long)start_last,
+                        (unsigned long long)start_first, (unsigned long long)(census.system >> 20));
+                }
+                if (verdict != PW_MEMORY_FINE)
+                    say("Wine: memory guard %s: resident %llu MiB, helpers' address space %llu MiB (warn %u MiB, stop %u MiB "
+                        "resident)", verdict == PW_MEMORY_CLOSE ? "stop: closing" : "stop: ending",
+                        (unsigned long long)(census.system >> 20), (unsigned long long)(census_address_space >> 20), swap_notice,
+                        memory_limit);
+                // The page tables run out under the memory limit (Steam's browser in many processes, 2026-10-28): the
+                // stronger verdict of the two is acted on, and the log names the page tables when they gave it.
+                // A reading the guard cannot use is said once (src/pw_memory_guard.h, pw_page_table_known).
+                static bool page_tables_unknown_said;
+                if (!page_tables_unknown_said && !pw_page_table_known(census.page_tables, census.page_tables_free)) {
+                    page_tables_unknown_said = true;
+                    say("Wine: page tables unknown (free %u of total %u): the page-table guard does nothing until they read "
+                        "sound", census.page_tables_free, census.page_tables);
+                }
+                const pw_memory_verdict tables = held ? PW_MEMORY_FINE :
+                    pw_page_table_sample(&page_table_guard, census.page_tables, census.page_tables_free, monotonic_ms());
+                const bool by_tables = tables > verdict;
+                if (by_tables) verdict = tables;
+                char tables_why[96];
+                snprintf(tables_why, sizeof(tables_why), "page tables were down to %u free of %u%s", census.page_tables_free,
+                         census.page_tables, page_table_guard.steep ? ", on course for 512 within 2 s" : "");
                 if (verdict != PW_MEMORY_FINE && desktop_session && census.largest_pid > 0) {
                     // The desktop session is the user's whole Windows: the guard acts on the process that holds the
                     // memory, not the session (user-desktop-2026-10-10-01: a launcher's GPU process reached 462 MiB and
@@ -3320,7 +3547,10 @@ void proton_run_wine()
                     // The END line names the rule that fired: the steep climb ends below the end mark (a launcher's run
                     // on the Pro, 2026-10-20, read "stood past 940 MiB" at 872-900).
                     char why[96];
-                    if (verdict == PW_MEMORY_CLOSE) snprintf(why, sizeof(why), "stood at %u MiB", memory_limit);
+                    if (by_tables) snprintf(why, sizeof(why), "was fine but its %s", tables_why);
+                    else if (by_start) snprintf(why, sizeof(why), "slowed a helper start to %llu ms", (unsigned long long)start_last);
+                    else if (by_plateau) snprintf(why, sizeof(why), "held its plateau with frame gaps for %u s", PW_PLATEAU_HOLD_MS / 1000);
+                    else if (verdict == PW_MEMORY_CLOSE) snprintf(why, sizeof(why), "stood at %u MiB", memory_limit);
                     else if (memory_guard.steep)
                         snprintf(why, sizeof(why), "rose %u MiB or more in %u s to within %u MiB of %u MiB",
                                  PW_MEMORY_GUARD_STEEP_RISE_MIB, PW_MEMORY_GUARD_STEEP_WINDOW_MS / 1000,
@@ -3338,7 +3568,12 @@ void proton_run_wine()
                     close.type = PW_WINE_INPUT_CLOSE;
                     const int delivered = stop_tick ? 0 : deliver(&close);
                     notice_set(NOTICE_MEMORY_CLOSE, "The PS5's memory is nearly full: the game was asked to close.");
-                    say("Wine: the console's system memory stood at %u MiB or more for %llu of the last %u s (now %llu MiB; "
+                    if (by_tables) say("Wine: the console's %s (system memory %llu MiB; helpers in %u): %s (%d)", tables_why,
+                                       (unsigned long long)(census.system >> 20), census.helper_count,
+                                       stop_tick ? "the game is already closing" : "asking the game to close before they run out",
+                                       delivered);
+                    else if (by_start || by_plateau) say("Wine: asking the game to close before the console swaps further (%d)", delivered);
+                    else say("Wine: the console's system memory stood at %u MiB or more for %llu of the last %u s (now %llu MiB; "
                         "helpers %llu MiB in %u, the largest %llu MiB in process %d): %s (%d)", memory_limit,
                         (unsigned long long)(pw_memory_guard_pressure_ms(&memory_guard) / 1000),
                         PW_MEMORY_GUARD_WINDOW_MS / 1000, (unsigned long long)(census.system >> 20),
@@ -3352,7 +3587,8 @@ void proton_run_wine()
                     notice_set(NOTICE_MEMORY_END, "The PS5's memory stayed full: %s", can_end ? "the game was ended." :
                                "close " PS5_TITLE_NAME " from the home screen.");
                     char why[96];
-                    if (memory_guard.steep)
+                    if (by_tables) snprintf(why, sizeof(why), "was fine but its %s", tables_why);
+                    else if (memory_guard.steep)
                         snprintf(why, sizeof(why), "rose %u MiB or more in %u s to within %u MiB of %u MiB",
                                  PW_MEMORY_GUARD_STEEP_RISE_MIB, PW_MEMORY_GUARD_STEEP_WINDOW_MS / 1000,
                                  PW_MEMORY_GUARD_STEEP_NEAR_MIB, memory_limit);
@@ -3373,15 +3609,19 @@ void proton_run_wine()
         if (breaker_armed && tick % 120 == 60) {
             const uint64_t now = monotonic_ms();
             PwHangSample sample{};
-            sample.present_age_ms = now - (shown_last_ms ? shown_last_ms : breaker_armed_ms);
+            // Ages count from the app's last return (src/pw_suspend.h): a suspend is not a stall.
+            sample.present_age_ms = now - pw_suspend_since(&title_suspend, shown_last_ms ? shown_last_ms : breaker_armed_ms);
             sample.census_known = breaker_census_ms != 0;
-            sample.census_age_ms = breaker_census_ms && now > breaker_census_ms ? now - breaker_census_ms : 0;
+            const uint64_t census_from = pw_suspend_since(&title_suspend, breaker_census_ms);
+            sample.census_age_ms = breaker_census_ms && now > census_from ? now - census_from : 0;
             sample.stall_ms = breaker_stall_ms;
             PwHangVerdict verdict = PW_HANG_FINE;
             pw_hang_breaker_decide(&sample, &verdict);
             proton_flight_publish(sample.present_age_ms, sample.census_age_ms, sample.census_known, verdict == PW_HANG_STALLED);
             if (verdict == PW_HANG_FINE) {
                 breaker_said = false;
+            } else if (!breaker_said && pw_suspend_hold(&title_suspend, now)) {
+                // Away or just back: decided again once the grace is over (the ages count from the return anyway).
             } else if (!breaker_said) {
                 breaker_said = true;
                 say("Wine: hang breaker: stalled: no frame for %llu ms and the system memory census %llu ms old%s",
@@ -3432,13 +3672,14 @@ void proton_run_wine()
             if (census_seen)
                 say("Wine: system memory %llu MiB (helpers %llu MiB in %u, the largest %llu MiB in process %d), peak %llu MiB; "
                     "%llu s of the last %u at the %u MiB limit; shared code copies beyond the first %llu MiB (what counting "
-                    "them once would take off)", (unsigned long long)(census.system >> 20),
+                    "them once would take off); helpers' address space %llu MiB", (unsigned long long)(census.system >> 20),
                     (unsigned long long)(census.helpers >> 20), census.helper_count,
                     (unsigned long long)(census.largest >> 20), census.largest_pid,
                     (unsigned long long)(census_peak.system >> 20),
                     (unsigned long long)(pw_memory_guard_pressure_ms(&memory_guard) / 1000),
                     PW_MEMORY_GUARD_WINDOW_MS / 1000, memory_limit,
-                    (unsigned long long)((code_share_duplicates ? code_share_duplicates() : 0) >> 20));
+                    (unsigned long long)((code_share_duplicates ? code_share_duplicates() : 0) >> 20),
+                    (unsigned long long)(census_address_space >> 20));
             // A program in the title converts its code in the title's partition under a helper's budget; the same figures
             // as a helper's line (native/proton_wine_child.c, code_cache_tally).
             uint64_t cache[10] = {};

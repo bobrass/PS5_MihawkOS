@@ -51,7 +51,26 @@ struct pw_memory_census {
     uint32_t processes;      /* processes counted */
     uint32_t helper_count;
     int32_t status;          /* 0, or the errno of the census that failed (the figures are the last good one's) */
+    uint32_t page_tables;    /* the system's CPU page tables (sceKernelGetPageTableStats as given; 0 when it did not answer) */
+    uint32_t page_tables_free;
+    uint64_t helpers_mapped; /* bytes: the helpers' mapped figure (the FMEM pair's second), their address space; logged only */
+    uint64_t payloads;       /* bytes: the user's payloads' (pw_memory_is_payload), for the title's startup tip */
+    uint32_t payload_count;
 };
+
+/* A payload: not started by SceSysCore, which starts Sony's processes and titles, and not named as Sony's services and
+ * our helpers are ("Sce..."). The base's FMEM lines: elfldr.elf, kstuff.elf, shadowmountplus.elf, websrv.elf,
+ * ftpsrv.elf, klogsrv.elf, nanodns.elf, pldmgr.elf, payload. A first rule took only the helpers' loader's children and
+ * init's, and read 7 MiB in 2 processes of the base's ~90 (re3-steam-base-2026-10-28). syscore 0: not found, no payload. */
+static inline int pw_memory_is_payload(int ppid, int syscore, const char *name)
+{
+    return syscore > 0 && ppid != syscore && ppid > 0 && name && name[0] &&
+           !(name[0] == 'S' && name[1] == 'c' && name[2] == 'e');
+}
+
+/* The figure the title's guard acts on: the resident census, never the helpers' mapped figure, which is their address
+ * space (memplan-gate-2026-10-28-01: 48 GiB "committed" against 1,163 MiB resident ended every game). */
+static inline uint64_t pw_memory_census_guarded(const struct pw_memory_census *census) { return census->system; }
 
 /* The helper: answer requests on control until the other end closes. Returns how many were answered. */
 unsigned long pw_memory_helper_serve(int control);

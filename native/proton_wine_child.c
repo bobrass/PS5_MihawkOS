@@ -12,10 +12,12 @@
 #include "../src/pw_environment.h"
 #include "../src/pw_gpu_broker.h"
 #include "../src/pw_control_watch.h"
+#include "../src/pw_suspend.h"
 #include "../src/pw_vm_census.h"
 #include "../src/pw_helper_sched.h"
 #include "../src/pw_cpu_placement.h"
 #include "../src/pw_log_sessions.h"
+#include "../src/pw_fd_census.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -25,6 +27,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/socket.h>
+#include <sys/event.h>
 #ifdef PROTON_CHILD_GPU_DEVICE_QUERY
 #include <sys/ioctl.h>
 #include "proton_gpu_identity.h"
@@ -41,6 +44,7 @@
 #include <ps5platform/kernel.h>
 #include "pw_prx_elf_ps5.h"
 #include "../src/pw_firmware.h"
+#include "../src/pw_warm_helper.h"
 #include "../wine/ps5/pw_wine_dl.h"
 #include <sys/sysctl.h>
 #include <sys/thr.h>
@@ -83,6 +87,15 @@ static long long payload_monotonic_ms(void)
     struct timespec now;
     if (clock_gettime(CLOCK_MONOTONIC, &now)) return -1;
     return now.tv_sec * 1000ll + now.tv_nsec / 1000000;
+}
+/* A helper's start, step by step, on the monotonic clock the title's spawn line and Wine's +timestamp share
+ * (tools/start_stages.py reads them): main and control are taken before the log exists and written after it opens. */
+static long long start_main_ms = -1, start_control_ms = -1;
+static void start_stamp(const char *at, long long ms)
+{
+    char line[96];
+    snprintf(line, sizeof(line), "wine-child: start at=%s ms=%lld\n", at, ms >= 0 ? ms : payload_monotonic_ms());
+    stage(line);
 }
 static int set_env(const char *key, const char *value) { return setenv(key, value, 1); }
 static PwWineStart wine;
@@ -373,6 +386,43 @@ static const char *const doom_names[PW_CHILD_DOOMS] = {"gpu", "exit", "engine", 
  * the log thread's own, set by stall_watch and read by stall_threads. */
 static uint64_t stall_owners[2];
 static long long stall_list_ms;
+/* The app's time away (src/pw_suspend.h), as this helper sees it: the title's word and beat in this helper's input page
+ * (mapped read-only once made), and the control thread's own clock, whose gap shows a freeze nobody announced. While the
+ * app is away or just back, nothing here ends the helper: its direct memory may still be under GPU work the system
+ * froze with the app. The control thread writes; the log thread reads the two words. */
+static const PwSuspendPage *title_word;
+static PwSuspendClock helper_suspend;
+static uint32_t title_beat_seen;
+static uint64_t title_beat_at;
+static long long suspend_resumed_at;
+static int suspend_away_now;
+static int helper_suspend_tick(long long now)
+{
+    int away = -1;
+    if (title_word) away = pw_suspend_page_away(title_word, &title_beat_seen, &title_beat_at, (uint64_t)now);
+    const long long before = (long long)helper_suspend.last_ms;
+    const int change = pw_suspend_tick(&helper_suspend, (uint64_t)now, away);
+    if (change != PW_SUSPEND_NONE) {
+        char line[160];
+        if (change == PW_SUSPEND_GAP)
+            snprintf(line, sizeof(line), "wine-child: suspend gap: this helper was frozen %lld ms; nothing is ended until "
+                     "%u ms after the return\n", now - before, (unsigned)PW_SUSPEND_GRACE_MS);
+        else
+            snprintf(line, sizeof(line), "wine-child: suspend %s at %lld ms\n", change == PW_SUSPEND_LEFT ?
+                     "left: the title says the app is away, or its beat stopped" : "back", now);
+        stage(line);
+    }
+    __atomic_store_n(&suspend_resumed_at, (long long)helper_suspend.resumed_ms, __ATOMIC_RELAXED);
+    __atomic_store_n(&suspend_away_now, (int)helper_suspend.away, __ATOMIC_RELAXED);
+    return pw_suspend_hold(&helper_suspend, (uint64_t)now);
+}
+/* The log thread's view: 1 while held, and *since_us, a hold may count no further back than the last return. */
+static int helper_suspend_held(long long now, uint64_t *since_us)
+{
+    const long long resumed = __atomic_load_n(&suspend_resumed_at, __ATOMIC_RELAXED);
+    *since_us = resumed && now > resumed ? (uint64_t)(now - resumed) * 1000 : resumed ? 0 : UINT64_MAX;
+    return __atomic_load_n(&suspend_away_now, __ATOMIC_RELAXED) || (resumed && now < resumed + PW_SUSPEND_GRACE_MS);
+}
 /* One line, each second it holds, when Wine's virtual mutex has been held 2 s or more, the direct-memory engine's lock
  * 2 s or more, or threads waited on the mutex at three looks in a row: who holds what, doing what, since when. In
  * a 2026-10-15 run (record removed from the tree) the census waited 160 s on that mutex and no record named its holder. A look counts as waited
@@ -397,8 +447,13 @@ static int stall_watch(void)
     vlock(&now);
     if (dmem) (void)dmem(holder, 7);
     if (doom) (void)doom(stamps, PW_CHILD_DOOMS);   /* EXIT's, for the rule; read again for the line */
-    if (!stall_list_ms && pw_control_stalled(now.owner, now.held_us, now.doing, stamps[PW_CHILD_DOOM_EXIT - 1],
-                                             holder[0], holder[1])) {
+    /* A hold that began before a freeze counts from the return (src/pw_suspend.h): a suspend is not a stall. */
+    uint64_t since_us;
+    const int held = helper_suspend_held(payload_monotonic_ms(), &since_us);
+    const uint64_t vlock_us = now.held_us < since_us ? now.held_us : since_us,
+                   dmem_us = holder[1] < since_us ? holder[1] : since_us;
+    if (!stall_list_ms && !held && pw_control_stalled(now.owner, vlock_us, now.doing, stamps[PW_CHILD_DOOM_EXIT - 1],
+                                                       holder[0], dmem_us)) {
         void (*doomed)(unsigned) = __atomic_load_n(&watch_doomed, __ATOMIC_ACQUIRE);
         if (doomed) doomed(PW_CHILD_DOOM_STALL);
         stall_owners[0] = now.owner;
@@ -653,6 +708,7 @@ static void *wine_worker(void *unused)
              worker.kernel_type, worker.kernel_priority, (unsigned long long)worker.cpus, status, inherit.policy,
              inherit.priority, inherit.kernel_type, inherit.kernel_priority, (unsigned long long)inherit.cpus);
     stage(line);
+    start_stamp("wine-main", -1);
     wine.wine_main(wine_argc,wine_argv); // Created children get parameters from the server.
     for (;;) sceKernelUsleep(100000);
 }
@@ -898,6 +954,18 @@ static void vm_census_report(void (*say_line)(const char *))
              census.class_mappings[2] - vm_census_cut_class[2], census.class_mappings[2], (unsigned long long)(vm_census_bytes_class[2] >> 20),
              (now_ns() - walk_begin) / 1000000, per_class > 0 ? " (budgets per class)" : "");
     say_line(line);
+    /* About what this helper takes of the system's page-table pool (src/pw_vm_census.h, regions_2m). */
+    {
+        int at = snprintf(line, sizeof(line), "wine-child: vm page tables ~%llu (2 MiB regions its accessible mappings touch; "
+                          "2m-direct %llu more, mapped with 2 MiB pages) by group ", (unsigned long long)census.regions_2m,
+                          (unsigned long long)census.regions_2m_direct);
+        if (at > 0 && (size_t)at < sizeof(line) - 2) {
+            size_t used = (size_t)at + pw_vm_census_format_regions(&census, 8, line + at, sizeof(line) - (size_t)at - 2);
+            line[used++] = '\n';
+            line[used] = 0;
+        }
+        say_line(line);
+    }
     int at = snprintf(line, sizeof(line), "wine-child: vm resident=%llu MiB direct_resident=%llu reserved_resident=%llu flexible=%llu direct=%llu other=%llu MiB "
                       "mappings=%u groups=%u%s%s top ", (unsigned long long)(census.resident >> 20),
                       (unsigned long long)(census.direct_resident >> 20), (unsigned long long)(census.reserved_resident >> 20),
@@ -957,6 +1025,32 @@ static int sdk_mprotect(const void *address, size_t bytes, int protection)
  * kernel allowed them) and the loader's own, so the terminal branch may print it wherever Wine's threads stopped. A
  * probe ends before the first census, so its terminal line is its only tally. */
 static unsigned (*exec_stats)(uint64_t *, unsigned);
+/* What this process's life spent in the server, in files and in section mapping, from ntdll's lock-free totals: the
+ * census prints them every 10 s, which a helper that lives under a second never reaches (installers' custom actions,
+ * docs/PLAN.md). One line, at the terminal branch, after Wine's threads stopped. */
+static void life_summary(void)
+{
+    void (*perf_snapshot)(PwWinePerf *) = (void *)pw_prx_lookup(wine.descriptor, "pw_wine_perf_snapshot");
+    unsigned (*file_stats)(unsigned long long *, unsigned) = (void *)pw_prx_lookup(wine.descriptor, "__wine_file_call_stats");
+    unsigned (*section_stats)(uint64_t *, unsigned) = (void *)pw_prx_lookup(wine.descriptor, "__wine_ps5_section_stats");
+    PwWinePerf perf = {0};
+    unsigned long long files[24] = {0};
+    uint64_t section[16] = {0};
+    if (perf_snapshot) perf_snapshot(&perf);
+    if (!file_stats || file_stats(files, 24) < 24) memset(files, 0, sizeof(files));
+    if (!section_stats || section_stats(section, 16) < 16) memset(section, 0, sizeof(section));
+    char line[400];
+    /* file kinds in __wine_file_call_stats' order: read, create, open, attributes, directory, information */
+    snprintf(line, sizeof(line), "wine-child: life summary ms=%lld server_calls=%llu server_ms=%llu file_read_calls=%llu "
+             "file_read_ms=%llu file_open_calls=%llu file_open_ms=%llu file_attributes_ms=%llu file_information_ms=%llu "
+             "section_map_calls=%llu section_map_ms=%llu section_fault_calls=%llu section_fault_ms=%llu\n",
+             payload_monotonic_ms(), (unsigned long long)perf.server_calls,
+             perf.tsc_hz ? (unsigned long long)(perf.server_ticks * 1000 / perf.tsc_hz) : 0ull,
+             files[0], files[1] / 1000000ull, files[8], files[9] / 1000000ull, files[13] / 1000000ull, files[21] / 1000000ull,
+             (unsigned long long)section[8], (unsigned long long)(section[9] / 1000000ull),
+             (unsigned long long)section[1], (unsigned long long)(section[2] / 1000000ull));
+    stage(line);
+}
 static void exec_tally(void)
 {
     uint64_t v[7] = {0};
@@ -1615,8 +1709,9 @@ static void *payload_telemetry(void *unused)
  * for each reason as it appears; once the earliest grace is up, "payload doomed" and 1: the caller returns straight
  * into payload main's _exit, with no tallies and no fsync, since a doomed helper's Wine may hold whatever they would
  * wait on. */
-static int doom_tick(PwControlDoom *watch, long long now)
+static int doom_tick(PwControlDoom *watch, long long now, int held)
 {
+    static int deferred_said;
     unsigned (*doom)(int64_t *, unsigned) = __atomic_load_n(&watch_doom, __ATOMIC_ACQUIRE);
     int64_t stamps[PW_CHILD_DOOMS] = {0};
     unsigned reason = 0;
@@ -1631,6 +1726,16 @@ static int doom_tick(PwControlDoom *watch, long long now)
         stage(line);
     }
     if (step != PW_CONTROL_DOOM_DUE) return 0;
+    /* Not while the app is away or just back (src/pw_suspend.h): ending would free direct memory GPU work may still use. */
+    if (held) {
+        if (!deferred_said) {
+            deferred_said = 1;
+            snprintf(line, sizeof(line), "wine-child: payload doom reason=%s due; deferred while the app is away or just "
+                     "back\n", doom_names[reason - 1]);
+            stage(line);
+        }
+        return 0;
+    }
     snprintf(line, sizeof(line), "wine-child: payload doomed reason=%s stamped_ms_ago=%lld; ending without Wine\n",
              doom_names[reason - 1], now - (long long)stamps[reason - 1]);
     stage(line);
@@ -1670,6 +1775,57 @@ static int wine_start_elf(const char *prx_path)
     return 0;
 }
 
+/* The title's own exit. A system close from the home screen kills the title, and about 100 ms later the system deletes
+ * the application's direct-memory container, to which every helper's memory is charged (sceKernelAllocateDirectMemoryForApp).
+ * Helpers learned of the death through their control sockets, one after another over about 110 ms, and the kernel found a
+ * helper's ranges still mapped by later helpers ("DMEM leak is detected by dmem_remove_segment()", owner the helper that had
+ * offered shared code copies; the Pro, 2026-10-27, twice). This thread waits on the title's pid itself (kqueue NOTE_EXIT), so
+ * every helper sees the death in the same instant, and ends the process at once. That was not enough for the warning:
+ * the kernel still found a helper's ranges (proof-base-2026-10-28), every helper having begun to exit before the
+ * container went, but an exit gives direct memory back only after tearing down descriptors and the address space. A
+ * helper that released its ranges itself first ended in the kernel and outlived SIGKILL (the gate of 2026-10-28-04,
+ * likely wired module data; docs/PLAN.md "Memory plan"), so it does not: the kernel takes those ranges back at the
+ * container's deletion, as the warning says. The line says when, and what descriptors were still open. */
+static int title_pid;
+static void *title_watch(void *unused)
+{
+    (void)unused;
+    char line[256];
+    struct kevent change, event;
+    const int queue = kqueue();
+    EV_SET(&change, title_pid, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, NULL);
+    const int armed = queue >= 0 ? kevent(queue, &change, 1, NULL, 0, NULL) : -1;
+    const int arm_error = armed < 0 ? errno : 0;
+    if (armed < 0 && arm_error != ESRCH) {
+        snprintf(line, sizeof(line), "wine-child: title watch pid=%d unavailable errno=%d; the control socket alone ends "
+                 "this helper\n", title_pid, arm_error);
+        stage(line);
+        return NULL;
+    }
+    if (armed >= 0) {
+        snprintf(line, sizeof(line), "wine-child: title watch pid=%d armed\n", title_pid);
+        stage(line);
+        for (;;) {
+            const int got = kevent(queue, NULL, 0, &event, 1, NULL);
+            if (got == 1 && (event.fflags & NOTE_EXIT)) break;
+            if (got < 0 && errno != EINTR) {
+                snprintf(line, sizeof(line), "wine-child: title watch wait failed errno=%d\n", errno);
+                stage(line);
+                return NULL;
+            }
+        }
+    }
+    const long long seen = payload_monotonic_ms();
+    struct PwFdCensus fds;
+    pw_fd_census(&fds);
+    snprintf(line, sizeof(line), "wine-child: title %d exited, seen at %lld ms%s; ending at once (descriptors open=%u "
+             "sockets=%u fifos=%u files=%u devices=%u other=%u)\n", title_pid, seen,
+             armed < 0 ? " (already gone when armed)" : "", fds.open, fds.sockets, fds.fifos, fds.files, fds.devices, fds.other);
+    stage(line);
+    fsync(output_fd);
+    _exit(0);
+}
+
 static void wine_child_run(void)
 {
     unsigned mxcsr = 0x1f80;
@@ -1678,6 +1834,14 @@ static void wine_child_run(void)
     snprintf(log_path, sizeof(log_path), PW_LOG_SESSIONS_ROOT "/0/wine-child-%d.log", (int)getpid());
     output_fd = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     stage("wine-child: entry\n");
+#ifndef PW_HELPER_BUILD
+#define PW_HELPER_BUILD "unknown"   /* a build outside tools/build-payload-loader.sh */
+#endif
+    /* Which build this helper is (tools/build-payload-loader.sh's source digest): a tester's bundle names it at once. */
+    stage("wine-child: build " PW_HELPER_BUILD "\n");
+    start_stamp("main", start_main_ms);
+    start_stamp("control", start_control_ms);
+    start_stamp("entry", -1);
     {
         /* Which firmware this helper runs on, once per helper, for the title's notice when a module load stops it
          * (errno 92, src/pw_start_failure.h). The INSTALLED firmware, not the word an enabler reports (src/pw_firmware.h).
@@ -1761,7 +1925,9 @@ static void wine_child_run(void)
 #ifdef PROTON_CHILD_GPU_BROKER
     int broker_fd=-1;
 #endif
-    const int boot_polled = poll(&pollfd, 1, 10000);
+    /* A helper the title started ahead of need waits here until a start takes it (src/pw_warm_helper.h); the title closes
+     * one it does not use, which ends this wait with a hangup. */
+    const int boot_polled = poll(&pollfd, 1, PW_WARM_BOOTSTRAP_MS);
     const int boot_poll_error = boot_polled < 0 ? errno : 0;
     const ssize_t boot_received = boot_polled == 1 && (pollfd.revents & POLLIN)
                                 ? pw_child_recv(3, &boot, sizeof(boot), fds, &count) : -2;
@@ -1772,6 +1938,7 @@ static void wine_child_run(void)
              boot_polled, boot_poll_error, (unsigned)pollfd.revents, boot_received, boot_receive_error,
              sizeof(boot), count, boot.protocol, boot.size, boot.flags, boot.argc);
     stage(boot_line);
+    start_stamp("bootstrap", -1);
     if (boot_polled != 1 || !(pollfd.revents & POLLIN) || boot_received != sizeof(boot) ||
 #if defined(PROTON_CHILD_GPU_DEVICE_QUERY) || defined(PROTON_CHILD_GPU_BROKER)
         (count!=1 && count!=2) ||
@@ -1796,6 +1963,13 @@ static void wine_child_run(void)
     }
     sched_place_cpus(boot.flags, boot.environment, sizeof(boot.environment));
     sched_entry(boot.flags==PW_CHILD_MEMORY ? "memory" : "program", boot.environment, sizeof(boot.environment));
+    // The title's exit, watched directly, for every helper the memory helper included (title_watch above).
+    if ((title_pid = pw_control_title_pid(boot.environment, sizeof(boot.environment))) > 0) {
+        char watch_line[96];
+        snprintf(watch_line, sizeof(watch_line), "wine-child: title watch thread status=%d\n",
+                 native_thread(title_watch, 64u << 10));
+        stage(watch_line);
+    } else stage("wine-child: title watch: no WINE_PS5_TITLE_PID in the bootstrap\n");
     {
         char sync_line[96];
         snprintf(sync_line, sizeof(sync_line), "wine-child: log sync every 10 s, stall watch every 1 s status=%d\n",
@@ -1840,6 +2014,9 @@ static void wine_child_run(void)
         if(page_fd<0 || page_sent)goto done;
         char page_value[24];snprintf(page_value,sizeof(page_value),"%d",page_fd);
         if(set_env("WINE_PS5_INPUT_FD",page_value))goto done;
+        // The title's suspend word in it (src/pw_suspend.h), read by this loader's threads.
+        void *word_page=mmap(NULL,PW_WINE_INPUT_PAGE_BYTES,PROT_READ,MAP_SHARED,page_fd,0);
+        if(word_page!=MAP_FAILED)title_word=(const PwSuspendPage *)((const char *)word_page+PW_SUSPEND_PAGE_OFFSET);
         stage("wine-child: input page made and given to the title\n");
     }
     if(boot.flags&PW_CHILD_AUDIO) {
@@ -1902,6 +2079,7 @@ static void wine_child_run(void)
 #endif
     if(set_env("WINE_PS5_PAYLOAD_CHILD", "1"))goto done;
     stage("wine-child: payload entry, control fd 3; no elevation needed\n");
+    start_stamp("payload-entry", -1);
     // The title and its children share one budget of about 250 open files (fd-budget-01). The server, in the
     // title, opens every Windows file and parks the idle ones (patch 0929); a child's own files are few, and it
     // parks them early so they never crowd the server's out.
@@ -1974,6 +2152,7 @@ static void wine_child_run(void)
         { char directory[256]; snprintf(directory, sizeof(directory), "%s", ntdll); char *slash = strrchr(directory, '/'); if (slash) { *slash = 0; pw_malloc_trace_start(directory); } }
         stage(loader_line);
         stage(load_line);
+        start_stamp("ntdll-loading", -1);
     }
     int elf_ntdll_handle = -1;
     if (user_space_loader) {
@@ -1988,6 +2167,7 @@ static void wine_child_run(void)
         stage("wine-child: ntdll load failed\n"); goto done;
     }
     stage("wine-child: ntdll loaded\n");
+    start_stamp("ntdll-loaded", -1);
     {
         // The loader and the ntdll it loaded must speak one protocol, or the title refuses what this process sends
         // (a spawn request, its exit) and nothing says why.
@@ -2181,7 +2361,7 @@ static void wine_child_run(void)
         const int poll_error=polled<0 ? errno : 0;
         const long long now=payload_monotonic_ms();
         if (doom_test && now>=doom_test_at) { doom_test(PW_CHILD_DOOM_TEST);doom_test=NULL; }
-        if (doom_tick(&doom_watch,now)) return;
+        if (doom_tick(&doom_watch,now,helper_suspend_tick(now))) return;
         if(error || (polled > 0 && (events & (POLLHUP|POLLERR|POLLNVAL)))) {
             const long long terminal_started = payload_monotonic_ms();
             struct stat current={0};
@@ -2194,6 +2374,7 @@ static void wine_child_run(void)
             snprintf(terminal,sizeof(terminal),"wine-child: payload terminal reason=%s bootstrap_error=%d poll=%d errno=%d revents=%#x same_metadata=%d stat=%d socket_status=%d socket_type=%d; returning to payload main\n",
                      error ? "bootstrap-refused" : "control-ended",error,polled,poll_error,(unsigned)events,same,final_stat,type_status,final_type);
             stage(terminal);
+            if (!error) life_summary();
             exec_tally();
             code_share_tally();
         code_cache_tally();

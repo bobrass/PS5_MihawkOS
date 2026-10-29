@@ -2,6 +2,7 @@
 #include "../src/pw_control_watch.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
@@ -101,9 +102,28 @@ static void check_doom_record(void)
            read[4] == 5000 && read[PW_CHILD_DOOMS] == -1 && read[PW_CHILD_DOOMS + 1] == -1);
 }
 
+/* The title's pid in the bootstrap's block: found among others, 0 when absent, empty, signed or not a number. */
+static void check_title_pid(void)
+{
+    static const char block[] = "WINE_PS5_DESKTOP=1\0WINE_PS5_TITLE_PID=1055\0DXVK_HUD=fps\0";
+    assert(pw_control_title_pid(block, sizeof(block)) == 1055);
+    static const char none[] = "WINE_PS5_DESKTOP=1\0\0WINE_PS5_TITLE_PID=7\0";   /* after the list's end */
+    assert(pw_control_title_pid(none, sizeof(none)) == 0);
+    static const char bad[] = "WINE_PS5_TITLE_PID=-5\0";
+    assert(pw_control_title_pid(bad, sizeof(bad)) == 0);
+    static const char empty[] = "WINE_PS5_TITLE_PID=\0";
+    assert(pw_control_title_pid(empty, sizeof(empty)) == 0);
+    static const char other[] = "WINE_PS5_TITLE_PIDX=5\0WINE_PS5_TITLE_PID=12a\0";
+    assert(pw_control_title_pid(other, sizeof(other)) == 0);
+    char unended[24];
+    memcpy(unended, "WINE_PS5_TITLE_PID=42", 21); memset(unended + 21, 'x', 3);   /* no zero within size */
+    assert(pw_control_title_pid(unended, sizeof(unended)) == 0);
+    assert(pw_control_title_pid(unended, 21) == 42);
+}
 int main(void)
 {
     check_doom();
+    check_title_pid();
     check_doom_record();
     check_stalled();
     int pair[2];short events;char packet=0;
@@ -122,6 +142,6 @@ int main(void)
     assert(recv(pair[1],&packet,1,MSG_DONTWAIT)==1 && packet=='q');
     close(pair[1]);
     assert(pw_control_watch(pair[1],100,&events)==1 && (events&POLLNVAL));
-    puts("control watch: PASS (queued packets wait, consumer retains data, buffered hangup, invalid fd, doom grace, doom record, stall rule)");
+    puts("control watch: PASS (queued packets wait, consumer retains data, buffered hangup, invalid fd, doom grace, doom record, stall rule, title pid)");
     return 0;
 }
