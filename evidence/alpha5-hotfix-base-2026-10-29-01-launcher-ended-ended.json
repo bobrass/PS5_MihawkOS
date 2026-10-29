@@ -1,0 +1,50 @@
+{
+  "launch_readiness": {
+    "ready": true,
+    "seconds": 0.162,
+    "settle_seconds": 0.0,
+    "census_seconds": 0.151,
+    "previous_cleanup_verified": true
+  },
+  "session_marker_left": false,
+  "title": "PPSA99170",
+  "identity": "dc2cb60936694db1b5b5f73654cf3376",
+  "frames_requested": 120,
+  "eboot_sha256": "5140758527582d1a138acd1037008260d90ecab38d13a320726391e840e1a212",
+  "fresh_identity_seen": true,
+  "shell_idle_after_run": true,
+  "title_finished_successfully": true,
+  "picture_and_log_check_passed": true,
+  "post_launch_fault_records": 0,
+  "post_launch_driver_errors": 0,
+  "elevation": [
+    "ok (filesystem access)",
+    "ok (filesystem access)"
+  ],
+  "sample": [
+    "starts",
+    "ok, 120 frames in 2.32 s, 59.9 fps after the first half"
+  ],
+  "library": [
+    "3 game(s); searched: /data/ps5proton/games (2 entries); /data/homebrew/PPSA99170/games (not there)",
+    "library shows 3 of 3 (every entry but those with \"launcher\": false; /data/ps5proton/library-show-all shows them all)",
+    "Last session ended: Wine: requested profile gate-no-such-entry is not in the library",
+    "Payloads are using about 93 MiB; closing them frees room for games."
+  ],
+  "notices": [],
+  "startup_seconds": {
+    "exec": 0.0,
+    "starts": 0.44,
+    "elevation": 0.44,
+    "library": 2.18,
+    "ui": 2.23
+  },
+  "probe": null,
+  "probe_passed": null,
+  "probe_records": [],
+  "controls_preview": null,
+  "passed": true,
+  "capture": "klog/alpha5-hotfix-base-2026-10-29-01-launcher-ended-ended",
+  "forced_close": false,
+  "storage_errors": 0
+}

@@ -38,7 +38,7 @@ title=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titleId
 # the title folder. tools/build-lapy-validation.py --resident builds it (platform/lapy/README.md),
 # checked first, so a build that cannot ship stops before hours of building.
 daemon=$root/.deps/lapy-validation/source/build/owned_root_daemon-service-verified-client
-daemon_sha256=5651f2ade61731a302e2a630344e6bd893a33f6503c90237d0abed699364bd7f
+daemon_sha256=76481d3d2ea5f9e588111e74281ae47eea283b0f23481ef8fb71c2402c6e7fc0
 python3 - "$daemon" "$daemon_sha256" "$title" <<'EOF'
 import hashlib, json, sys
 from pathlib import Path

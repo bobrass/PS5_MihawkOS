@@ -1217,17 +1217,20 @@ private:
 			const char *version = k == PW_PAYLOAD_SHADOWMOUNT ? f.shadowmount_version : k == PW_PAYLOAD_WEBSRV ? f.websrv_version : "";
 			std::string state;
 			if (r.ok[k]) state = std::string("Ready") + (*version ? std::string(" \u00b7 ") + version : "");
+			else if (!r.running[k] && !r.listed) state = "Not checked: no access to /data yet";
 			else if (!r.running[k]) state = "Missing: load it";
 			else if (k == PW_PAYLOAD_SHADOWMOUNT && *version) state = std::string("Too old (") + version + "): needs 1.7beta10 or later";
 			else if (k == PW_PAYLOAD_SHADOWMOUNT) state = "Not answering: turn its web API on";
 			else state = "Not answering";
-			if (r.running[k]) state += " \u00b7 " + mib(r.resident[k]);
-			row(left, top + 44 + k * 56, pw_payload_label(k), state, r.ok[k] ? 1 : -1, r.ok[k] ? look.success : look.danger);
+			if (r.running[k] && r.listed) state += " \u00b7 " + mib(r.resident[k]);   // a loopback answer has no size
+			const bool unseen = !r.listed && !r.running[k];   // not checked: a neutral mark, never "missing"
+			row(left, top + 44 + k * 56, pw_payload_label(k), state, r.ok[k] ? 1 : unseen ? 0 : -1,
+				r.ok[k] ? look.success : unseen ? look.outline : look.danger);
 		}
 		hui::ui::text(list, fonts.semibold, "OPTIONAL", right, top, 19, look.text_muted);
 		int at = 0;
 		for (int k = PW_PAYLOAD_REQUIRED; k < PW_PAYLOAD_KNOWN; ++k, ++at)
-			row(right, top + 44 + at * 56, pw_payload_label(k), r.running[k] ? "Running \u00b7 " + mib(r.resident[k]) : "Not loaded", 0,
+			row(right, top + 44 + at * 56, pw_payload_label(k), r.running[k] ? "Running \u00b7 " + mib(r.resident[k]) : r.listed ? "Not loaded" : "Not checked", 0,
 				r.running[k] ? look.primary : look.outline);
 		// Each extra payload by name, as room allows (two rows); a third or more share the second row
 		const unsigned named = r.others <= 2 ? r.others : 1;

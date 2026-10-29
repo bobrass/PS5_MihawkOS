@@ -119,13 +119,13 @@ releases, pacbrew) were not downloaded again; their pins are recorded, not re-ve
 - **Proprietary material.** None found: no Sony or SCE marker, no official SDK header. Upstream tracks one prebuilt
   release ELF; this project does not use it and builds the daemon from source.
 - **Pinned.** Revision `5b8397b9f2b5f12a7bc2f9c8745a00d1c2dd01ad` with the patches in `platform/lapy/`; the resident
-  build is pinned by SHA-256 `5651f2ade61731a302e2a630344e6bd893a33f6503c90237d0abed699364bd7f`
+  build is pinned by SHA-256 `76481d3d2ea5f9e588111e74281ae47eea283b0f23481ef8fb71c2402c6e7fc0`
   (`tools/build-production.sh`; payload SDK v0.42), reproducible from any folder with clang and LLD 23.1.3
   (`platform/lapy/deterministic-build.patch`). Licence: `platform/lapy/LICENSE` (MIT), equal to upstream's.
 - **Evidence for clean.** Built from public source at a pinned revision, reproducibly. The daemon raises a title's
-  privileges on a console that already runs homebrew; it is a jailbreak-side component by nature. This project's seven
+  privileges on a console that already runs homebrew; it is a jailbreak-side component by nature. This project's eight
   patches in `platform/lapy/` add no new console constants; `sdk042-ucred-attrs.patch` adapts an existing field
-  access to payload SDK v0.42's interface. The cooperative owned-root backend MihawkOS builds
+  access to payload SDK v0.42's interface, and `optional-log-channel.patch` keeps the daemon running without its logs. The cooperative owned-root backend MihawkOS builds
   finds the credential slot at run time and refuses unless exactly one slot matches (upstream `owned_root_daemon.c`,
   `README.md`). Upstream credits named public projects for the offsets of its legacy backend (`README.txt`,
   `docs/ELEVATION.md`), which MihawkOS does not build.

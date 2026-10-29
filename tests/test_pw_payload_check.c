@@ -22,7 +22,7 @@ enum { BASE = sizeof(base) / sizeof(base[0]), SELF = 120 };
 
 static PwPayloadFacts good(void)
 {
-    PwPayloadFacts f = { 1, PW_KSTUFF_OK, "1.7beta10", "v0.34" };
+    PwPayloadFacts f = { 1, PW_KSTUFF_OK, "1.7beta10", "v0.34", 0 };
     return f;
 }
 
@@ -119,6 +119,26 @@ int main(void)
     pw_payload_check(base, BASE, SELF, &f, &r);
     advise(&r, &f, advice);
     assert(!r.pass && strstr(advice, "does not answer"));
+
+    /* A tester's of 2026-10-29: the access daemon stopped (no dev.conf), so the title had no root and listed itself
+     * alone ("processes=1 kstuff=absent shadowmountplus=1.7beta10 websrv=v0.34") while every payload ran. Nothing may be
+     * called missing: what answered on the loopback shows running, and the advice names the access problem. */
+    PwPayloadProcess alone[] = { { SELF, 53, "eboot.bin", MIB(300) } };
+    f = good();
+    f.kstuff = PW_KSTUFF_ABSENT;
+    f.data_denied = 1;
+    pw_payload_check(alone, 1, SELF, &f, &r);
+    assert(!r.pass && !r.listed && !r.others);
+    assert(r.running[PW_PAYLOAD_SHADOWMOUNT] && r.ok[PW_PAYLOAD_SHADOWMOUNT] && r.running[PW_PAYLOAD_WEBSRV] && r.ok[PW_PAYLOAD_WEBSRV]);
+    assert(!r.running[PW_PAYLOAD_ELFLDR] && !r.running[PW_PAYLOAD_KSTUFF] && !r.running[PW_PAYLOAD_NANODNS]);
+    advise(&r, &f, advice);
+    assert(strstr(advice, "could not get access to /data") && strstr(advice, "DEV_SERVER=127.0.0.1"));
+    assert(!strstr(advice, "Load") && !strstr(advice, "older") && !strstr(advice, "other payload"));
+    /* The same with a title that has /data but still saw nothing: the general words, still nothing called missing */
+    f.data_denied = 0;
+    pw_payload_check(alone, 1, SELF, &f, &r);
+    advise(&r, &f, advice);
+    assert(!r.pass && strstr(advice, "could not see") && !strstr(advice, "Load"));
 
     /* Nothing listed fails, never passes blind. */
     f = good();

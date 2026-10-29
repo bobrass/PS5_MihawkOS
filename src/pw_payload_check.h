@@ -58,6 +58,7 @@ typedef struct {
     int kstuff;                    /* PW_KSTUFF_...: OK when its process runs (the title cannot tell OLD) */
     char shadowmount_version[32];
     char websrv_version[32];
+    int data_denied;               /* 1 when the title has no /data (no root): it then sees its own process alone */
 } PwPayloadFacts;
 
 #define PW_PAYLOAD_OTHERS 8
@@ -70,7 +71,9 @@ typedef struct {
     uint64_t other_each[PW_PAYLOAD_OTHERS];   /* bytes, each named one's */
     uint64_t other_resident;                  /* bytes, all of them */
     uint64_t payload_resident;                /* bytes: every payload's, known or not, ours left out */
-    int listed;
+    int listed;                               /* 0: the processes could not be seen (no list, or not even SceSysCore in it:
+                                                 a title without root sees itself alone); nothing is said missing then,
+                                                 and only what answered on the loopback is shown running */
     int pass;
 } PwPayloadReport;
 

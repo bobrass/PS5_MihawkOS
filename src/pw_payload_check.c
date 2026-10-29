@@ -51,13 +51,18 @@ void pw_payload_check(const PwPayloadProcess *list, unsigned count, int self, co
                       PwPayloadReport *out)
 {
     memset(out, 0, sizeof(*out));
-    out->listed = facts->listed;
     int syscore = 0, websrv = 0;
     for (unsigned i = 0; i < count; ++i) {
         if (!strncmp(list[i].name, "SceSysCore", 10)) syscore = list[i].pid;
         if (named(list[i].name, "websrv")) websrv = list[i].pid;
     }
-    for (unsigned i = 0; i < count; ++i) {
+    /* A tester's title without root listed itself alone ("processes=1") and called every payload missing (2026-10-29) */
+    out->listed = facts->listed && syscore > 0;
+    if (!out->listed) {
+        out->running[PW_PAYLOAD_SHADOWMOUNT] = facts->shadowmount_version[0] != 0;
+        out->running[PW_PAYLOAD_WEBSRV] = facts->websrv_version[0] != 0;
+    }
+    for (unsigned i = 0; out->listed && i < count; ++i) {
         const PwPayloadProcess *p = &list[i];
         if (p->pid == self || p->ppid == self || p->pid == syscore || !pw_memory_is_payload(p->ppid, syscore, p->name))
             continue;
@@ -107,8 +112,12 @@ size_t pw_payload_advice(const PwPayloadReport *r, const PwPayloadFacts *facts, 
     size_t used = 0;
     if (size) out[0] = 0;
     if (!r->listed) {
-        add(out, size, &used, "MihawkOS could not see which payloads are running. Restart the PS5, load the payloads "
-            "listed here, then open MihawkOS again.");
+        if (facts->data_denied)
+            add(out, size, &used, "MihawkOS could not get access to /data, so it cannot check your payloads. Check that "
+                "/data/homebrew/dev.conf holds the two lines DEV_SERVER=127.0.0.1 and DEV_PORT=8080, then restart MihawkOS.");
+        else
+            add(out, size, &used, "MihawkOS could not see which payloads are running. Restart the PS5, load the payloads "
+                "listed here, then open MihawkOS again.");
         return used < size ? used : size - 1;
     }
     int missing = 0, restart = r->others > 0;

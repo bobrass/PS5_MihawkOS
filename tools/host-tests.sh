@@ -286,7 +286,7 @@ if (( $# == 0 )) || [[ "$*" == *console_guard* ]]; then
     for test in console_guard battery_runner gate_quick shell_capture window_compose_runner appearance_runner profile_report \
             desktop_session_runner desktop_input_runner tls_fixture telemetry_teardown \
             window_material_tokens window_effects_runner frame_pacing_runner deploy_folder console_setup sched_watch run_console_verdicts \
-            placed_unmap_order module_wiring helper_opengl privacy_check dll_overrides prx_exports taskbar_logo stage_licences publication_check title_icon pack_runtime pw_https mihawk_wallpaper aero_wallpapers mihawk_music browser_lines sign_release package_install check_title_imports carrier_image_probe payload_firmware memory_breakdown run_shared_charge webui_http webui_i18n deploy_wine_retire start_stages wineboot_install_sentinel build_stamp; do
+            placed_unmap_order module_wiring helper_opengl privacy_check dll_overrides prx_exports taskbar_logo stage_licences publication_check title_icon pack_runtime pw_https mihawk_wallpaper aero_wallpapers mihawk_music browser_lines sign_release package_install check_title_imports carrier_image_probe payload_firmware lapy_patches memory_breakdown run_shared_charge webui_http webui_i18n deploy_wine_retire start_stages wineboot_install_sentinel build_stamp; do
         python3 "$root/tests/test_$test.py"
         ran=$((ran + 1))
     done

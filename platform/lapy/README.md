@@ -28,6 +28,7 @@ the exact ELF and its no-duplicate/no-launch-this-boot checks.
 | `deterministic-build.patch` | Repeatable build ID and byte-identical payload builds: a SHA-1 linker build ID, and the build identity keyed by each input's path relative to the source, or its file name outside it (the logger header), never by absolute path. Since 2026-10-16 the resident ELF is the same from any folder with the same clang/LLD; the ELF records their versions, so another version gives another file |
 | `resident-log.patch` | Resident diagnostics under `/data/ps5proton/logs/lapy-service.log` |
 | `sdk042-ucred-attrs.patch` | Adapt the ucred attrs calls to the v0.42+ SDK API (a 32-byte blob, not a uint64); v0.42 is the oldest release whose crt accepts firmware 13.40, 13.42 and 13.60 |
+| `optional-log-channel.patch` | The resident daemon runs without dev.conf, a log server or a logs folder (it used to exit 2 before any work); it makes `/data/ps5proton/logs` and keeps its file log when it can. `tests/test_lapy_patches.py` checks it |
 
 ## Build and evidence
 
@@ -38,7 +39,7 @@ python3 tools/build-lapy-validation.py --sdk-zip /path/to/ps5-payload-sdk-v0.42.
 
 Run from the repository root. Inputs are hash-pinned; production validates the
 resident ELF hash/mode/title before packaging. These commands build, not deploy.
-The resident pin re-made on 2026-10-20 (`5651f2ad...`) moved to payload SDK v0.42,
+The resident pin re-made on 2026-10-29 (`76481d3d...`) adds optional-log-channel.patch; the 2026-10-20 pin moved to payload SDK v0.42,
 whose crt accepts firmware 13.40, 13.42 and 13.60 (v0.40 faulted with SIGILL in
 `_start` on 13.40); the measurements below are of an earlier v0.40 pin.
 

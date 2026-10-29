@@ -1,0 +1,40 @@
+Keep the resident daemon running when its logging is missing.
+
+ps5log_init_default() returns 0 only when the network log channel is up. Without
+/data/homebrew/dev.conf (no DEV_SERVER), or when websrv's log port does not
+accept, it returns 1, and the daemon returned 2 before doing any work: the title
+then waited 15 s and showed "No access to /data". A tester on Alpha 5 (fw 13.60,
+payloads loaded by Payload Manager) hit exactly this. The resident build also
+returned 2 when lapy-service.log could not be opened, which a console without
+/data/ps5proton/logs yet would hit.
+
+In the resident build (service, no request limit) logging is now best effort:
+the logs folder is created if missing, the file mirror is used when it opens,
+and a down network channel is only recorded. The validation builds keep their
+hard requirement on the log channel, which their PC harness provides.
+
+--- a/source/owned_root_daemon.c
++++ b/source/owned_root_daemon.c
+@@ -977,16 +977,18 @@
+     int error = 0, acknowledged = 0;
+     const char *stage = "preflight";
+ #if LAPY_SERVICE && !LAPY_MAX_REQUESTS
+-    /* Normal use must retain diagnostics without a PC holding stdout open. */
++    /* Normal use must retain diagnostics without a PC holding stdout open. A player may
++     * have no dev.conf, no log server and no logs folder yet: logging never stops the daemon. */
++    mkdir("/data/ps5proton", 0777);
++    mkdir("/data/ps5proton/logs", 0777);
+     int log_fd = open("/data/ps5proton/logs/lapy-service.log",
+                       O_WRONLY | O_CREAT | O_APPEND, 0666);
+-    if (log_fd < 0) return 2;
+-    ps5log_set_mirror_fd(log_fd);
++    if (log_fd >= 0) ps5log_set_mirror_fd(log_fd);
+ #else
+     ps5log_set_mirror_fd(STDOUT_FILENO);
+ #endif
+     int logging_ready = ps5log_init_default("LAPYOWN", "lapy-owned-root-daemon") == 0;
+-#if !LAPY_ELF_HELPER
++#if !LAPY_ELF_HELPER && !(LAPY_SERVICE && !LAPY_MAX_REQUESTS)
+     if (!logging_ready) return 2;
+ #endif
+     ps5log_printf(PS5LOG_MARK,

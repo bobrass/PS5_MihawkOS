@@ -335,8 +335,8 @@ int main(int argc, char **argv)
 #endif
 #if !defined(PS5_HOST_REFERENCE)
 	// The title sets itself up before it asks for root (src/pw_first_run.h): dev.conf for the daemon it may start, the
-	// data folder, whose presence decides how it asks, and its logs/: the daemon opens logs/lapy-service.log before
-	// anything else and exits 2 when it cannot (platform/lapy/resident-log.patch).
+	// data folder, whose presence decides how it asks, and its logs/, where the daemon keeps logs/lapy-service.log. The
+	// daemon no longer needs either: without them it runs unlogged (platform/lapy/optional-log-channel.patch).
 	const int devConf = pw_first_run_dev_conf("/data/homebrew/dev.conf");
 	const int dataFolder = mkdir(PROTON_DATA_ROOT, 0777) == 0 ? 0 : errno;
 	const int logsFolder = mkdir(PROTON_DATA_ROOT "/logs", 0777) == 0 ? 0 : errno;

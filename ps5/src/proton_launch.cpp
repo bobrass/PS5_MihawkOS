@@ -1068,6 +1068,7 @@ const PwPayloadReport &proton_payloads_check()
 	snprintf(gPayloadFacts.websrv_version, sizeof(gPayloadFacts.websrv_version), "%s",
 		json_text(loopback_http(PW_ELFLDR_PORT, "GET /version HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"),
 			"tag").c_str());
+	gPayloadFacts.data_denied = !gDataGranted;
 	pw_payload_check(list.data(), (unsigned)list.size(), (int)getpid(), &gPayloadFacts, &gPayloads);
 	int syscore = 0;
 	for (const auto &process : list)
@@ -1099,6 +1100,9 @@ const PwPayloadFacts &proton_payload_facts()
 
 std::string proton_payloads_problem()
 {
+	// Not seeing the processes is the access problem the launcher already names (dev.conf, websrv, the daemon), not a
+	// missing payload
+	if (!proton_payloads().listed && !proton_data_problem().empty()) return proton_data_problem();
 	char advice[1024];
 	pw_payload_advice(&proton_payloads(), &gPayloadFacts, advice, sizeof(advice));
 	return advice;
